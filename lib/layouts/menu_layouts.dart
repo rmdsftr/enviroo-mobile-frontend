@@ -35,7 +35,7 @@ class _MainMenuState extends State<MainMenu> {
                 label: "Setoran",
                 icon: Icons.account_balance_wallet_rounded,
                 color: Color(0xFF4EA771), // Medium green
-                iconColor: Colors.white,
+                iconColor: Color(0xFF013236),
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => SetoranScreen()),
@@ -46,7 +46,7 @@ class _MainMenuState extends State<MainMenu> {
                 label: "Penarikan",
                 icon: Icons.north_rounded,
                 color: Color(0xFF06C0C9), // Teal/Turquoise
-                iconColor: Colors.white,
+                iconColor: Color(0xFF013236),
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => PenarikanScreen()),
