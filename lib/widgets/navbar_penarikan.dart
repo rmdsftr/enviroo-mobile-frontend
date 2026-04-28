@@ -17,7 +17,7 @@ class NavbarPenarikan extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Color(0xFFD9D9D9).withOpacity(0.5),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(50),
         ),
         child: Row(

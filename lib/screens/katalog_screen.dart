@@ -1,7 +1,22 @@
+import 'package:enviroo/models/katalog_model.dart';
+import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/providers/katalog_provider.dart';
 import 'package:enviroo/widgets/navbar_katalog.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Palette
+// ─────────────────────────────────────────────────────────────────────────────
+class _C {
+  static const bg       = Color(0xFFF2FAF0);
+  static const dark     = Color(0xFF0D3B3E);
+  static const card     = Color(0xFFFFFFFF);
+  static const accent   = Color(0xFF4EA771);
+  static const teal     = Color(0xFF013236);
+}
 
 class KatalogScreen extends StatefulWidget {
   @override
@@ -11,66 +26,41 @@ class KatalogScreen extends StatefulWidget {
 class _KatalogScreenState extends State<KatalogScreen> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _searchSembakoController = TextEditingController();
-  final GlobalKey _headerKey = GlobalKey();
-  String _selectedFilter = 'semua';
+  int _selectedFilter = 0;
   String _searchQuery = '';
   String _searchSembakoQuery = '';
   int _selectedTab = 0;
-  double _headerHeight = 0;
-
-  // Dummy data untuk katalog sampah
-  final List<Map<String, dynamic>> _katalogItems = [
-    {'nama': 'Botol Plastik', 'gambar': 'assets/images/sampah/botol_plastik.png', 'tipe': 'uang', 'harga': 3000},
-    {'nama': 'Kardus', 'gambar': 'assets/images/sampah/kardus.png', 'tipe': 'uang', 'harga': 2000},
-    {'nama': 'Kaleng Aluminium', 'gambar': 'assets/images/sampah/kaleng.png', 'tipe': 'uang', 'harga': 8000},
-    {'nama': 'Kertas HVS', 'gambar': 'assets/images/sampah/kertas.png', 'tipe': 'poin', 'harga': 15},
-    {'nama': 'Botol Kaca', 'gambar': 'assets/images/sampah/botol_kaca.png', 'tipe': 'uang', 'harga': 1500},
-    {'nama': 'Plastik Kemasan', 'gambar': 'assets/images/sampah/plastik_kemasan.png', 'tipe': 'poin', 'harga': 10},
-    {'nama': 'Besi Bekas', 'gambar': 'assets/images/sampah/besi.png', 'tipe': 'uang', 'harga': 5000},
-    {'nama': 'Minyak Jelantah', 'gambar': 'assets/images/sampah/minyak.png', 'tipe': 'poin', 'harga': 25},
-  ];
-
-  // Dummy data untuk katalog sembako
-  final List<Map<String, dynamic>> _sembakoItems = [
-    {'nama': 'Beras 5kg', 'gambar': 'assets/images/sembako/beras.png', 'poin': 500},
-    {'nama': 'Minyak Goreng 1L', 'gambar': 'assets/images/sembako/minyak_goreng.png', 'poin': 250},
-    {'nama': 'Gula Pasir 1kg', 'gambar': 'assets/images/sembako/gula.png', 'poin': 150},
-    {'nama': 'Telur 1 Tray', 'gambar': 'assets/images/sembako/telur.png', 'poin': 300},
-    {'nama': 'Mie Instan (5 pcs)', 'gambar': 'assets/images/sembako/mie.png', 'poin': 100},
-    {'nama': 'Kecap Manis 250ml', 'gambar': 'assets/images/sembako/kecap.png', 'poin': 75},
-    {'nama': 'Susu UHT 1L', 'gambar': 'assets/images/sembako/susu.png', 'poin': 120},
-    {'nama': 'Tepung Terigu 1kg', 'gambar': 'assets/images/sembako/tepung.png', 'poin': 100},
-  ];
-
-  List<Map<String, dynamic>> get _filteredItems {
-    return _katalogItems.where((item) {
-      final matchesFilter = _selectedFilter == 'semua' || item['tipe'] == _selectedFilter;
-      final matchesSearch = item['nama'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesFilter && matchesSearch;
-    }).toList();
-  }
-
-  List<Map<String, dynamic>> get _filteredSembakoItems {
-    return _sembakoItems.where((item) {
-      return item['nama'].toString().toLowerCase().contains(_searchSembakoQuery.toLowerCase());
-    }).toList();
-  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _calculateHeaderHeight();
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      if (auth.bankId != null && auth.currentUser?.accessToken != null) {
+        Provider.of<KatalogProvider>(context, listen: false).fetchAll(
+          auth.bankId!,
+          auth.currentUser!.accessToken,
+        );
+      }
     });
   }
 
-  void _calculateHeaderHeight() {
-    final RenderBox? renderBox = _headerKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox != null) {
-      setState(() {
-        _headerHeight = renderBox.size.height;
-      });
-    }
+  // Getters moved to helper methods that take KatalogProvider
+  List<dynamic> _getFilteredSampah(KatalogProvider katalog) {
+    return katalog.katalogSampah.where((item) {
+      if (item is KatalogSampahModel) {
+        if (item.poinNasabah <= 0) return false;
+      }
+      final matchesFilter = _selectedFilter == 0 || item.kategoriId == _selectedFilter;
+      final matchesSearch = item.namaSampah.toLowerCase().contains(_searchQuery.toLowerCase());
+      return matchesFilter && matchesSearch;
+    }).toList();
+  }
+
+  List<dynamic> _getFilteredSembako(KatalogProvider katalog) {
+    return katalog.katalogSembako.where((item) {
+      return item.namaSembako.toLowerCase().contains(_searchSembakoQuery.toLowerCase());
+    }).toList();
   }
 
   @override
@@ -86,317 +76,206 @@ class _KatalogScreenState extends State<KatalogScreen> {
         ? "Katalog ini merupakan harga sampah yang bernilai ketika kamu menyetorkan sampah"
         : "Katalog ini merupakan sembako yang bisa kamu dapat dengan menukarkan saldo poin tabunganmu";
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Calculate sheet sizes based on header height and available space
-            final double availableHeight = constraints.maxHeight;
-            final double sheetMinHeight = availableHeight - _headerHeight;
-            final double minChildSize = _headerHeight > 0 
-                ? (sheetMinHeight / availableHeight).clamp(0.3, 0.9)
-                : 0.7;
-            final double maxChildSize = 0.95;
+    return Consumer<KatalogProvider>(
+      builder: (context, katalog, child) {
+        final filteredSampah = _getFilteredSampah(katalog);
+        final filteredSembako = _getFilteredSembako(katalog);
 
-            return Stack(
+        return Scaffold(
+          backgroundColor: _C.bg,
+          body: SafeArea(
+            child: Column(
               children: [
-                // Header content (stays behind)
-                Column(
-                  key: _headerKey,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TopBarBack(title: "Katalog"),
-                    NavbarKatalog(
-                      selectedIndex: _selectedTab,
-                      onTabChanged: (index) {
-                        setState(() {
-                          _selectedTab = index;
-                        });
-                      },
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-                      child: Text(
-                        descriptionText,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                          color: Colors.black.withOpacity(0.6),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                // Draggable Sheet
-                DraggableScrollableSheet(
-                  initialChildSize: minChildSize,
-                  minChildSize: minChildSize,
-                  maxChildSize: maxChildSize,
-                  builder: (context, scrollController) {
-                    return _selectedTab == 0
-                        ? _ListKatalogSampah(scrollController)
-                        : _ListKatalogSembako(scrollController);
+                TopBarBack(title: "Katalog"),
+                NavbarKatalog(
+                  selectedIndex: _selectedTab,
+                  onTabChanged: (index) {
+                    setState(() {
+                      _selectedTab = index;
+                    });
                   },
                 ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
 
-  Widget _ListKatalogSampah(ScrollController scrollController) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Color(0xFF013236),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-      ),
-      child: Column(
-        children: [
-          // Handle bar (drag indicator)
-          Container(
-            margin: const EdgeInsets.only(top: 12, bottom: 20),
-            width: 36,
-            height: 5,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF8E7),
-                borderRadius: BorderRadius.circular(40),
-                border: Border.all(
-                  color: const Color(0xFF4EA771).withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                },
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 15,
-                  color: Color(0xFF013236),
-                  letterSpacing: -0.3,
-                ),
-                decoration: InputDecoration(
-                  hintText: "Cari jenis sampah...",
-                  hintStyle: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 15,
-                    color: const Color(0xFF013236).withOpacity(0.4),
-                    letterSpacing: -0.3,
-                  ),
-                  prefixIcon: Icon(
-                    Icons.search_rounded,
-                    color: const Color(0xFF4EA771),
-                    size: 22,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Filter Chips - Segmented Style
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF8E7),
-                borderRadius: BorderRadius.circular(40),
-              ),
-              child: Row(
-                children: [
-                  _buildFilterChip('semua', 'Semua'),
-                  const SizedBox(width: 4),
-                  _buildFilterChip('uang', 'Uang'),
-                  const SizedBox(width: 4),
-                  _buildFilterChip('poin', 'Poin'),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // List Items
-          Expanded(
-            child: _filteredItems.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                // Content area — scrollable
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () async {
+                      final auth = Provider.of<AuthProvider>(context, listen: false);
+                      if (auth.bankId != null && auth.currentUser?.accessToken != null) {
+                        await katalog.fetchAll(auth.bankId!, auth.currentUser!.accessToken);
+                      }
+                    },
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      physics: const BouncingScrollPhysics(),
                       children: [
-                        Icon(
-                          Icons.search_off_rounded,
-                          size: 48,
-                          color: const Color(0xFF013236).withOpacity(0.25),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          "Tidak ada hasil",
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 14,
-                            color: const Color(0xFF013236).withOpacity(0.5),
+                        // Description
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(28, 12, 28, 0),
+                          child: Text(
+                            descriptionText,
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 12.5,
+                              height: 1.6,
+                              color: _C.dark.withOpacity(0.65),
+                            ),
                           ),
                         ),
+
+                        const SizedBox(height: 20),
+
+                        // Search bar
+                        _selectedTab == 0
+                            ? _buildSearchBar(
+                                controller: _searchController,
+                                hint: "Cari jenis sampah...",
+                                onChanged: (v) => setState(() => _searchQuery = v),
+                              )
+                            : _buildSearchBar(
+                                controller: _searchSembakoController,
+                                hint: "Cari sembako...",
+                                onChanged: (v) => setState(() => _searchSembakoQuery = v),
+                              ),
+
+                        // Filter chips (only for sampah tab)
+                        if (_selectedTab == 0) ...[
+                          const SizedBox(height: 14),
+                          _buildFilterChips(katalog),
+                        ],
+
+                        const SizedBox(height: 18),
+
+                        // Result count
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 28),
+                          child: Row(
+                            children: [
+                              Text(
+                                _selectedTab == 0 ? 'Katalog Sampah' : 'Katalog Sembako',
+                                style: const TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                  color: _C.dark,
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _C.accent.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  _selectedTab == 0
+                                      ? '${filteredSampah.length} item'
+                                      : '${filteredSembako.length} item',
+                                  style: const TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: _C.accent,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        if (katalog.isLoading)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 100),
+                            child: Center(child: CircularProgressIndicator(color: _C.accent)),
+                          )
+                        else
+                          // Grid content
+                          _selectedTab == 0
+                              ? _buildSampahGrid(filteredSampah)
+                              : _buildSembakoGrid(filteredSembako),
+
+                        const SizedBox(height: 30),
                       ],
                     ),
-                  )
-                : ListView.builder(
-                    controller: scrollController,
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: _filteredItems.length,
-                    itemBuilder: (context, index) {
-                      final item = _filteredItems[index];
-                      final isFirst = index == 0;
-                      final isLast = index == _filteredItems.length - 1;
-                      return _buildItemCard(item, isFirst, isLast);
-                    },
                   ),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _ListKatalogSembako(ScrollController scrollController) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Color(0xFF013236), // Changed from 0xFFC1E6BA
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30), // Changed from 24
-          topRight: Radius.circular(30), // Changed from 24
+  // ── Search bar ────────────────────────────────────────────────────────────
+  Widget _buildSearchBar({
+    required TextEditingController controller,
+    required String hint,
+    required ValueChanged<String> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, color: _C.dark),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 13,
+            color: _C.dark.withOpacity(0.3),
+          ),
+          prefixIcon: const Icon(Icons.search_rounded, color: _C.accent, size: 22),
+          suffixIcon: controller.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.close_rounded, size: 18, color: _C.dark.withOpacity(0.35)),
+                  onPressed: () {
+                    controller.clear();
+                    onChanged('');
+                  },
+                )
+              : null,
+          filled: false,
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(50),
+            borderSide: BorderSide(color: _C.accent.withOpacity(0.5), width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(50),
+            borderSide: const BorderSide(color: _C.accent, width: 1.5),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         ),
       ),
-      child: Column(
+    );
+  }
+
+  // ── Filter chips ──────────────────────────────────────────────────────────
+  Widget _buildFilterChips(KatalogProvider katalog) {
+    return SizedBox(
+      height: 34,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        physics: const BouncingScrollPhysics(),
         children: [
-          // Handle bar (drag indicator)
-          Container(
-            margin: const EdgeInsets.only(top: 12, bottom: 20),
-            width: 36,
-            height: 5,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.4), // Changed from Color(0xFF013236).withOpacity(0.25)
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF8E7), // Changed from Colors.white
-                borderRadius: BorderRadius.circular(40),
-                border: Border.all( // Added border
-                  color: const Color(0xFF4EA771).withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: TextField(
-                controller: _searchSembakoController,
-                onChanged: (value) {
-                  setState(() {
-                    _searchSembakoQuery = value;
-                  });
-                },
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 15,
-                  color: Color(0xFF013236), // Changed from Colors.black
-                  letterSpacing: -0.3,
-                ),
-                decoration: InputDecoration(
-                  hintText: "Cari sembako...",
-                  hintStyle: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 15,
-                    color: const Color(0xFF013236).withOpacity(0.4), // Changed from Colors.black.withOpacity(0.35)
-                    letterSpacing: -0.3,
-                  ),
-                  prefixIcon: Icon(
-                    Icons.search_rounded,
-                    color: const Color(0xFF4EA771), // Changed from Colors.black.withOpacity(0.4)
-                    size: 22,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // List Items
-          Expanded(
-            child: _filteredSembakoItems.isEmpty
-                ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.search_off_rounded,
-                    size: 48,
-                    color: const Color(0xFF013236).withOpacity(0.25),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    "Tidak ada hasil",
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 14,
-                      color: const Color(0xFF013236).withOpacity(0.5),
-                    ),
-                  ),
-                ],
-              ),
-            )
-                : ListView.builder(
-              controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              physics: const BouncingScrollPhysics(),
-              itemCount: _filteredSembakoItems.length,
-              itemBuilder: (context, index) {
-                final item = _filteredSembakoItems[index];
-                final isFirst = index == 0;
-                final isLast = index == _filteredSembakoItems.length - 1;
-                return _buildSembakoItemCard(item, isFirst, isLast);
-              },
-            ),
-          ),
+          _buildFilterChip(0, 'Semua'),
+          ...katalog.categories.map((cat) => _buildFilterChip(cat.kategoriId, cat.kategori)).toList(),
         ],
       ),
     );
   }
 
-  Widget _buildFilterChip(String value, String label) {
+  Widget _buildFilterChip(int value, String label) {
     final isSelected = _selectedFilter == value;
-    return Expanded(
+    final Color activeColor = _C.accent;
+    final Color inactiveTextColor = _C.dark.withOpacity(0.5);
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
         onTap: () {
           HapticFeedback.selectionClick();
@@ -406,121 +285,162 @@ class _KatalogScreenState extends State<KatalogScreen> {
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF4EA771) : Colors.transparent,
+            color: isSelected ? activeColor.withOpacity(0.1) : Colors.white,
             borderRadius: BorderRadius.circular(50),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? Colors.white : const Color(0xFF013236).withOpacity(0.7),
-                letterSpacing: -0.2,
-              ),
+            border: Border.all(
+              color: isSelected ? activeColor : const Color(0xFFE5E5E5),
+              width: 1,
             ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isSelected) ...[
+                Icon(Icons.check, size: 14, color: activeColor),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? activeColor : inactiveTextColor,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildItemCard(Map<String, dynamic> item, bool isFirst, bool isLast) {
-    final bool isUang = item['tipe'] == 'uang';
-    final String priceText = isUang
-        ? 'Rp ${_formatNumber(item['harga'])}/kg'
-        : '${item['harga']} poin/kg';
+  // ── Sampah Grid ───────────────────────────────────────────────────────────
+  Widget _buildSampahGrid(List<dynamic> items) {
+    if (items.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 0.72,
+        ),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final item = items[index] as KatalogSampahModel;
+          return _buildSampahCard(item);
+        },
+      ),
+    );
+  }
+
+  Widget _buildSampahCard(KatalogSampahModel item) {
+    // Determine if it's 'uang' or 'poin' based on kategori name if possible, 
+    // or just show value. For now backend gives poin_satuan. 
+    // In this app context, 'poin' is the primary reward for nasabah.
+    final String priceText = '${_formatDouble(item.poinNasabah)} poin/${item.satuan}';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF8E7),
-        borderRadius: BorderRadius.vertical(
-          top: isFirst ? const Radius.circular(25) : Radius.zero,
-          bottom: isLast ? const Radius.circular(25) : Radius.zero,
-        ),
-        border: !isLast
-            ? Border(
-                bottom: BorderSide(
-                  color: const Color(0xFF4EA771).withOpacity(0.2),
-                  width: 1,
-                ),
-              )
-            : null,
-      ),
-      child: Row(
-        children: [
-          // Image placeholder
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: const Color(0xFF013236),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Center(
-              child: Icon(
-                Icons.recycling_rounded,
-                size: 24,
-                color: Colors.white.withOpacity(0.7),
-              ),
-            ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: _C.dark.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          const SizedBox(width: 14),
-
-          // Content
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Image area (fills top) ──
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            flex: 3,
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                // Name
-                Text(
-                  item['nama'],
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF013236),
-                    letterSpacing: -0.3,
+                if (item.photoUrl.isNotEmpty)
+                  Image.network(
+                    item.photoUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _buildPlaceholderImage(Icons.recycling_rounded),
+                  )
+                else
+                  _buildPlaceholderImage(Icons.recycling_rounded),
+                
+                // Kategori Badge
+                if (item.kategori != null)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _C.accent.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        item.kategori!.kategori,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-
-                // Price
-                Text(
-                  priceText,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w400,
-                    color: const Color(0xFF013236).withOpacity(0.6),
-                    letterSpacing: -0.2,
-                  ),
-                ),
               ],
             ),
           ),
 
-          // Badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: isUang
-                  ? const Color(0xFF06C0C9).withOpacity(0.12)
-                  : const Color(0xFFFF9500).withOpacity(0.12),
-              borderRadius: BorderRadius.circular(25),
-            ),
-            child: Text(
-              isUang ? 'Uang' : 'Poin',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: isUang ? const Color(0xFF06C0C9) : const Color(0xFFFF9500),
-                letterSpacing: -0.2,
+          // ── Text area ──
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    item.namaSampah,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _C.dark,
+                      letterSpacing: -0.3,
+                      height: 1.2,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    priceText,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: _C.accent,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -529,77 +449,146 @@ class _KatalogScreenState extends State<KatalogScreen> {
     );
   }
 
-  Widget _buildSembakoItemCard(Map<String, dynamic> item, bool isFirst, bool isLast) {
+  Widget _buildPlaceholderImage(IconData icon) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEAF8E7), // Changed from Colors.white
-        borderRadius: BorderRadius.vertical(
-          top: isFirst ? const Radius.circular(25) : Radius.zero,
-          bottom: isLast ? const Radius.circular(25) : Radius.zero,
+      color: const Color(0xFFF2F2F2),
+      child: Center(
+        child: Icon(
+          icon,
+          size: 36,
+          color: _C.accent.withOpacity(0.5),
         ),
-        border: !isLast
-            ? Border(
-          bottom: BorderSide(
-            color: const Color(0xFF4EA771).withOpacity(0.2), // Changed from Color(0xFF013236).withOpacity(0.1)
-            width: 1, // Changed from 0.5
-          ),
-        )
-            : null,
       ),
-      child: Row(
+    );
+  }
+
+  // ── Sembako Grid ──────────────────────────────────────────────────────────
+  Widget _buildSembakoGrid(List<dynamic> items) {
+    if (items.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 0.72,
+        ),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final item = items[index] as KatalogSembakoModel;
+          return _buildSembakoCard(item);
+        },
+      ),
+    );
+  }
+
+  Widget _buildSembakoCard(KatalogSembakoModel item) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: _C.dark.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image placeholder
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: const Color(0xFF013236),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Center(
-              child: Icon(
-                Icons.shopping_basket_rounded,
-                size: 24,
-                color: Colors.white.withOpacity(0.7),
+          // ── Image area ──
+          Expanded(
+            flex: 3,
+            child: item.photoUrl.isNotEmpty
+                ? Image.network(
+                    item.photoUrl,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _buildPlaceholderImage(Icons.shopping_basket_rounded),
+                  )
+                : _buildPlaceholderImage(Icons.shopping_basket_rounded),
+          ),
+
+          // ── Text area ──
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    item.namaSembako,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _C.dark,
+                      letterSpacing: -0.3,
+                      height: 1.2,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _C.accent.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${item.poin} poin',
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: _C.accent,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(width: 14),
-
-          // Content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Name
-                Text(
-                  item['nama'],
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF013236),
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 2),
-
-                // Poin
-                Text(
-                  '${item['poin']} poin',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w400,
-                    color: const Color(0xFF013236).withOpacity(0.6),
-                    letterSpacing: -0.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
+      ),
+    );
+  }
+
+  // ── Empty state ───────────────────────────────────────────────────────────
+  Widget _buildEmptyState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.search_off_rounded,
+              size: 48,
+              color: _C.dark.withOpacity(0.15),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "Tidak ada hasil",
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 14,
+                color: _C.dark.withOpacity(0.4),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -609,5 +598,12 @@ class _KatalogScreenState extends State<KatalogScreen> {
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]}.',
     );
+  }
+
+  String _formatDouble(double value) {
+    if (value == value.truncateToDouble()) {
+      return value.toInt().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
+    }
+    return value.toStringAsFixed(2).replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '').replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
   }
 }

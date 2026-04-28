@@ -35,13 +35,13 @@ class _PenarikanUangCardState extends State<PenarikanUangCard> {
   Color _getStatusColor() {
     switch (widget.penarikan.status) {
       case PenarikanUangStatus.selesai:
-        return const Color(0xFF06C0C9);
+        return const Color(0xFF4EA771);
       case PenarikanUangStatus.menungguPersetujuan:
         return const Color(0xFFFF9800);
       case PenarikanUangStatus.ditolak:
         return Colors.red;
       case PenarikanUangStatus.dibatalkan:
-        return const Color(0xFF9E9E9E);
+        return Color(0xFF7C41CF);
     }
   }
 
@@ -79,18 +79,11 @@ class _PenarikanUangCardState extends State<PenarikanUangCard> {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withOpacity(0.5),
+          color: const Color(0xFF013236).withOpacity(0.15),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF013236).withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -112,13 +105,14 @@ class _PenarikanUangCardState extends State<PenarikanUangCard> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
+                        color: statusColor,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         _getStatusIcon(),
-                        color: statusColor,
+                        color: Colors.white,
                         size: 22,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -241,11 +235,11 @@ class _PenarikanUangCardState extends State<PenarikanUangCard> {
                 icon: const Icon(Icons.receipt_long_rounded, size: 18),
                 label: const Text('Lihat Bukti Transfer'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF06C0C9),
-                  side: const BorderSide(color: Color(0xFF06C0C9)),
+                  foregroundColor: const Color(0xFF4EA771),
+                  side: const BorderSide(color: Color(0xFF4EA771)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(30),
                   ),
                 ),
               ),

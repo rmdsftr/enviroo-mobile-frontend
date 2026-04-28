@@ -40,18 +40,11 @@ class _TransaksiCardState extends State<TransaksiCard> {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           width: 1,
-          color: Color(0xFF013236).withOpacity(0.5)
+          color: Color(0xFF013236).withOpacity(0.15)
         ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF013236).withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -74,14 +67,16 @@ class _TransaksiCardState extends State<TransaksiCard> {
                       height: 40,
                       decoration: BoxDecoration(
                         color: isSuccess 
-                            ? const Color(0xFF06C0C9).withOpacity(0.1)
-                            : Colors.red.withOpacity(0.1),
+                            ? const Color(0xFF4EA771)
+                            : Colors.red,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         isSuccess ? Icons.check_rounded : Icons.close_rounded,
-                        color: isSuccess ? const Color(0xFF06C0C9) : Colors.red,
+                        // color: isSuccess ? Color(0xFF06C0C9).withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                        color: Colors.white,
                         size: 22,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -107,7 +102,7 @@ class _TransaksiCardState extends State<TransaksiCard> {
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                               color: isSuccess 
-                                  ? const Color(0xFF06C0C9)
+                                  ? const Color(0xFF4EA771)
                                   : Colors.red,
                             ),
                           ),

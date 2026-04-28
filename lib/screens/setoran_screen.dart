@@ -1,8 +1,8 @@
+import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'dart:async';
-import 'dart:math';
 
 class SetoranScreen extends StatefulWidget {
   @override
@@ -10,77 +10,36 @@ class SetoranScreen extends StatefulWidget {
 }
 
 class _SetoranScreenState extends State<SetoranScreen> {
-  int _remainingSeconds = 60;
-  Timer? _timer;
   String _qrData = '';
 
   @override
   void initState() {
     super.initState();
     _generateQRCode();
-    _startTimer();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
   }
 
   void _generateQRCode() {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final random = Random().nextInt(999999).toString().padLeft(6, '0');
-    _qrData = 'ENVIROO-SETORAN-$timestamp-$random';
-  }
-
-  void _startTimer() {
-    _timer?.cancel();
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final nasabahId = auth.identityId ?? '';
     setState(() {
-      _remainingSeconds = 60;
+      _qrData = 'ENVIROO-SETORAN-$nasabahId';
     });
-
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        if (_remainingSeconds > 0) {
-          _remainingSeconds--;
-        } else {
-          _timer?.cancel();
-        }
-      });
-    });
-  }
-
-  void _regenerateQRCode() {
-    _generateQRCode();
-    _startTimer();
-  }
-
-  String _formatTime(int seconds) {
-    int mins = seconds ~/ 60;
-    int secs = seconds % 60;
-    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isExpired = _remainingSeconds <= 0;
-    final double progress = _remainingSeconds / 60;
-
     return Scaffold(
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          color: Color(0xFFC1E6BA),
-        ),
+        decoration: const BoxDecoration(color: Color(0xFFFFFFFF)),
         child: SafeArea(
           child: Column(
             children: [
-              TopBarBack(title: "Setoran"),
-
+              TopBarBack(title: "QR Penyetoran"),
               const Spacer(),
 
-              // Instruction Text
+              // Instruction card
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 24),
                 padding: const EdgeInsets.all(16),
@@ -141,183 +100,35 @@ class _SetoranScreenState extends State<SetoranScreen> {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: isExpired
-                      ? Container(
-                          width: 310,
-                          height: 310,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5F5F5),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color:
-                                      const Color(0xFF013236).withOpacity(0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.timer_off_rounded,
-                                  size: 40,
-                                  color:
-                                      const Color(0xFF013236).withOpacity(0.6),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'QR Code Kadaluarsa',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF013236),
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Tekan tombol di bawah untuk memperbarui',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 11,
-                                  color:
-                                      const Color(0xFF013236).withOpacity(0.6),
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : QrImageView(
-                          data: _qrData,
-                          version: QrVersions.auto,
-                          size: 310.0,
-                          eyeStyle: const QrEyeStyle(
-                            eyeShape: QrEyeShape.square,
-                            color: Color(0xFF013236),
-                          ),
-                          dataModuleStyle: const QrDataModuleStyle(
-                            dataModuleShape: QrDataModuleShape.square,
-                            color: Color(0xFF013236),
-                          ),
-                          embeddedImage:
-                              const AssetImage('assets/images/logo-enviroo.png'),
-                          embeddedImageStyle: const QrEmbeddedImageStyle(
-                            size: Size(50, 50),
-                          ),
-                        ),
+                  child: QrImageView(
+                    data: _qrData,
+                    version: QrVersions.auto,
+                    size: 280.0,
+                    eyeStyle: const QrEyeStyle(
+                      eyeShape: QrEyeShape.square,
+                      color: Color(0xFF013236),
+                    ),
+                    dataModuleStyle: const QrDataModuleStyle(
+                      dataModuleShape: QrDataModuleShape.square,
+                      color: Color(0xFF013236),
+                    ),
+                    embeddedImage:
+                        const AssetImage('assets/images/enviroo-logo-small.png'),
+                    embeddedImageStyle: const QrEmbeddedImageStyle(
+                      size: Size(50, 50),
+                    ),
+                  ),
                 ),
               ),
-
-              const SizedBox(height: 32),
-
-              // Timer OR Refresh Button (mutually exclusive)
-              if (!isExpired)
-                // Circular Timer
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF013236).withOpacity(0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Progress ring
-                      SizedBox(
-                        width: 85,
-                        height: 85,
-                        child: CircularProgressIndicator(
-                          value: progress,
-                          strokeWidth: 6,
-                          backgroundColor:
-                              const Color(0xFF013236).withOpacity(0.1),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            progress > 0.3
-                                ? const Color(0xFF013236)
-                                : const Color(0xFFE57373),
-                          ),
-                          strokeCap: StrokeCap.round,
-                        ),
-                      ),
-                      // Time text (just numbers)
-                      Text(
-                        _formatTime(_remainingSeconds),
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 20,
-                          color: progress > 0.3
-                              ? const Color(0xFF013236)
-                              : const Color(0xFFE57373),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                // Refresh Button
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF2D5A1D), Color(0xFF013236)],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF013236).withOpacity(0.4),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton(
-                    onPressed: _regenerateQRCode,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.refresh_rounded, size: 22),
-                        SizedBox(width: 10),
-                        Text(
-                          'Perbarui QR Code',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
 
               const Spacer(),
 
               // Bottom hint
               Padding(
-                padding: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.only(bottom: 28),
                 child: Text(
-                  'QR code berlaku selama 60 detik',
+                  'Scan QR code ini menggunakan aplikasi petugas BSU',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 12,

@@ -36,8 +36,9 @@ class MainNavbar extends StatelessWidget {
     return Expanded(
       child: GestureDetector(
         onTap: () => onTabChanged(index),
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: 10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isSelected ? Color(0xFF94DF0C) : Colors.transparent,
             borderRadius: BorderRadius.circular(50),
@@ -48,8 +49,10 @@ class MainNavbar extends StatelessWidget {
               style: TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected
+                    ? const Color(0xFF013236)
+                    : const Color(0xFF013236).withOpacity(0.5),
               ),
             ),
           ),

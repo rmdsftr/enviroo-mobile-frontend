@@ -1,74 +1,133 @@
+import 'package:enviroo/models/konten_model.dart';
+import 'package:enviroo/providers/konten_provider.dart';
+import 'package:enviroo/screens/informasi_screen.dart';
+import 'package:enviroo/screens/list_informasi_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class InformasiSection extends StatelessWidget {
-  // Dummy data untuk informasi
-  final List<Map<String, String>> informasiList = [
-    {
-      'title': 'Cara Memilah Sampah dengan Benar',
-      'image': 'assets/images/info1.png',
-    },
-    {
-      'title': 'Tips Daur Ulang Plastik di Rumah',
-      'image': 'assets/images/info2.png',
-    },
-    {
-      'title': 'Manfaat Bank Sampah untuk Lingkungan',
-      'image': 'assets/images/info3.png',
-    },
-    {
-      'title': 'Jadwal Pengangkutan Sampah Februari',
-      'image': 'assets/images/info4.png',
-    },
-    {
-      'title': 'Promo Tukar Poin Minggu Ini',
-      'image': 'assets/images/info5.png',
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 20, horizontal: 30),
-      child: Column(
-        children: [
-          // Header dengan "Lihat Semua"
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Consumer<KontenProvider>(
+      builder: (context, konten, _) {
+        final kontenList = konten.kontenList;
+
+        if (konten.isLoading && kontenList.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(30),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (kontenList.isEmpty) {
+          return const SizedBox.shrink(); // Hide section if no content
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 30),
+          child: Column(
             children: [
-              Text(
-                "Informasi",
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  // TODO: Navigasi ke halaman semua informasi
-                },
-                child: Text(
-                  "Lihat Semua",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF109F87),
+              // Header dengan "Lihat Semua"
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Informasi",
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => ListInformasiScreen()));
+                    },
+                    child: const Text(
+                      "Lihat Semua",
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF013236),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 15),
+              // Horizontal scroll cards
+              SizedBox(
+                height: 180,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: kontenList.length,
+                  itemBuilder: (context, index) {
+                    final item = kontenList[index];
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => InformasiScreen(konten: item)));
+                      },
+                      child: _buildInfoCard(item),
+                    );
+                  },
                 ),
               ),
             ],
           ),
-          SizedBox(height: 15),
-          // Horizontal scroll cards
-          SizedBox(
-            height: 180,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: informasiList.length,
-              itemBuilder: (context, index) {
-                return _buildInfoCard(informasiList[index]);
-              },
+        );
+      },
+    );
+  }
+
+  Widget _buildInfoCard(KontenModel info) {
+    return Container(
+      width: 140,
+      margin: const EdgeInsets.only(right: 15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF013236).withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image placeholder or Network Image
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            child: Container(
+              height: 100,
+              width: double.infinity,
+              color: const Color(0xFF94DF0C).withOpacity(0.15),
+              child: info.thumbnail.isNotEmpty
+                  ? Image.network(
+                      info.thumbnail,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _buildPlaceholderIcon(),
+                    )
+                  : _buildPlaceholderIcon(),
+            ),
+          ),
+          // Title
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Text(
+              info.judul,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF013236),
+              ),
             ),
           ),
         ],
@@ -76,54 +135,11 @@ class InformasiSection extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoCard(Map<String, String> info) {
-    return Container(
-      width: 140,
-      margin: EdgeInsets.only(right: 15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image placeholder
-          ClipRRect(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-            child: Container(
-              height: 100,
-              width: double.infinity,
-              color: Color(0xFFE8F5E9),
-              child: Icon(
-                Icons.image,
-                size: 40,
-                color: Color(0xFF109F87).withOpacity(0.5),
-              ),
-            ),
-          ),
-          // Title
-          Padding(
-            padding: EdgeInsets.all(10),
-            child: Text(
-              info['title'] ?? '',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
+  Widget _buildPlaceholderIcon() {
+    return Icon(
+      Icons.image_outlined,
+      size: 40,
+      color: const Color(0xFF94DF0C).withOpacity(0.4),
     );
   }
 }

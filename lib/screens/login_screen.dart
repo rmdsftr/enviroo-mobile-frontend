@@ -1,5 +1,13 @@
-import 'package:enviroo/screens/home_screen.dart';
+import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/screens/admin_bsi/home_bsi_screen.dart';
+import 'package:enviroo/screens/admin_bsu/home_bsu_screen.dart';
+import 'package:enviroo/screens/admin_bsm/home_bsm_screen.dart';
+import 'package:enviroo/screens/nasabah/home_screen.dart';
+import 'package:enviroo/screens/lupapassword_screen.dart';
+import 'package:enviroo/screens/aktivasi_akun_screen.dart';
+import 'package:enviroo/screens/role_options_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,9 +27,11 @@ class _LoginScreenState extends State<LoginScreen>
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
 
-  // Warna sesuai spesifikasi
-  static const Color primaryColor = Color(0xFF4EA771);
-  static const Color inputBgColor = Color(0xFFEAF8E7);
+  // Warna sesuai spesifikasi desain baru
+  static const Color bgColor = Color(0xFF013236);
+  static const Color primaryColor = Color(0xFF94DF0C);
+  static const Color inputBgColor = Color(0xFFFFFFFF);
+  static const Color softWhiteGreen = Color(0xFFFFFFFF);
   static const Color buttonTextColor = Colors.white;
 
   @override
@@ -59,171 +69,291 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  void _handleLogin() {
+  void _handleLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email dan password tidak boleh kosong')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
-    // TODO: Implementasi logic login
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    });
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    // Step 1: Cek user & role yang tersedia
+    final cekResult = await authProvider.cekUserMobile(email, password);
+
+    if (!mounted) return;
+
+    if (cekResult['success'] != true) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(cekResult['message'] ?? 'Verifikasi gagal'),
+          backgroundColor: const Color(0xFFB61E20),
+        ),
+      );
+      return;
+    }
+
+    final List<String> roles = List<String>.from(cekResult['roles'] ?? []);
+    final bool multipleRoles = cekResult['multiple_roles'] == true;
+
+    if (roles.isEmpty) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tidak ada role yang tersedia untuk akun ini'),
+          backgroundColor: Color(0xFFB61E20),
+        ),
+      );
+      return;
+    }
+
+    // Step 2: Jika role lebih dari 1, arahkan ke RoleOptionsScreen
+    if (multipleRoles && roles.length > 1) {
+      setState(() => _isLoading = false);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RoleOptionsScreen(
+            email: email,
+            password: password,
+            roles: roles,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Step 3: Jika hanya 1 role, langsung login
+    final selectedRole = roles.first;
+    final success = await authProvider.login(email, password, selectedRole);
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (success) {
+      _navigateToHome(authProvider.role);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.errorMessage ?? 'Login gagal'),
+          backgroundColor: const Color(0xFFB61E20),
+        ),
+      );
+    }
+  }
+
+  void _navigateToHome(String role) {
+    Widget destination;
+    if (role == 'nasabah') {
+      destination = const HomeScreen();
+    } else if (role.contains('bsu')) {
+      destination = const HomeBsuScreen();
+    } else if (role.contains('bsm')) {
+      destination = const HomeBsmScreen();
+    } else if (role.contains('bsi')) {
+      destination = const HomeBsiScreen();
+    } else {
+      destination = const HomeBsuScreen();
+    }
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => destination),
+      (route) => false,
+    );
   }
 
   void _handleForgotPassword() {
-    // TODO: Navigasi ke halaman lupa password
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Fitur lupa password akan segera hadir'),
-        backgroundColor: primaryColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (context) => LupaPasswordScreen()));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // Background Image
-          Positioned.fill(
-            child: Image.asset(
-              "assets/images/login-screen.png",
-              fit: BoxFit.cover,
-            ),
-          ),
-          // Gradient overlay untuk efek modern
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.1),
+      backgroundColor: bgColor,
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.opaque,
+        child: SafeArea(
+          child: SlideTransition(
+          position: _slideAnimation,
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 60),
+
+                    // Logo centered di atas
+                    Column(
+                      children: [
+                        Center(
+                          child: Image.asset(
+                            "assets/images/logo-fix.png",
+                            height: 50,
+                          ),
+                        ),
+                        Text(
+                          "enviroo",
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w700,
+                            fontSize: 20,
+                            color: primaryColor,
+                            letterSpacing: 3,
+                          ),
+                        )
+                      ],
+                    ),
+                    const SizedBox(height: 75),
+
+                    // Heading "Selamat Datang"
+                    const Text(
+                      "Selamat Datang",
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Header texts (konten asli dipertahankan)
+                    const Text(
+                      "Udah punya akun aktif?",
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 14,
+                        color: softWhiteGreen,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    const Text(
+                      "Yuk, login ke aplikasinya",
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 14,
+                        color: softWhiteGreen,
+                      ),
+                    ),
+                    const SizedBox(height: 35),
+
+                    // Email Input (dengan icon seperti aslinya)
+                    _buildInputField(
+                      controller: _emailController,
+                      hintText: "Email",
+                      icon: Icons.email_rounded,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Password Input (dengan icon seperti aslinya)
+                    _buildInputField(
+                      controller: _passwordController,
+                      hintText: "Password",
+                      icon: Icons.lock_rounded,
+                      obscureText: _obscurePassword,
+                      suffixIcon: IconButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () => setState(() => _obscurePassword = !_obscurePassword),
+                        icon: Icon(
+                          _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                          color: primaryColor.withOpacity(0.7),
+                          size: 22,
+                        ),
+                        splashColor: Colors.transparent,
+                        highlightColor: Colors.transparent,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Lupa Password Link (rata kanan seperti aslinya)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _handleForgotPassword,
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          "Lupa Password?",
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: softWhiteGreen,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 25),
+
+                    // Login Button
+                    _buildLoginButton(_isLoading),
+                    const SizedBox(height: 40),
+
+                    // Aktivasi Akun (konten asli dipertahankan)
+                    Center(
+                      child: const Text(
+                        "Belum bisa login karena akun belum aktif?",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 12,
+                          color: softWhiteGreen,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const AktivasiAkunScreen()));
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(50),
+                            border: Border.all(
+                              color: primaryColor.withOpacity(0.5),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Text(
+                            "Aktivasi di sini",
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: primaryColor.withOpacity(0.75),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
             ),
           ),
-          // Login Form
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: _buildLoginForm(),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoginForm() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: const BorderRadius.only(
-          topRight: Radius.circular(35),
-          topLeft: Radius.circular(35),
         ),
-        color: Color(0xFF013236),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 45),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header texts
-            const Text(
-              "Udah jadi nasabah?",
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                color: Color(0xFFC1E6BA),
-              ),
-            ),
-            const SizedBox(height: 5),
-            const Text(
-              "Yuk, login ke akunmu",
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                color: Color(0xFFC1E6BA),
-              ),
-            ),
-            const SizedBox(height: 30),
-
-            // Email Input
-            _buildInputField(
-              controller: _emailController,
-              hintText: "Email",
-              icon: Icons.email_rounded,
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 16),
-
-            // Password Input
-            _buildInputField(
-              controller: _passwordController,
-              hintText: "Password",
-              icon: Icons.lock_rounded,
-              obscureText: _obscurePassword,
-              suffixIcon: IconButton(
-                onPressed: _isLoading
-                    ? null
-                    : () => setState(() => _obscurePassword = !_obscurePassword),
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                  color: primaryColor.withOpacity(0.7),
-                  size: 22,
-                ),
-                splashColor: Colors.transparent,
-                highlightColor: Colors.transparent,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Lupa Password Link
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _handleForgotPassword,
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Text(
-                  "Lupa Password?",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFFEAF8E7),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 25),
-
-            // Login Button
-            _buildLoginButton(),
-            const SizedBox(height: 20),
-          ],
-        ),
       ),
     );
   }
@@ -296,31 +426,29 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildLoginButton() {
+  Widget _buildLoginButton(bool isLoading) {
     return SizedBox(
       width: double.infinity,
       height: 55,
       child: ElevatedButton(
-        onPressed: (){
-          Navigator.push(context, MaterialPageRoute(builder: (context) => HomeScreen()));
-        },
+        onPressed: isLoading ? null : _handleLogin,
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
-          foregroundColor: buttonTextColor,
+          foregroundColor: bgColor,
           disabledBackgroundColor: primaryColor.withOpacity(0.6),
-          elevation: 5,
-          shadowColor: primaryColor.withOpacity(0.4),
+          elevation: 8,
+          shadowColor: primaryColor.withOpacity(0.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(50), // Border radius bulat
           ),
         ),
-        child: _isLoading
+        child: isLoading
             ? const SizedBox(
                 width: 24,
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF013236)),
                 ),
               )
             : const Text(

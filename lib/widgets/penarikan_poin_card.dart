@@ -35,15 +35,15 @@ class _PenarikanPoinCardState extends State<PenarikanPoinCard> {
   Color _getStatusColor() {
     switch (widget.penarikan.status) {
       case PenarikanPoinStatus.selesai:
-        return const Color(0xFF06C0C9);
+        return const Color(0xFF4EA771);
       case PenarikanPoinStatus.menungguPersetujuan:
         return const Color(0xFFFF9800);
       case PenarikanPoinStatus.menungguPenjemputan:
-        return const Color(0xFF4CAF50);
+        return Colors.blue;
       case PenarikanPoinStatus.ditolak:
         return Colors.red;
       case PenarikanPoinStatus.dibatalkan:
-        return const Color(0xFF9E9E9E);
+        return const Color(0xFF7C41CF);
     }
   }
 
@@ -85,18 +85,11 @@ class _PenarikanPoinCardState extends State<PenarikanPoinCard> {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withOpacity(0.5),
+          color: const Color(0xFF4EA771).withOpacity(0.25),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF013236).withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -118,13 +111,14 @@ class _PenarikanPoinCardState extends State<PenarikanPoinCard> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
+                        color: statusColor,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         _getStatusIcon(),
-                        color: statusColor,
+                        color: Colors.white,
                         size: 22,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -330,7 +324,7 @@ class _PenarikanPoinCardState extends State<PenarikanPoinCard> {
               decoration: BoxDecoration(
                 color: const Color(0xFF4CAF50).withOpacity(0.08),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.3)),
+                // border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.3)),
               ),
               child: Row(
                 children: [
@@ -363,7 +357,7 @@ class _PenarikanPoinCardState extends State<PenarikanPoinCard> {
               decoration: BoxDecoration(
                 color: Colors.red.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.red.withOpacity(0.2)),
+                // border: Border.all(color: Colors.red.withOpacity(0.2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
