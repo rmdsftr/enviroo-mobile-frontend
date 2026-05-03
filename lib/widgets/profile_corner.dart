@@ -1,5 +1,6 @@
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/screens/profile_screen.dart';
+import 'package:enviroo/services/user_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -19,6 +20,20 @@ class ProfileCorner extends StatefulWidget {
 
 
 class _ProfileCornerState extends State<ProfileCorner>{
+  Future<Map<String, dynamic>?>? _userDataFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      if (auth.userId.isNotEmpty && auth.currentUser?.accessToken != null) {
+        setState(() {
+          _userDataFuture = UserService.getActiveUser(auth.userId, auth.currentUser!.accessToken);
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,28 +43,62 @@ class _ProfileCornerState extends State<ProfileCorner>{
       },
       child: Container(
         decoration: BoxDecoration(
-            color: widget.bgPhoto,
             shape: BoxShape.circle,
             border: Border.all(
                 width: 2,
                 color: widget.borderPhoto
             )
         ),
-        padding: EdgeInsets.all(12),
         child: Consumer<AuthProvider>(
           builder: (context, auth, _) {
-            final initial = auth.nama.isNotEmpty ? auth.nama[0] : 'T';
-            return Text(
-              initial,
-              style: TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20
-              ),
+            if (_userDataFuture == null && auth.userId.isNotEmpty && auth.currentUser?.accessToken != null) {
+              _userDataFuture = UserService.getActiveUser(auth.userId, auth.currentUser!.accessToken);
+            }
+            return FutureBuilder<Map<String, dynamic>?>(
+              future: _userDataFuture,
+              builder: (context, snapshot) {
+                String? photoUrl;
+                if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+                  photoUrl = snapshot.data?['photo_url'];
+                }
+
+                if (photoUrl != null && photoUrl.isNotEmpty) {
+                  return ClipOval(
+                    child: Image.network(
+                      photoUrl,
+                      width: 38,
+                      height: 38,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => _buildDefaultPhoto(),
+                    ),
+                  );
+                }
+
+                return _buildDefaultPhoto();
+              },
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildDefaultPhoto() {
+    return ClipOval(
+      child: Image.asset(
+        'assets/images/profile.png',
+        width: 38,
+        height: 38,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          // Fallback if profile.png is missing
+          return Container(
+            width: 38,
+            height: 38,
+            color: widget.bgPhoto,
+            child: const Icon(Icons.person, color: Colors.white, size: 24),
+          );
+        },
       ),
     );
   }

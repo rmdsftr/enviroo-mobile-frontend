@@ -5,12 +5,13 @@ import 'package:enviroo/screens/admin_bsu/jadwal_screen.dart';
 import 'package:enviroo/screens/admin_bsu/riwayat_transaksi_bsu.dart';
 import 'package:enviroo/screens/penjualan_eksternal/riwayat_penjualan_screen.dart';
 import 'package:enviroo/screens/petugas/penimbangan_screen.dart';
-import 'package:enviroo/screens/infobsu_screen.dart';
+import 'package:enviroo/screens/info_bank_sampah_screen.dart';
 import 'package:enviroo/screens/katalog_screen.dart';
 import 'package:enviroo/screens/kelola_nasabah_screen.dart';
-import 'package:enviroo/screens/penarikan_screen.dart';
+import 'package:enviroo/screens/penarikan/penarikan_petugas_screen.dart';
 import 'package:enviroo/screens/setoran_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:enviroo/screens/redeem/redeem_bsi_screen.dart';
 
 class MenuAdminBSI extends StatefulWidget {
   @override
@@ -135,6 +136,32 @@ class _MenuAdminBSIState extends State<MenuAdminBSI> {
                         iconColor: Color(0xFF013236),
                         onTap: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => JadwalScreen()));
+                        },
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildMenuItem(
+                        context: context,
+                        label: "Redeem",
+                        icon: Icons.card_giftcard_rounded,
+                        color: Color(0xFFFAA324),
+                        iconColor: Color(0xFF013236),
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const RedeemBsiScreen()));
+                        },
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildMenuItem(
+                        context: context,
+                        label: "Penarikan",
+                        icon: Icons.account_balance_wallet_rounded,
+                        color: Color(0xFF9B51E0),
+                        iconColor: Color(0xFF013236),
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const PenarikanPetugasScreen()));
                         },
                       ),
                     ),

@@ -154,6 +154,45 @@ class AuthService {
     }
   }
 
+  /// Change Password
+  static Future<Map<String, dynamic>> changePassword(String email, String passwordLama, String passwordBaru, String konfirmasiPasswordBaru, String token) async {
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.changePasswordUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'email': email,
+          'password_lama': passwordLama,
+          'password_baru': passwordBaru,
+          'konfirmasi_password_baru': konfirmasiPasswordBaru,
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Password berhasil diubah',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['error'] ?? 'Gagal mengubah password',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Gagal terhubung ke server: ${e.toString()}',
+      };
+    }
+  }
+
   /// Ambil data lengkap profil nasabah
   static Future<Map<String, dynamic>> getProfilNasabah(String nasabahID, String token) async {
     try {

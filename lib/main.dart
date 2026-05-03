@@ -5,6 +5,10 @@ import 'package:enviroo/providers/nasabah_provider.dart';
 import 'package:enviroo/providers/jadwal_provider.dart';
 import 'package:enviroo/providers/dashboard_provider.dart';
 import 'package:enviroo/providers/penjualan_provider.dart';
+import 'package:enviroo/providers/redeem_bsi_provider.dart';
+import 'package:enviroo/providers/redeem_bsu_provider.dart';
+import 'package:enviroo/providers/redeem_nasabah_provider.dart';
+import 'package:enviroo/providers/penarikan_petugas_provider.dart';
 import 'package:enviroo/screens/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -41,6 +45,10 @@ class EnvirooApp extends StatelessWidget{
         ChangeNotifierProvider(create: (_) => JadwalProvider()),
         ChangeNotifierProvider(create: (_) => DashboardProvider()),
         ChangeNotifierProvider(create: (_) => PenjualanProvider()),
+        ChangeNotifierProvider(create: (_) => RedeemBsuProvider()),
+        ChangeNotifierProvider(create: (_) => RedeemBsiProvider()),
+        ChangeNotifierProvider(create: (_) => RedeemNasabahProvider()),
+        ChangeNotifierProvider(create: (_) => PenarikanPetugasProvider()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

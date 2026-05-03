@@ -2,6 +2,7 @@ import 'package:enviroo/screens/admin_bsu/harga_screen.dart';
 import 'package:enviroo/screens/admin_bsu/jadwal_screen.dart';
 import 'package:enviroo/screens/admin_bsu/riwayat_transaksi_bsu.dart';
 import 'package:enviroo/screens/penjualan_eksternal/riwayat_penjualan_screen.dart';
+import 'package:enviroo/screens/penarikan/penarikan_petugas_screen.dart';
 import 'package:enviroo/screens/petugas/penimbangan_screen.dart';
 import 'package:enviroo/screens/kelola_nasabah_screen.dart';
 import 'package:flutter/material.dart';
@@ -119,6 +120,19 @@ class _MenuAdminBSMState extends State<MenuAdminBSM> {
                         iconColor: Color(0xFF013236),
                         onTap: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => const RiwayatPenjualanScreen()));
+                        },
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildMenuItem(
+                        context: context,
+                        label: "Penarikan",
+                        icon: Icons.account_balance_wallet_rounded,
+                        color: Color(0xFF9B51E0),
+                        iconColor: Color(0xFF013236),
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const PenarikanPetugasScreen()));
                         },
                       ),
                     ),

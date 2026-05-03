@@ -1,18 +1,47 @@
-import 'package:enviroo/models/bsu_model.dart';
+import 'package:enviroo/models/bank_sampah_model.dart';
+import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/services/bank_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 
-class InfoBsuScreen extends StatefulWidget {
+class InfoBankSampahScreen extends StatefulWidget {
   @override
-  State<InfoBsuScreen> createState() => _InfoBsuScreenState();
+  State<InfoBankSampahScreen> createState() => _InfoBankSampahScreenState();
 }
 
-class _InfoBsuScreenState extends State<InfoBsuScreen> {
-  final List<BsuModel> _bsuList = getDummyBsuData();
+class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
+  List<BankSampahModel> _bankList = [];
+  bool _isLoading = true;
   final MapController _mapController = MapController();
-  int? _selectedBsuIndex;
+  int? _selectedBankIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBankData();
+  }
+
+  Future<void> _fetchBankData() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final token = auth.currentUser?.accessToken ?? '';
+    final result = await BankService.getAllBankSampah(token);
+    
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        if (result['success']) {
+          _bankList = result['data'] ?? [];
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result['message'] ?? 'Gagal mengambil data')),
+          );
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,11 +51,11 @@ class _InfoBsuScreenState extends State<InfoBsuScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              const TopBarBack(title: "Info BSU"),
+              const TopBarBack(title: "Info Lokasi Bank Sampah"),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 4),
                 child: Text(
-                  "Kamu bisa lihat ada Bank Sampah Unit di sekitarmu yang terasosiasi dengan Bank Sampah Induk Enviro Andalas",
+                  "Kamu bisa lihat ada bank sampah apa aja yang ada di sekitarmu beserta alamat lengkap dan jadwal penimbangannya",
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 13,
@@ -51,8 +80,8 @@ class _InfoBsuScreenState extends State<InfoBsuScreen> {
                           initialZoom: 14.0,
                           onTap: (_, __) {
                             // Dismiss selection when tapping on map
-                            if (_selectedBsuIndex != null) {
-                              setState(() => _selectedBsuIndex = null);
+                            if (_selectedBankIndex != null) {
+                              setState(() => _selectedBankIndex = null);
                             }
                           },
                         ),
@@ -61,12 +90,19 @@ class _InfoBsuScreenState extends State<InfoBsuScreen> {
                             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                             userAgentPackageName: 'com.enviroo.app',
                           ),
-                          MarkerLayer(
-                            markers: _buildMarkers(),
-                          ),
+                          if (_isLoading)
+                            const Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF4EA771),
+                              ),
+                            )
+                          else
+                            MarkerLayer(
+                              markers: _buildMarkers(),
+                            ),
                         ],
                       ),
-                      // BSU count badge
+                      // Bank count badge
                       Positioned(
                         top: 16,
                         left: 16,
@@ -93,7 +129,7 @@ class _InfoBsuScreenState extends State<InfoBsuScreen> {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                '${_bsuList.length} BSU Ditemukan',
+                                _isLoading ? 'Memuat...' : '${_bankList.length} Bank Sampah Ditemukan',
                                 style: const TextStyle(
                                   fontFamily: 'Poppins',
                                   fontSize: 12,
@@ -149,19 +185,19 @@ class _InfoBsuScreenState extends State<InfoBsuScreen> {
   }
 
   List<Marker> _buildMarkers() {
-    return _bsuList.asMap().entries.map((entry) {
+    return _bankList.asMap().entries.map((entry) {
       final index = entry.key;
-      final bsu = entry.value;
-      final isSelected = _selectedBsuIndex == index;
+      BankSampahModel bank = entry.value;
+      final isSelected = _selectedBankIndex == index;
 
       return Marker(
-        point: LatLng(bsu.latitude, bsu.longitude),
+        point: LatLng(bank.latitude, bank.longitude),
         width: isSelected ? 55 : 45,
         height: isSelected ? 55 : 45,
         child: GestureDetector(
           onTap: () {
-            setState(() => _selectedBsuIndex = index);
-            _showBsuDetailBottomSheet(bsu);
+            setState(() => _selectedBankIndex = index);
+            _showBankDetailBottomSheet(bank);
           },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
@@ -197,7 +233,7 @@ class _InfoBsuScreenState extends State<InfoBsuScreen> {
     }).toList();
   }
 
-  void _showBsuDetailBottomSheet(BsuModel bsu) {
+  void _showBankDetailBottomSheet(BankSampahModel bank) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -242,7 +278,7 @@ class _InfoBsuScreenState extends State<InfoBsuScreen> {
                     height: 180,
                     color: const Color(0xFFFFFFFF),
                     child: Image.network(
-                      bsu.fotoUrl,
+                      bank.photoUrl,
                       fit: BoxFit.cover,
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;
@@ -295,7 +331,7 @@ class _InfoBsuScreenState extends State<InfoBsuScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            bsu.nama,
+                            bank.namaBank,
                             style: const TextStyle(
                               fontFamily: 'Poppins',
                               fontSize: 16,
@@ -314,7 +350,7 @@ class _InfoBsuScreenState extends State<InfoBsuScreen> {
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  bsu.alamat,
+                                  bank.alamatLengkap,
                                   style: TextStyle(
                                     fontFamily: 'Poppins',
                                     fontSize: 12,
@@ -366,7 +402,7 @@ class _InfoBsuScreenState extends State<InfoBsuScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
-                  children: bsu.jadwalPenimbangan.map((jadwal) {
+                  children: bank.jadwalPenimbangan.map((jadwal) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Row(
@@ -378,7 +414,7 @@ class _InfoBsuScreenState extends State<InfoBsuScreen> {
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            jadwal['hari']!,
+                            jadwal.hari,
                             style: const TextStyle(
                               fontFamily: 'Poppins',
                               fontSize: 12,
@@ -395,7 +431,7 @@ class _InfoBsuScreenState extends State<InfoBsuScreen> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
-                              jadwal['jam']!,
+                              '${jadwal.jamMulai} - ${jadwal.jamSelesai}',
                               style: const TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 11,
@@ -417,7 +453,7 @@ class _InfoBsuScreenState extends State<InfoBsuScreen> {
         ),
       ),
     ).whenComplete(() {
-      setState(() => _selectedBsuIndex = null);
+      setState(() => _selectedBankIndex = null);
     });
   }
 }

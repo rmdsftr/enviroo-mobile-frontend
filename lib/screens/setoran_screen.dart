@@ -113,7 +113,7 @@ class _SetoranScreenState extends State<SetoranScreen> {
                       color: Color(0xFF013236),
                     ),
                     embeddedImage:
-                        const AssetImage('assets/images/enviroo-logo-small.png'),
+                        const AssetImage('assets/images/logo-fix.png'),
                     embeddedImageStyle: const QrEmbeddedImageStyle(
                       size: Size(50, 50),
                     ),
@@ -125,9 +125,9 @@ class _SetoranScreenState extends State<SetoranScreen> {
 
               // Bottom hint
               Padding(
-                padding: const EdgeInsets.only(bottom: 28),
+                padding: const EdgeInsets.only(bottom: 28, left: 25, right: 25),
                 child: Text(
-                  'Scan QR code ini menggunakan aplikasi petugas BSU',
+                  'Scan QR code ini menggunakan aplikasi petugas Bank Sampah',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: 'Poppins',

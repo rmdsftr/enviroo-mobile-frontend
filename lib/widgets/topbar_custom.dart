@@ -23,7 +23,7 @@ class TopBarCustom extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return Container(
       color: backgroundColor,
-      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -44,7 +44,7 @@ class TopBarCustom extends StatelessWidget implements PreferredSizeWidget {
                   color: Color(0xFF013236),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 5),
               ProfileCorner(
                 borderPhoto: borderFoto,
                 bgPhoto: bgFoto,

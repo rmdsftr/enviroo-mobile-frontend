@@ -90,28 +90,57 @@ class KatalogSampahModel {
   bool get hasAnyPrice => harga.isNotEmpty || fallbackPoin > 0;
 }
 
+class SchemaHargaSembakoModel {
+  final String levelUser;
+  final double poinHarga;
+
+  SchemaHargaSembakoModel({required this.levelUser, required this.poinHarga});
+
+  factory SchemaHargaSembakoModel.fromJson(Map<String, dynamic> json) {
+    return SchemaHargaSembakoModel(
+      levelUser: json['level_user']?.toString() ?? '',
+      poinHarga: (json['poin_harga'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
+
 class KatalogSembakoModel {
   final String sembakoId;
-  final String bankId;
   final String namaSembako;
   final String photoUrl;
-  final int poin;
+  final double stok;
+  final List<SchemaHargaSembakoModel> schemaHarga;
 
   KatalogSembakoModel({
     required this.sembakoId,
-    required this.bankId,
     required this.namaSembako,
     required this.photoUrl,
-    required this.poin,
+    required this.stok,
+    required this.schemaHarga,
   });
 
   factory KatalogSembakoModel.fromJson(Map<String, dynamic> json) {
+    final rawSchema = json['schema_harga'] as List? ?? [];
     return KatalogSembakoModel(
-      sembakoId: json['SembakoID'] ?? '',
-      bankId: json['BankID'] ?? '',
-      namaSembako: json['NamaSembako'] ?? '',
-      photoUrl: json['PhotoURL'] ?? '',
-      poin: json['Poin'] ?? 0,
+      sembakoId: json['sembako_id'] ?? json['SembakoID'] ?? '',
+      namaSembako: json['nama_sembako'] ?? json['NamaSembako'] ?? '',
+      photoUrl: json['photo_url'] ?? json['PhotoURL'] ?? '',
+      stok: (json['stok'] as num?)?.toDouble() ?? 0.0,
+      schemaHarga: rawSchema
+          .map((e) => SchemaHargaSembakoModel.fromJson(e))
+          .toList(),
     );
   }
+
+  double getPoinForLevel(String level) {
+    for (var s in schemaHarga) {
+      if (s.levelUser.toLowerCase() == level.toLowerCase()) return s.poinHarga;
+    }
+    return 0.0;
+  }
+
+  double get poinNasabah => getPoinForLevel('nasabah');
+  double get poinBsu => getPoinForLevel('bsu');
+  double get poinEksternal => getPoinForLevel('eksternal');
+  bool get hasAnyPrice => schemaHarga.isNotEmpty;
 }

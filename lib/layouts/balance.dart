@@ -10,7 +10,7 @@ class BalanceLayouts extends StatefulWidget {
 
 class _BalanceLayoutState extends State<BalanceLayouts>
     with SingleTickerProviderStateMixin {
-  bool _isBalanceVisible = true;
+  bool _isBalanceVisible = false;
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
 

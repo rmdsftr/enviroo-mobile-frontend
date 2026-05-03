@@ -1,5 +1,12 @@
+import 'dart:io';
 import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/screens/lihat_foto_screen.dart';
+import 'package:enviroo/screens/splash_screen.dart';
+import 'package:enviroo/screens/ubah_password_screen.dart';
+import 'package:enviroo/services/profil_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -42,6 +49,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
+  bool _isLoadingDetail = false;
+  bool _isUploadingPhoto = false;
+  Map<String, dynamic>? _detailNasabah;
+
   @override
   void initState() {
     super.initState();
@@ -49,12 +60,168 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final auth = Provider.of<AuthProvider>(context, listen: false);
       if (auth.role == 'nasabah') {
         _emailController.text = auth.nasabahProfile?.email ?? "";
+        _fetchDetailNasabah(auth.identityId, auth.currentUser?.accessToken ?? "");
       } else if (auth.role.startsWith('petugas_')) {
         _emailController.text = auth.petugasProfile?.email ?? "";
       } else {
         _emailController.text = auth.currentUser?.email ?? "";
       }
     });
+  }
+
+  Future<void> _fetchDetailNasabah(String? nasabahId, String token) async {
+    if (nasabahId == null) return;
+    setState(() => _isLoadingDetail = true);
+    try {
+      final data = await ProfilService.getDetailNasabah(nasabahId, token);
+      if (mounted) {
+        setState(() {
+          _detailNasabah = data;
+          _isLoadingDetail = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingDetail = false);
+      debugPrint("Gagal mengambil detail nasabah: $e");
+    }
+  }
+
+  /// Bottom sheet: pilih antara Lihat Foto atau Ubah Foto
+  void _showPhotoOptions() {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    String? photoUrl;
+    String nama = auth.nama;
+    if (auth.role == 'nasabah') {
+      photoUrl = _detailNasabah?['photo_url'] ?? auth.nasabahProfile?.foto;
+    } else if (auth.role.startsWith('petugas_')) {
+      photoUrl = auth.petugasProfile?.photoUrl;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle bar
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Foto Profil',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF013236),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF013236).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.image_search_rounded, color: Color(0xFF013236), size: 20),
+                  ),
+                  title: const Text(
+                    'Lihat Foto',
+                    style: TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LihatFotoScreen(photoUrl: photoUrl, nama: nama),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4EA771).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.photo_camera_rounded, color: Color(0xFF4EA771), size: 20),
+                  ),
+                  title: const Text(
+                    'Ubah Foto',
+                    style: TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickAndUploadPhoto();
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Ambil gambar dari galeri lalu upload ke backend
+  Future<void> _pickAndUploadPhoto() async {
+    final picker = ImagePicker();
+    final XFile? pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1024,
+    );
+    if (pickedFile == null) return;
+
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final userId = auth.userId;
+    final token = auth.currentUser?.accessToken ?? '';
+
+    setState(() => _isUploadingPhoto = true);
+
+    final result = await ProfilService.changePhotoProfile(userId, File(pickedFile.path), token);
+
+    if (mounted) {
+      setState(() {
+        _isUploadingPhoto = false;
+        if (result['success'] == true) {
+          // Perbarui photo_url di _detailNasabah agar langsung tampil
+          if (_detailNasabah != null) {
+            _detailNasabah!['photo_url'] = result['photo_url'];
+          }
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message']),
+          backgroundColor: result['success'] == true ? const Color(0xFF4EA771) : Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -74,14 +241,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     children: [
                       _buildCardProfile(),
+                      if(auth.role == "nasabah") _buildAsosiasiCard(),
                       const SizedBox(height: 25),
-                      if(auth.role == "nasabah")
-                        _buildRewardHistorySection(),
-                      _buildEmailSection(),
-                      const SizedBox(height: 16),
-                      _buildPasswordSection(),
-                      const SizedBox(height: 16),
-                      if(auth.role == "nasabah") _buildPemindahanBsuSection(),
+                      if(auth.role == "nasabah") _buildInformasiPribadiSection(),
+                      _buildPengaturanSection(),
+                      const SizedBox(height: 30),
+                      _buildLogoutButton(context),
                       const SizedBox(height: 40),
                     ],
                   ),
@@ -94,23 +259,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // ─── Profile Card ─────────────────────────────────────────────────
-  // ═══════════════════════════════════════════════════════════════════
-  // ─── Dummy statistik data ──────────────────────────────────────
-  final int _jumlahReward = 4;
-  final int _jumlahSetoran = 12;
-  final int _jumlahPenarikan = 8;
 
-  // ─── Dummy reward history ─────────────────────────────────────
-  final List<Map<String, dynamic>> _rewardHistory = [
-    {'bulan': 'Januari', 'tahun': 2026, 'rank': 2, 'berat': '18.5 kg'},
-    {'bulan': 'Desember', 'tahun': 2025, 'rank': 1, 'berat': '24.2 kg'},
-    {'bulan': 'Oktober', 'tahun': 2025, 'rank': 1, 'berat': '21.8 kg'},
-    {'bulan': 'Agustus', 'tahun': 2025, 'rank': 3, 'berat': '15.3 kg'},
-  ];
 
   Widget _buildCardProfile() {
+    final auth = context.read<AuthProvider>();
+    
+    Color borderColor = const Color(0xFF4EA771);
+    if (auth.role == 'nasabah' && _detailNasabah != null) {
+      final status = _detailNasabah!['status_nasabah']?.toString().toLowerCase();
+      if (status == 'nonaktif') {
+        borderColor = Colors.red;
+      } else if (status == 'pending') {
+        borderColor = Colors.orange;
+      }
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 10),
       child: Container(
@@ -124,48 +287,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             // ── Avatar (centered) ──
             GestureDetector(
-              onTap: () => _showPhotoOptions(),
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFF4EA771),
-                    width: 3,
-                  ),
-                ),
-                child: ClipOval(
-                  child: Consumer<AuthProvider>(
-                    builder: (context, auth, _) {
-                      String? photoUrl;
-                      if (auth.role == 'nasabah') {
-                        photoUrl = auth.nasabahProfile?.foto;
-                      } else if (auth.role.startsWith('petugas_')) {
-                        photoUrl = auth.petugasProfile?.photoUrl;
-                      }
+              onTap: _isUploadingPhoto ? null : () => _showPhotoOptions(),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: borderColor,
+                        width: 3,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: Consumer<AuthProvider>(
+                        builder: (context, auth, _) {
+                          String? photoUrl;
+                          if (auth.role == 'nasabah') {
+                            photoUrl = _detailNasabah?['photo_url'] ?? auth.nasabahProfile?.foto;
+                          } else if (auth.role.startsWith('petugas_')) {
+                            photoUrl = auth.petugasProfile?.photoUrl;
+                          }
 
-                      if (photoUrl != null && photoUrl.isNotEmpty) {
-                        return Image.network(
-                          photoUrl,
-                          width: 100,
-                          height: 100,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Image.asset(
+                          if (photoUrl != null && photoUrl.isNotEmpty) {
+                            return Image.network(
+                              photoUrl,
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Image.asset(
+                                "assets/images/profile.png",
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
+                              ),
+                            );
+                          }
+                          return Image.asset(
                             "assets/images/profile.png",
                             width: 100,
                             height: 100,
                             fit: BoxFit.cover,
-                          ),
-                        );
-                      }
-                      return Image.asset(
-                        "assets/images/profile.png",
-                        width: 100,
-                        height: 100,
-                        fit: BoxFit.cover,
-                      );
-                    },
+                          );
+                        },
+                      ),
+                    ),
                   ),
-                ),
+                  // Upload loading overlay
+                  if (_isUploadingPhoto)
+                    Container(
+                      width: 106,
+                      height: 106,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black.withOpacity(0.45),
+                      ),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 14),
@@ -173,7 +361,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // ── Name ──
             Consumer<AuthProvider>(
               builder: (context, auth, _) => Text(
-                auth.nama,
+                auth.role == 'nasabah' && _detailNasabah != null 
+                    ? (_detailNasabah!['nama'] ?? auth.nama) 
+                    : auth.nama,
                 style: const TextStyle(
                   fontFamily: 'Poppins',
                   fontWeight: FontWeight.w700,
@@ -227,7 +417,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       builder: (context, auth, _) {
                         String bankName = '-';
                         if (auth.role == 'nasabah') {
-                          bankName = auth.nasabahProfile?.namaBsu ?? auth.nasabahProfile?.namaBsi ?? '-';
+                          bankName = _detailNasabah?['nama_bank'] ?? auth.nasabahProfile?.namaBsu ?? auth.nasabahProfile?.namaBsi ?? '-';
                         } else if (auth.role.startsWith('petugas_')) {
                           bankName = auth.petugasProfile?.namaBank ?? '-';
                         }
@@ -256,417 +446,281 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ═══════════════════════════════════════════════════════════════════
-  // ─── Reward History Section ────────────────────────────────────────
+  // ─── Section: Informasi Asosiasi ─────────────────────────────────────
   // ═══════════════════════════════════════════════════════════════════
-  Widget _buildRewardHistorySection() {
-    if (_rewardHistory.isEmpty) return const SizedBox.shrink();
+  Widget _buildAsosiasiCard() {
+    if (_detailNasabah == null) return const SizedBox.shrink();
+    
+    final isAdmin = _detailNasabah!['is_admin'] == true;
+    if (!isAdmin) return const SizedBox.shrink();
 
-    final rankLabels = {1: 'Gold', 2: 'Silver', 3: 'Bronze'};
-    final rankEmojis = {1: '👑', 2: '🥈', 3: '🥉'};
-    final rankGradients = {
-      1: [const Color(0xFFD4F55A), const Color(0xFF94C91A)],
-      2: [const Color(0xFF8ECAE6), const Color(0xFF4A9FBF)],
-      3: [const Color(0xFF6BD4A0), const Color(0xFF2E9F6A)],
-    };
+    final role = _detailNasabah!['role_admin']?.toString() ?? '';
+    final bankAdmin = _detailNasabah!['nama_bank_admin']?.toString() ?? '';
+    final adminId = _detailNasabah!['admin_id']?.toString() ?? '';
+
+    String roleDisplay = role;
+    if (role == 'petugas_bsi') roleDisplay = 'Petugas BSI';
+    else if (role == 'admin_bsi') roleDisplay = 'Admin BSI';
+    else if (role == 'petugas_bsu') roleDisplay = 'Petugas BSU';
+    else if (role == 'admin_bsu') roleDisplay = 'Admin BSU';
+    else if (role == 'petugas_bsm') roleDisplay = 'Petugas BSM';
+    else if (role == 'admin_bsm') roleDisplay = 'Admin BSM';
+    else if (role == 'superadmin') roleDisplay = 'Superadmin';
+
+    String bankDisplay = bankAdmin;
+    if (role == 'superadmin' || bankDisplay.isEmpty) {
+      bankDisplay = 'Dinas Lingkungan Hidup Kota Padang';
+    }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 25),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Section header
-          Row(
-            children: [
-              const Text(
-                'Reward Saya',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF013236),
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${_rewardHistory.length} reward',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  color: const Color(0xFF013236).withOpacity(0.5),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Horizontal scrollable cards
-          SizedBox(
-            height: 160,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // 2 cards visible: subtract separator, divide by 2
-                final cardWidth = (constraints.maxWidth - 12) / 2;
-                return ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: _rewardHistory.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (context, index) {
-                    final reward = _rewardHistory[index];
-                    final rank = reward['rank'] as int;
-                    final gradientColors = rankGradients[rank]!;
-
-                    return Container(
-                      width: cardWidth,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: gradientColors,
-                    ),
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: [
-                      BoxShadow(
-                        color: gradientColors[0].withOpacity(0.35),
-                        blurRadius: 14,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(22),
-                    child: Stack(
-                      children: [
-                        // Glossy top highlight
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            height: 60,
-                            decoration: BoxDecoration(
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.white.withOpacity(0.30),
-                                  Colors.white.withOpacity(0.0),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Decorative circle
-                        Positioned(
-                          bottom: -15,
-                          right: -15,
-                          child: Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white.withOpacity(0.12),
-                            ),
-                          ),
-                        ),
-                        // Card content
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Medal emoji
-                              Text(
-                                rankEmojis[rank]!,
-                                style: const TextStyle(fontSize: 28),
-                              ),
-                              const SizedBox(height: 8),
-                              // Rank label
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  rankLabels[rank]!,
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                              const Spacer(),
-                              // Month & year
-                              Text(
-                                '${reward['bulan']}',
-                                style: const TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF013236),
-                                  height: 1.2,
-                                ),
-                              ),
-                              Text(
-                                '${reward['tahun']}  •  ${reward['berat']}',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 10,
-                                  color: const Color(0xFF013236).withOpacity(0.7),
-                                  height: 1.4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            );
-          },
+      padding: const EdgeInsets.symmetric(horizontal: 17),
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 15),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFFBF0),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF4EA771).withOpacity(0.3)),
         ),
-      ),
-          SizedBox(height: 30),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmailSection() {
-    return _buildSectionContainer(
-      icon: CupertinoIcons.mail_solid,
-      iconBgColor: const Color(0xFF013236),
-      title: "Ubah Email",
-      children: [
-        _buildTextField(
-          controller: _emailController,
-          label: "Email Baru",
-          hint: "Masukkan email baru",
-          prefixIcon: CupertinoIcons.mail,
-          keyboardType: TextInputType.emailAddress,
-        ),
-        const SizedBox(height: 14),
-        _buildActionButton(
-          label: "Simpan Email",
-          onPressed: () {
-            // TODO: Handle ubah email
-          },
-        ),
-      ],
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // ─── Section: Ubah Password ───────────────────────────────────────
-  // ═══════════════════════════════════════════════════════════════════
-  Widget _buildPasswordSection() {
-    return _buildSectionContainer(
-      icon: CupertinoIcons.lock_fill,
-      iconBgColor: const Color(0xFF013236),
-      title: "Ubah Password",
-      children: [
-        _buildTextField(
-          controller: _oldPasswordController,
-          label: "Password Lama",
-          hint: "Masukkan password lama",
-          prefixIcon: CupertinoIcons.lock,
-          obscure: _obscureOld,
-          suffixIcon: IconButton(
-            icon: Icon(
-              _obscureOld ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
-              size: 18,
-              color: const Color(0xFF013236).withValues(alpha: 0.4),
-            ),
-            onPressed: () => setState(() => _obscureOld = !_obscureOld),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildTextField(
-          controller: _newPasswordController,
-          label: "Password Baru",
-          hint: "Masukkan password baru",
-          prefixIcon: CupertinoIcons.lock_rotation,
-          obscure: _obscureNew,
-          suffixIcon: IconButton(
-            icon: Icon(
-              _obscureNew ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
-              size: 18,
-              color: const Color(0xFF013236).withValues(alpha: 0.4),
-            ),
-            onPressed: () => setState(() => _obscureNew = !_obscureNew),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildTextField(
-          controller: _confirmPasswordController,
-          label: "Konfirmasi Password",
-          hint: "Ulangi password baru",
-          prefixIcon: CupertinoIcons.checkmark_shield,
-          obscure: _obscureConfirm,
-          suffixIcon: IconButton(
-            icon: Icon(
-              _obscureConfirm ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
-              size: 18,
-              color: const Color(0xFF013236).withValues(alpha: 0.4),
-            ),
-            onPressed: () =>
-                setState(() => _obscureConfirm = !_obscureConfirm),
-          ),
-        ),
-        const SizedBox(height: 14),
-        _buildActionButton(
-          label: "Ubah Password",
-          onPressed: () {
-            // TODO: Handle ubah password
-          },
-        ),
-      ],
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // ─── Section: Pengajuan Pemindahan BSU ────────────────────────────
-  // ═══════════════════════════════════════════════════════════════════
-  Widget _buildPemindahanBsuSection() {
-    return _buildSectionContainer(
-      icon: CupertinoIcons.arrow_right_arrow_left,
-      iconBgColor: const Color(0xFF013236),
-      iconColor: Colors.white,
-      title: "Pengajuan Pemindahan BSU",
-      children: [
-        // Info current BSU
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Color(0xFF4EA771).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4EA771).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  CupertinoIcons.building_2_fill,
-                  size: 18,
-                  color: Color(0xFF4EA771),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "BSU Saat Ini",
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        color: const Color(0xFF013236).withValues(alpha: 0.5),
-                      ),
-                    ),
-                    Consumer<AuthProvider>(
-                      builder: (context, auth, _) => Text(
-                        auth.nasabahProfile?.namaBsu ?? "BSU Tidak Terikat",
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF013236),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        // Dropdown BSU tujuan
-        Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 6),
-              child: Text(
-                "BSU Tujuan",
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF013236).withValues(alpha: 0.7),
-                ),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                color: Color(0xFF4EA771).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedBsu,
-                  hint: Text(
-                    "Pilih BSU tujuan",
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      color: const Color(0xFF013236).withValues(alpha: 0.35),
-                    ),
-                  ),
-                  isExpanded: true,
-                  icon: Icon(
-                    CupertinoIcons.chevron_down,
-                    size: 16,
-                    color: const Color(0xFF013236).withValues(alpha: 0.4),
-                  ),
-                  style: const TextStyle(
+            const Icon(Icons.admin_panel_settings_rounded, color: Color(0xFF4EA771), size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: RichText(
+                text: TextSpan(
+                  style: TextStyle(
                     fontFamily: 'Poppins',
-                    fontSize: 13,
-                    color: Color(0xFF013236),
+                    fontSize: 10,
+                    color: const Color(0xFF013236).withOpacity(0.8),
+                    height: 1.6,
                   ),
-                  borderRadius: BorderRadius.circular(14),
-                  items: _daftarBsu.map((bsu) {
-                    return DropdownMenuItem<String>(
-                      value: bsu,
-                      child: Text(bsu),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _selectedBsu = value);
-                  },
+                  children: [
+                    const TextSpan(text: 'Akun Anda terasosiasi sebagai akun '),
+                    TextSpan(
+                      text: roleDisplay,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const TextSpan(text: ' di '),
+                    TextSpan(
+                      text: bankDisplay,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const TextSpan(text: ' dengan ID '),
+                    TextSpan(
+                      text: adminId,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        // Alasan pemindahan
-        _buildTextField(
-          controller: _alasanController,
-          label: "Alasan Pemindahan",
-          maxLines: 3,
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ─── Section: Informasi Pribadi ─────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════
+  Widget _buildInformasiPribadiSection() {
+    if (_isLoadingDetail) {
+      return const Center(child: Padding(
+        padding: EdgeInsets.all(20),
+        child: CircularProgressIndicator(),
+      ));
+    }
+    
+    if (_detailNasabah == null) {
+      return const SizedBox.shrink();
+    }
+
+    String joinedAtStr = '-';
+    if (_detailNasabah!['joined_at'] != null) {
+      try {
+        final dt = DateTime.parse(_detailNasabah!['joined_at'].toString().replaceAll(' ', 'T'));
+        joinedAtStr = DateFormat('dd MMMM yyyy', 'id_ID').format(dt);
+      } catch (_) {}
+    }
+
+    return Column(
+      children: [
+        _buildSectionContainer(
+          icon: CupertinoIcons.person_solid,
+          iconBgColor: const Color(0xFF013236),
+          title: "Informasi Pribadi",
+          children: [
+            _buildInfoRow("NIK", _detailNasabah!['user_id'] ?? '-'),
+            const SizedBox(height: 12),
+            _buildInfoRow("Email", _detailNasabah!['email'] ?? '-'),
+            const SizedBox(height: 12),
+            _buildInfoRow("Nomor WhatsApp", _detailNasabah!['no_whatsapp'] ?? '-'),
+            const SizedBox(height: 12),
+            _buildInfoRow("Nomor Rekening", _detailNasabah!['nomor_rekening'] ?? '-'),
+            const SizedBox(height: 12),
+            _buildInfoRow("Bergabung Sejak", joinedAtStr),
+          ],
         ),
-        const SizedBox(height: 14),
-        _buildActionButton(
-          label: "Ajukan Pemindahan",
-          bgColor: const Color(0xFF013236),
-          onPressed: () {
-            // TODO: Handle pengajuan pemindahan BSU
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 10,
+            color: const Color(0xFF013236).withOpacity(0.5),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF013236),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ─── Section: Pengaturan ───────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════
+  Widget _buildPengaturanSection() {
+    return _buildSectionContainer(
+      icon: CupertinoIcons.settings_solid,
+      iconBgColor: const Color(0xFF013236),
+      title: "Pengaturan",
+      children: [
+        _buildListMenuTile(
+          icon: CupertinoIcons.lock_fill,
+          title: "Ubah Password",
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => UbahPasswordScreen(),
+              ),
+            );
+          },
+        ),
+        _buildListMenuTile(
+          icon: CupertinoIcons.doc_text_fill,
+          title: "Log Aktivasi Akun",
+          hideDivider: true,
+          onTap: () {
+            // TODO: Navigate to Log Aktivasi Akun
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildListMenuTile({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    bool hideDivider = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4EA771).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, size: 16, color: const Color(0xFF4EA771)),
+                ),
+                const SizedBox(width: 14),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF013236),
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  CupertinoIcons.chevron_right,
+                  size: 14,
+                  color: const Color(0xFF013236).withOpacity(0.4),
+                ),
+              ],
+            ),
+          ),
+          if (!hideDivider)
+            Divider(
+              color: const Color(0xFF013236).withOpacity(0.08),
+              height: 1,
+              thickness: 0.5,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLogoutButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 17),
+      child: _buildActionButton(
+        label: "Keluar dari Akun",
+        bgColor: Colors.red.shade600,
+        onPressed: () async {
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              title: const Text('Logout', style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold)),
+              content: const Text('Apakah Anda yakin ingin keluar dari aplikasi?', style: TextStyle(fontFamily: 'Poppins')),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Batal', style: TextStyle(color: Colors.grey, fontFamily: 'Poppins')),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Keluar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontFamily: 'Poppins')),
+                ),
+              ],
+            ),
+          );
+
+          if (confirm == true) {
+            final authProvider = Provider.of<AuthProvider>(context, listen: false);
+            await authProvider.logout();
+            if (context.mounted) {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => SplashScreen()),
+                (route) => false,
+              );
+            }
+          }
+        },
+      ),
     );
   }
 
@@ -853,124 +907,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // ─── Bottom Sheet: Photo Options ──────────────────────────────────
-  // ═══════════════════════════════════════════════════════════════════
-  void _showPhotoOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-            ),
-          ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Handle bar
-                Container(
-                  margin: const EdgeInsets.only(top: 12, bottom: 8),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                // Title
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 10),
-                  child: Text(
-                    "Foto Profil",
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF013236),
-                    ),
-                  ),
-                ),
-                Divider(height: 1, color: Colors.grey.shade200),
-                // Option: Lihat Foto
-                _buildSheetOption(
-                  icon: CupertinoIcons.eye,
-                  iconColor: const Color(0xFF4EA771),
-                  label: "Lihat Foto",
-                  onTap: () {
-                    Navigator.pop(context);
-                    // TODO: Buka foto profil full screen
-                  },
-                ),
-                Divider(height: 1, indent: 60, color: Colors.grey.shade100),
-                // Option: Ubah Foto
-                _buildSheetOption(
-                  icon: CupertinoIcons.camera,
-                  iconColor: const Color(0xFF013236),
-                  label: "Ubah Foto",
-                  onTap: () {
-                    Navigator.pop(context);
-                    // TODO: image picker
-                  },
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ─── Bottom Sheet option item ───────────────────────────────────
-  Widget _buildSheetOption({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: iconColor, size: 20),
-              ),
-              const SizedBox(width: 14),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF013236),
-                ),
-              ),
-              const Spacer(),
-              Icon(
-                CupertinoIcons.chevron_right,
-                color: Colors.grey.shade400,
-                size: 18,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

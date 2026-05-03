@@ -1,24 +1,18 @@
 import 'package:enviroo/layouts/balance.dart';
 import 'package:enviroo/layouts/informasi_layouts.dart';
 import 'package:enviroo/layouts/jadwal_layouts.dart';
-import 'package:enviroo/layouts/menu_admin_bsu_layouts.dart';
-import 'package:enviroo/layouts/menu_admin_bsi.dart';
 import 'package:enviroo/layouts/menu_layouts.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/konten_provider.dart';
-
-import 'package:enviroo/models/penarikan_model.dart';
-import 'package:enviroo/models/transaksi_model.dart';
-import 'package:enviroo/screens/admin_bsu/home_bsu_screen.dart';
+import 'package:enviroo/screens/katalog_screen.dart';
+import 'package:enviroo/services/reward_overview_service.dart';
+import 'package:enviroo/services/riwayat_transaksi_service.dart';
+import 'package:enviroo/widgets/filter_chip_row.dart';
 import 'package:enviroo/widgets/navbar.dart';
-import 'package:enviroo/widgets/penarikan_poin_card.dart';
-import 'package:enviroo/widgets/penarikan_uang_card.dart';
 import 'package:enviroo/widgets/topbar_custom.dart';
-import 'package:enviroo/widgets/transaksi_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:dropdown_button2/dropdown_button2.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -27,22 +21,9 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _PodiumUser {
-  final String name;
-  final String weight;
-  final int rank;
-  const _PodiumUser({
-    required this.name,
-    required this.weight,
-    required this.rank,
-  });
-}
-
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedNavIndex = 0;
-  String _selectedFilter = 'setoran';
-  String _selectedPenarikanType = 'uang'; // 'uang' atau 'poin'
   
   int _selectedMonth = DateTime.now().month;
   int _selectedYear = DateTime.now().year;
@@ -122,350 +103,313 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ── Riwayat Transaksi state ──────────────────────────────────────
+  bool _transaksiLoading = true;
+  String? _transaksiError;
+  List<Map<String, dynamic>> _transaksiList = [];
+  bool _transaksiFetched = false;
+  String _filterJenis = 'semua'; // 'semua' | 'setoran' | 'penarikan'
+
+  Future<void> _fetchRiwayatTransaksi() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final nasabahId = auth.identityId;
+    final token = auth.currentUser?.accessToken;
+    if (nasabahId == null || token == null) return;
+
+    setState(() {
+      _transaksiLoading = true;
+      _transaksiError = null;
+    });
+
+    final result = await RiwayatTransaksiService.getRiwayatTransaksi(nasabahId, token);
+
+    if (!mounted) return;
+    if (result['success'] == true) {
+      setState(() {
+        _transaksiList = List<Map<String, dynamic>>.from(result['data'] ?? []);
+        _transaksiLoading = false;
+        _transaksiFetched = true;
+      });
+    } else {
+      setState(() {
+        _transaksiError = result['message'] ?? 'Gagal memuat riwayat transaksi';
+        _transaksiLoading = false;
+        _transaksiFetched = true;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredTransaksi {
+    return _transaksiList.where((t) {
+      final raw = t['tanggal'] as String? ?? '';
+      DateTime? date;
+      try { date = DateTime.parse(raw.replaceAll(' ', 'T')); } catch (_) {}
+
+      final matchesMonth = date == null ||
+          (date.month == _selectedMonth && date.year == _selectedYear);
+      final jenis = (t['jenis_transaksi'] as String? ?? '').toLowerCase();
+      final matchesJenis = _filterJenis == 'semua' ||
+          (_filterJenis == 'setoran' && jenis == 'setoran') ||
+          (_filterJenis == 'penarikan' && jenis != 'setoran');
+      return matchesMonth && matchesJenis;
+    }).toList();
+  }
+
   Widget _buildTransaksiLayouts() {
+    if (!_transaksiFetched) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fetchRiwayatTransaksi());
+    }
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(top: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        // borderRadius: const BorderRadius.only(
-        //   topLeft: Radius.circular(32),
-        //   topRight: Radius.circular(32),
-        // ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF013236).withAlpha(18),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
+        color: Colors.white
       ),
       child: Column(
         children: [
-          // Handle
-          // Container(
-          //   margin: const EdgeInsets.only(top: 14, bottom: 18),
-          //   width: 36,
-          //   height: 4,
-          //   decoration: BoxDecoration(
-          //     color: const Color(0xFF4EA771).withAlpha(50),
-          //     borderRadius: BorderRadius.circular(2),
-          //   ),
-          // ),
-
-          SizedBox(height: 20),
-          
-          // Segmented control (Setoran / Penarikan)
+          // ── Filter bulan/tahun ──
+          const SizedBox(height: 20),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Color(0xFF013236).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(50),
-              ),
-              child: Row(
-                children: [
-                  _buildSegment('setoran', 'Setoran'),
-                  _buildSegment('penarikan', 'Penarikan'),
-                ],
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 14),
-          
-          // Month/Year filter (only for Setoran)
-          if (_selectedFilter == 'setoran')
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: GestureDetector(
-                onTap: () => _showMonthYearPicker(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF013236).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF013236).withAlpha(25),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.calendar_today_rounded,
-                          size: 15,
-                          color: Color(0xFF013236),
-                        ),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: GestureDetector(
+              onTap: () => _showMonthYearPicker(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF013236).withOpacity(0.07),
+                  borderRadius: BorderRadius.circular(50),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF013236).withAlpha(22),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(width: 10),
-                      Text(
-                        '${_months[_selectedMonth - 1]} $_selectedYear',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF013236),
-                        ),
+                      child: const Icon(Icons.calendar_today_rounded,
+                          size: 14, color: Color(0xFF013236)),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      '${_months[_selectedMonth - 1]} $_selectedYear',
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF013236),
                       ),
-                      const Spacer(),
-                      Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 20,
-                        color: const Color(0xFF013236).withAlpha(140),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const Spacer(),
+                    Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 20, color: const Color(0xFF013236).withAlpha(140)),
+                  ],
                 ),
               ),
             ),
+          ),
 
-          // Penarikan type filter (Saldo Uang / Saldo Poin)
-          if (_selectedFilter == 'penarikan')
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: DropdownButton2<String>(
-                value: _selectedPenarikanType,
-                onChanged: (value) {
-                  if (value != null) {
-                    HapticFeedback.selectionClick();
-                    setState(() => _selectedPenarikanType = value);
-                  }
-                },
-                items: const [
-                  DropdownMenuItem(value: 'uang', child: Text('Saldo Uang')),
-                  DropdownMenuItem(value: 'poin', child: Text('Saldo Poin')),
-                ],
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF013236),
-                ),
-                underline: const SizedBox.shrink(),
-                buttonStyleData: ButtonStyleData(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF013236).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  height: 48,
-                ),
-                iconStyleData: IconStyleData(
-                  icon: Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 20,
-                    color: const Color(0xFF013236).withAlpha(140),
-                  ),
-                  iconSize: 20,
-                ),
-                dropdownStyleData: DropdownStyleData(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    // boxShadow: [
-                    //   BoxShadow(
-                    //     color: const Color(0xFF013236).withAlpha(20),
-                    //     blurRadius: 16,
-                    //     offset: const Offset(0, 4),
-                    //   ),
-                    // ],
-                  ),
-                  offset: const Offset(0, -4),
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                ),
-                menuItemStyleData: const MenuItemStyleData(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                ),
-                selectedItemBuilder: (context) => [
-                  // Uang — dengan ikon wallet, mirip layout calendar filter
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF013236).withAlpha(25),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.account_balance_wallet_rounded,
-                          size: 15,
-                          color: Color(0xFF013236),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Saldo Uang',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF013236),
-                        ),
-                      ),
-                    ],
-                  ),
-                  // Poin — dengan ikon stars
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF013236).withAlpha(25),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.stars_rounded,
-                          size: 15,
-                          color: Color(0xFF013236),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Saldo Poin',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF013236),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          
-          const SizedBox(height: 16),
-          
-          // List
-          Expanded(
-            child: _selectedFilter == 'setoran'
-                ? _buildSetoranList()
-                : _buildPenarikanList(),
+          const SizedBox(height: 12),
+
+          // ── Filter chip: Semua / Setoran / Penarikan ──
+          FilterChipRow<String>(
+            padding: const EdgeInsets.symmetric(horizontal: 25),
+            selectedValue: _filterJenis,
+            onSelected: (v) => setState(() => _filterJenis = v),
+            items: const [
+              FilterChipItem(value: 'semua', label: 'Semua'),
+              FilterChipItem(value: 'setoran', label: 'Setoran'),
+              FilterChipItem(value: 'penarikan', label: 'Penarikan'),
+            ],
           ),
+
+          const SizedBox(height: 8),
+
+          // ── List ──
+          Expanded(child: _buildTransaksiList()),
         ],
       ),
     );
   }
 
-  Widget _buildSetoranList() {
-    List<Transaksi> allData = getDummySetoranData();
-    
-    List<Transaksi> filteredData = allData.where((t) {
-      return t.tanggal.month == _selectedMonth && t.tanggal.year == _selectedYear;
-    }).toList();
-    
-    filteredData.sort((a, b) => b.tanggal.compareTo(a.tanggal));
-
-    if (filteredData.isEmpty) {
-      return _buildEmptyState();
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 24),
-      physics: const BouncingScrollPhysics(),
-      itemCount: filteredData.length,
-      itemBuilder: (context, index) {
-        return TransaksiCard(transaksi: filteredData[index]);
-      },
-    );
-  }
-
-  Widget _buildPenarikanList() {
-    if (_selectedPenarikanType == 'uang') {
-      List<PenarikanUang> data = getDummyPenarikanUangData();
-      data.sort((a, b) => b.tanggalDiajukan.compareTo(a.tanggalDiajukan));
-
-      if (data.isEmpty) {
-        return _buildEmptyState();
-      }
-
-      return ListView.builder(
-        padding: const EdgeInsets.only(bottom: 24),
-        physics: const BouncingScrollPhysics(),
-        itemCount: data.length,
-        itemBuilder: (context, index) {
-          return PenarikanUangCard(penarikan: data[index]);
-        },
-      );
-    } else {
-      List<PenarikanPoin> data = getDummyPenarikanPoinData();
-      data.sort((a, b) => b.tanggalDiajukan.compareTo(a.tanggalDiajukan));
-
-      if (data.isEmpty) {
-        return _buildEmptyState();
-      }
-
-      return ListView.builder(
-        padding: const EdgeInsets.only(bottom: 24),
-        physics: const BouncingScrollPhysics(),
-        itemCount: data.length,
-        itemBuilder: (context, index) {
-          return PenarikanPoinCard(penarikan: data[index]);
-        },
+  Widget _buildTransaksiList() {
+    if (_transaksiLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF4EA771)),
       );
     }
-  }
 
-  Widget _buildSegment(String value, String label) {
-    final isSelected = _selectedFilter == value;
-    
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          setState(() => _selectedFilter = value);
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? Color(0xFF013236) : Colors.transparent,
-            borderRadius: BorderRadius.circular(40),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? Colors.white : const Color(0xFF013236).withAlpha(250),
+    if (_transaksiError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline_rounded,
+                  color: Colors.redAccent, size: 44),
+              const SizedBox(height: 12),
+              Text(_transaksiError!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontFamily: 'Poppins', fontSize: 13)),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4EA771),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50)),
+                ),
+                onPressed: () {
+                  _transaksiFetched = false;
+                  _fetchRiwayatTransaksi();
+                },
+                child: const Text('Coba lagi',
+                    style: TextStyle(fontFamily: 'Poppins')),
               ),
-            ),
+            ],
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.receipt_long_outlined,
-            size: 56,
-            color: const Color(0xFF013236).withAlpha(40),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Tidak ada transaksi',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFF013236).withAlpha(100),
+    final list = _filteredTransaksi;
+
+    if (list.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.receipt_long_outlined,
+                size: 52, color: const Color(0xFF013236).withAlpha(40)),
+            const SizedBox(height: 14),
+            Text(
+              'Tidak ada transaksi',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 14,
+                color: const Color(0xFF013236).withAlpha(100),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 16),
+      physics: const BouncingScrollPhysics(),
+      itemCount: list.length,
+      separatorBuilder: (_, __) => Divider(
+        height: 1,
+        color: const Color(0xFF013236).withOpacity(0.06),
       ),
+      itemBuilder: (context, i) {
+        final t = list[i];
+        final raw = t['tanggal'] as String? ?? '';
+        DateTime? date;
+        try { date = DateTime.parse(raw.replaceAll(' ', 'T')); } catch (_) {}
+
+        final jenis = (t['jenis_transaksi'] as String? ?? '').toLowerCase();
+        final isSetoran = jenis == 'setoran';
+        final jumlah = (t['jumlah'] as num?)?.toDouble() ?? 0;
+
+        // Format tanggal
+        String tanggalStr = '-';
+        if (date != null) {
+          tanggalStr =
+              '${date.day.toString().padLeft(2, '0')}/'
+              '${date.month.toString().padLeft(2, '0')}/'
+              '${date.year}';
+        }
+        String jamStr = '';
+        if (date != null) {
+          jamStr =
+              '${date.hour.toString().padLeft(2, '0')}:'
+              '${date.minute.toString().padLeft(2, '0')}';
+        }
+
+        // Format angka
+        final jumlahAbs = jumlah.abs();
+        String jumlahStr;
+        if (jumlahAbs == jumlahAbs.truncateToDouble()) {
+          jumlahStr = jumlahAbs.toInt().toString();
+        } else {
+          jumlahStr = jumlahAbs.toStringAsFixed(2);
+        }
+        final numParts = jumlahStr.split('.');
+        final intPart = numParts[0].replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]}.',
+        );
+        jumlahStr = numParts.length > 1 ? '$intPart,${numParts[1]}' : intPart;
+
+        final color = isSetoran ? const Color(0xFF2E9F6A) : const Color(0xFFD94040);
+        final bgColor = isSetoran ? const Color(0xFFF0FAF4) : const Color(0xFFFDF2F2);
+        final prefix = isSetoran ? '+' : '-';
+        final jenisLabel = isSetoran ? 'Setoran' : 'Penarikan';
+        final jenisIcon = isSetoran
+            ? Icons.arrow_upward_rounded
+            : Icons.arrow_downward_rounded;
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Row(
+            children: [
+              // ── Icon badge ──
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(jenisIcon, color: color, size: 22),
+              ),
+              const SizedBox(width: 14),
+
+              // ── Info kiri ──
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      jenisLabel,
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF013236),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$tanggalStr${jamStr.isNotEmpty ? '  •  $jamStr' : ''}',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 11,
+                        color: const Color(0xFF013236).withOpacity(0.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Jumlah kanan ──
+              Text(
+                '$prefix $jumlahStr',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -608,336 +552,502 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─── Ubah _buildRewardLayouts ─────────────────────────────────────
-  Widget _buildRewardLayouts() {
-    return Column( // <-- ini harus jadi children dari widget yang fill screen
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(25),
-          child: Column(
-            children: [
-              Text(
-                "Reward untuk nasabah terbaik dengan tabungan sampah terbanyak tiap bulannya",
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: Color(0xFF013236).withOpacity(0.75),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 25),
-              GestureDetector(
-                onTap: () => _showMonthYearPicker(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF013236).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(50),
-                    border: Border.all(
-                      width: 1,
-                      color: Color(0xFF013236).withOpacity(0.2)
-                    )
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.calendar_today_rounded, size: 18, color: Color(0xFF013236)),
-                      const SizedBox(width: 10),
-                      Text(
-                        '${_months[_selectedMonth - 1]} $_selectedYear',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF013236),
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(Icons.keyboard_arrow_down_rounded,
-                          color: const Color(0xFF013236).withAlpha(120)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        Expanded(child: _buildRankingLayout()), // ← Expanded di sini, bukan di dalam
-      ],
-    );
+  // ─── Reward Overview ─────────────────────────────────────────────
+  bool _rewardLoading = true;
+  String? _rewardError;
+  String _rewardDeskripsi = '';
+  List<Map<String, dynamic>> _rewardList = [];
+  bool _rewardFetched = false;
+
+  Future<void> _fetchRewardOverview() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final nasabahId = auth.identityId;
+    final token = auth.currentUser?.accessToken;
+    if (nasabahId == null || token == null) return;
+
+    setState(() {
+      _rewardLoading = true;
+      _rewardError = null;
+    });
+
+    final result = await RewardOverviewService.getRewardOverview(nasabahId, token);
+
+    if (!mounted) return;
+    if (result['success'] == true && result['data'] != null) {
+      final data = result['data'] as Map<String, dynamic>;
+      setState(() {
+        _rewardDeskripsi = data['deskripsi_menu'] ?? '';
+        _rewardList = List<Map<String, dynamic>>.from(data['list_reward'] ?? []);
+        _rewardLoading = false;
+        _rewardFetched = true;
+      });
+    } else {
+      setState(() {
+        _rewardError = result['message'] ?? 'Gagal memuat data reward';
+        _rewardLoading = false;
+        _rewardFetched = true;
+      });
+    }
   }
 
-  Widget _buildRankingLayout() {
-    return Container(
-      padding: const EdgeInsets.only(top: 28),
-      decoration: const BoxDecoration(
-        color: Color(0xFF013236),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(28),
-          topRight: Radius.circular(28),
-        ),
-      ),
-      child: Column(
-        children: [
-          // ── Header ──
-          Column(
+  String _formatKonversi(double v) {
+    if (v == v.truncateToDouble()) return v.toInt().toString();
+    return v.toStringAsFixed(4).replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '');
+  }
+
+  Widget _buildRewardLayouts() {
+    // Fetch once when tab is opened
+    if (!_rewardFetched) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fetchRewardOverview());
+    }
+
+    if (_rewardLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF4EA771)),
+      );
+    }
+
+    if (_rewardError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                "Top 3 Nasabah",
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 1.5,
-                  color: Color(0xFF94D18C),
-                ),
+              const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
+              const SizedBox(height: 12),
+              Text(
+                _rewardError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontFamily: 'Poppins', fontSize: 13),
               ),
-              const SizedBox(height: 4),
-              const Text(
-                "BSU Fakultas Teknologi Informasi",
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  color: Color(0xFFFFFFFF),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+              const SizedBox(height: 16),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4EA771),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                 ),
+                onPressed: () {
+                  _rewardFetched = false;
+                  _fetchRewardOverview();
+                },
+                child: const Text('Coba lagi'),
               ),
             ],
           ),
+        ),
+      );
+    }
 
-          const SizedBox(height: 24),
-
-          // ── Podium ──
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final maxH = constraints.maxHeight;
-                const avatarH = 50.0; // foto + nama + padding
-
-                // Data dummy per rank (bisa diganti data asli)
-                final users = [
-                  _PodiumUser(name: "Siti Rahma", weight: "18.5 kg", rank: 2),
-                  _PodiumUser(name: "Ramadhani S.", weight: "24.2 kg", rank: 1),
-                  _PodiumUser(name: "Budi Santoso", weight: "12.0 kg", rank: 3),
-                ];
-
-                final barRatios = [0.62, 0.85, 0.48]; // rank 2, 1, 3
-
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: List.generate(3, (i) {
-                    return Expanded(
-                      child: _buildPodiumColumn(
-                        user: users[i],
-                        barHeight: (maxH - avatarH) * barRatios[i],
-                      ),
-                    );
-                  }),
-                );
-              },
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Reward Penukaran Saldo',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF013236),
+                  ),
+                ),
+                if (_rewardDeskripsi.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    _rewardDeskripsi,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 12,
+                      color: Color(0xFF013236).withOpacity(0.6),
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
+
+          const SizedBox(height: 15),
+
+          // ── Reward cards ──
+          if (_rewardList.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: Column(
+                children: [
+                  Icon(Icons.card_giftcard_outlined, size: 48,
+                      color: const Color(0xFF013236).withOpacity(0.25)),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Belum ada reward tersedia',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      color: const Color(0xFF013236).withOpacity(0.5),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...List.generate(_rewardList.length, (i) {
+              final r = _rewardList[i];
+              return _RewardCard(rewardData: r);
+            }),
         ],
       ),
     );
   }
+}
 
-// ── Data helper class ─────────────────────────────
+// ─── Reward Card Widget ─────────────────────────────────────────────────────
 
-// ── Kolom lengkap: avatar + bar ───────────────────
-  Widget _buildPodiumColumn({
-  required _PodiumUser user,
-  required double barHeight,
-  }) {
-  return Column(
-  mainAxisSize: MainAxisSize.min,
-  children: [
-  _buildIdentitasUser(user),
-  _buildPodiumBar(height: barHeight, user: user),
-  ],
-  );
+class _RewardCard extends StatefulWidget {
+  final Map<String, dynamic> rewardData;
+  const _RewardCard({required this.rewardData});
+
+  @override
+  State<_RewardCard> createState() => _RewardCardState();
+}
+
+class _RewardCardState extends State<_RewardCard> with SingleTickerProviderStateMixin {
+  bool _expanded = false;
+  final TextEditingController _poinCtrl = TextEditingController();
+  late AnimationController _animCtrl;
+  late Animation<double> _expandAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+    _expandAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut);
   }
 
-// ── Podium Bar ────────────────────────────────────
-  Widget _buildPodiumBar({
-  required double height,
-  required _PodiumUser user,
-  }) {
-  // Palette per rank
-  final gradients = {
-  1: [const Color(0xFFD4F55A), const Color(0xFF94C91A)],   // lime-gold
-  2: [const Color(0xFF8ECAE6), const Color(0xFF4A9FBF)],   // silver-blue
-  3: [const Color(0xFF6BD4A0), const Color(0xFF2E9F6A)],   // green
-  };
-
-  final glowColors = {
-  1: const Color(0xFFD4F55A).withOpacity(0.15),
-  2: const Color(0xFF8ECAE6).withOpacity(0.15),
-  3: const Color(0xFF6BD4A0).withOpacity(0.15),
-  };
-
-  final medalIcons = {
-  1: '👑',
-  2: '🥈',
-  3: '🥉',
-  };
-
-  return Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 10),
-  child: Container(
-  width: double.infinity,
-  height: height,
-  decoration: BoxDecoration(
-  gradient: LinearGradient(
-  colors: gradients[user.rank]!,
-  begin: Alignment.topCenter,
-  end: Alignment.bottomCenter,
-  ),
-  borderRadius: const BorderRadius.only(
-  topLeft: Radius.circular(25),
-  topRight: Radius.circular(25),
-  ),
-  boxShadow: [
-  BoxShadow(
-  color: glowColors[user.rank]!,
-  blurRadius: 18,
-  spreadRadius: 2,
-  offset: const Offset(0, -4),
-  ),
-  ],
-  ),
-  child: Stack(
-  children: [
-  // ── Glossy highlight strip ──
-  Positioned(
-  top: 0,
-  left: 0,
-  right: 0,
-  child: Container(
-  height: height * 0.35,
-  decoration: BoxDecoration(
-  borderRadius: const BorderRadius.only(
-  topLeft: Radius.circular(20),
-  topRight: Radius.circular(20),
-  ),
-  gradient: LinearGradient(
-  colors: [
-  Colors.white.withOpacity(0.22),
-  Colors.white.withOpacity(0.0),
-  ],
-  begin: Alignment.topCenter,
-  end: Alignment.bottomCenter,
-  ),
-  ),
-  ),
-  ),
-
-  // ── Content ──
-  Column(
-  mainAxisAlignment: MainAxisAlignment.center,
-  children: [
-  // Medal emoji
-  Text(
-  medalIcons[user.rank]!,
-  style: const TextStyle(fontSize: 22),
-  ),
-  const SizedBox(height: 4),
-  // Rank number
-  Text(
-  "#${user.rank}",
-  style: const TextStyle(
-  fontFamily: 'Poppins',
-  fontSize: 22,
-  fontWeight: FontWeight.w800,
-  color: Colors.white,
-  height: 1,
-  ),
-  ),
-  const SizedBox(height: 6),
-  // Divider line
-  Container(
-  width: 28,
-  height: 1.5,
-  decoration: BoxDecoration(
-  color: Colors.white.withOpacity(0.45),
-  borderRadius: BorderRadius.circular(1),
-  ),
-  ),
-  const SizedBox(height: 8),
-  // Weight chip
-  Container(
-  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-  decoration: BoxDecoration(
-  color: Colors.black.withOpacity(0.15),
-  borderRadius: BorderRadius.circular(20),
-  ),
-  child: Text(
-  user.weight,
-  style: const TextStyle(
-  fontFamily: 'Poppins',
-  fontSize: 11,
-  fontWeight: FontWeight.w600,
-  color: Colors.white,
-  ),
-  ),
-  ),
-  ],
-  ),
-  ],
-  ),
-  ),
-  );
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    _poinCtrl.dispose();
+    super.dispose();
   }
 
-// ── Avatar + Nama ──────────────────────────────────
-  Widget _buildIdentitasUser(_PodiumUser user) {
-  // Border color per rank
-  final borderColors = {
-  1: const Color(0xFFD4F55A),
-  2: const Color(0xFF8ECAE6),
-  3: const Color(0xFF6BD4A0),
-  };
+  void _toggle() {
+    setState(() => _expanded = !_expanded);
+    if (_expanded) {
+      _animCtrl.forward();
+    } else {
+      _animCtrl.reverse();
+      _poinCtrl.clear();
+    }
+  }
 
-  return Padding(
-  padding: const EdgeInsets.only(bottom: 10, left: 6, right: 6),
-  child: Column(
-  children: [
-  // Avatar dengan glow ring
-  Container(
-  width: 52,
-  height: 52,
-  decoration: BoxDecoration(
-  shape: BoxShape.circle,
-  border: Border.all(
-  color: borderColors[user.rank]!,
-  width: 2,
-  ),
-  ),
-  child: ClipOval(
-  child: Image.asset(
-  "assets/images/profile.png",
-  width: 48,
-  height: 48,
-  fit: BoxFit.cover,
-  ),
-  ),
-  ),
-  const SizedBox(height: 7),
-  // Nama
-  Text(
-  user.name,
-  style: const TextStyle(
-  fontFamily: 'Poppins',
-  fontSize: 10,
-  color: Colors.white,
-  fontWeight: FontWeight.w600,
-  ),
-  textAlign: TextAlign.center,
-  maxLines: 2,
-  overflow: TextOverflow.ellipsis,
-  ),
-  ],
-  ),
-  );
+  String _formatNumber(double v, bool isEmas) {
+    if (isEmas) {
+      // Tampilkan sampai 4 desimal, hapus trailing zero
+      final s = v.toStringAsFixed(4).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+      return '$s gram';
+    } else {
+      // Format Rupiah
+      final parts = v.toStringAsFixed(0).split('').reversed.toList();
+      final buffer = StringBuffer();
+      for (int i = 0; i < parts.length; i++) {
+        if (i > 0 && i % 3 == 0) buffer.write('.');
+        buffer.write(parts[i]);
+      }
+      return 'Rp ${buffer.toString().split('').reversed.join('')}';
+    }
+  }
+
+  String get _kalkulasiHasil {
+    final rasioPoin = (widget.rewardData['rasio_poin'] as num?)?.toDouble() ?? 0;
+    final rasioKonversi = (widget.rewardData['rasio_konversi'] as num?)?.toDouble() ?? 0;
+    final nama = (widget.rewardData['nama_reward'] ?? '') as String;
+    final isEmas = nama.toLowerCase() == 'emas';
+
+    final inputPoin = double.tryParse(_poinCtrl.text.replaceAll(',', '').replaceAll('.', ''));
+    if (inputPoin == null || inputPoin <= 0 || rasioPoin <= 0) return '-';
+
+    final hasil = (inputPoin / rasioPoin) * rasioKonversi;
+    return _formatNumber(hasil, isEmas);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final nama = (widget.rewardData['nama_reward'] ?? '-') as String;
+    final deskripsi = (widget.rewardData['deskripsi_reward'] ?? '') as String;
+    final rasioPoin = (widget.rewardData['rasio_poin'] as num?)?.toDouble() ?? 0;
+    final rasioKonversi = (widget.rewardData['rasio_konversi'] as num?)?.toDouble() ?? 0;
+    final isSembako = nama.toLowerCase() == 'sembako';
+    final isEmas = nama.toLowerCase() == 'emas';
+    final hasCalculator = !isSembako; // Uang & Emas punya kalkulator
+
+    // Icon & accent per tipe
+    IconData icon;
+    Color accent;
+    if (isEmas) {
+      icon = Icons.auto_awesome_rounded;
+      accent = const Color(0xFFD4A017);
+    } else if (isSembako) {
+      icon = Icons.shopping_basket_rounded;
+      accent = const Color(0xFF4EA771);
+    } else {
+      icon = Icons.account_balance_wallet_rounded;
+      accent = const Color(0xFF1E88E5);
+    }
+
+    String konversiLabel;
+    if (isSembako) {
+      konversiLabel = 'Lihat katalog sembako';
+    } else if (isEmas) {
+      konversiLabel = '${rasioPoin.toInt()} poin = ${rasioKonversi} gram';
+    } else {
+      konversiLabel = '${rasioPoin.toInt()} poin = Rp ${rasioKonversi.toInt()}';
+    }
+
+    return GestureDetector(
+      onTap: hasCalculator ? _toggle : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 280),
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: _expanded ? accent.withOpacity(0.4) : accent.withOpacity(0.2),
+            width: _expanded ? 1.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _expanded
+                  ? accent.withOpacity(0.12)
+                  : Colors.black.withOpacity(0.04),
+              blurRadius: _expanded ? 14 : 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Header row ──
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: accent, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    nama,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF013236),
+                    ),
+                  ),
+                ),
+                if (hasCalculator)
+                  AnimatedRotation(
+                    turns: _expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 280),
+                    child: Icon(Icons.keyboard_arrow_down_rounded,
+                        color: accent, size: 22),
+                  ),
+              ],
+            ),
+
+            // ── Deskripsi ──
+            if (deskripsi.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                deskripsi,
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 12,
+                  color: const Color(0xFF013236).withOpacity(0.6),
+                  height: 1.45,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 12),
+
+            // ── Konversi chip ──
+            GestureDetector(
+              onTap: isSembako
+                  ? () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const KatalogScreen(
+                            role: 'nasabah',
+                            initialTab: 1,
+                          ),
+                        ),
+                      )
+                  : null,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isSembako ? Icons.arrow_forward_rounded : Icons.swap_horiz_rounded,
+                      size: 16,
+                      color: accent,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        konversiLabel,
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: accent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Kalkulator (dropdown, hanya Uang & Emas) ──
+            if (hasCalculator)
+              SizeTransition(
+                sizeFactor: _expandAnim,
+                axisAlignment: -1,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    Divider(color: accent.withOpacity(0.15), thickness: 1, height: 1),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Kalkulator Konversi',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF013236).withOpacity(0.7),
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Input poin
+                    TextField(
+                      controller: _poinCtrl,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setState(() {}),
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 14,
+                        color: Color(0xFF013236),
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Masukkan jumlah poin',
+                        hintStyle: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 13,
+                          color: const Color(0xFF013236).withOpacity(0.35),
+                        ),
+                        suffixText: 'poin',
+                        suffixStyle: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: accent,
+                        ),
+                        filled: true,
+                        fillColor: accent.withOpacity(0.05),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: accent.withOpacity(0.2)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: accent, width: 1.5),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Hasil konversi
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: accent.withOpacity(0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isEmas
+                                ? Icons.auto_awesome_rounded
+                                : Icons.account_balance_wallet_rounded,
+                            color: accent,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Kamu akan mendapatkan',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 11,
+                                  color: const Color(0xFF013236).withOpacity(0.55),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _poinCtrl.text.isEmpty ? '-' : _kalkulasiHasil,
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: accent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

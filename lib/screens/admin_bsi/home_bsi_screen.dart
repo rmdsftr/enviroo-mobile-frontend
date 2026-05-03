@@ -1,4 +1,5 @@
 import 'package:enviroo/layouts/informasi_layouts.dart';
+import 'package:enviroo/layouts/kas_bank_layout.dart';
 import 'package:enviroo/layouts/menu_admin_bsi.dart';
 import 'package:enviroo/layouts/menu_admin_bsu_layouts.dart';
 import 'package:enviroo/layouts/profil_bsu_layouts.dart';
@@ -66,6 +67,11 @@ class _HomeBsiScreenState extends State<HomeBsiScreen> {
                         jumlahBsu: data.jumlahBsu ?? 0,
                         jumlahNasabah: data.jumlahNasabah,
                         jumlahStaff: data.jumlahStaff ?? 0,
+                      ),
+                      const SizedBox(height: 16),
+                      KasBankSection(
+                        kasUang: data.kasUang,
+                        kasEmas: data.kasEmas,
                       ),
                       SizedBox(height: 10),
                       MenuAdminBSI(),

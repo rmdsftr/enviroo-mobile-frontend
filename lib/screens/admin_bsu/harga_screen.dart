@@ -71,7 +71,17 @@ class _PerubahanHargaScreenState extends State<PerubahanHargaScreen> {
   }
 
   List<KatalogSembakoModel> _getFilteredSembako(KatalogProvider katalog) {
+    final isBsi = widget.role == 'petugas_bsi';
+    final isBsm = widget.role == 'petugas_bsm';
     return katalog.katalogSembako.where((item) {
+      if (isBsi) {
+        if (!item.hasAnyPrice) return false;
+      } else if (isBsm) {
+        if (item.poinNasabah <= 0 && item.poinEksternal <= 0) return false;
+      } else {
+        // BSU
+        if (item.poinNasabah <= 0 && item.poinBsu <= 0) return false;
+      }
       return item.namaSembako.toLowerCase().contains(_searchSembakoQuery.toLowerCase());
     }).toList();
   }
@@ -996,16 +1006,18 @@ class _PerubahanHargaScreenState extends State<PerubahanHargaScreen> {
       return _buildEmptyState();
     }
 
+    final double aspectRatio = widget.role == 'petugas_bsi' ? 0.56 : 0.66;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 0.72,
+          childAspectRatio: aspectRatio,
         ),
         itemCount: items.length,
         itemBuilder: (context, index) {
@@ -1016,6 +1028,14 @@ class _PerubahanHargaScreenState extends State<PerubahanHargaScreen> {
   }
 
   Widget _buildSembakoCard(KatalogSembakoModel item) {
+    final bool isBsi = widget.role == 'petugas_bsi';
+    final bool isBsm = widget.role == 'petugas_bsm';
+    final bool isBsu = widget.role == 'petugas_bsu';
+
+    final double poinNasabah = item.poinNasabah;
+    final double poinBsu = item.poinBsu;
+    final double poinEksternal = item.poinEksternal;
+
     return GestureDetector(
       onTap: () => _showRiwayatBottomSheet(item, isSampah: false),
       child: Container(
@@ -1045,7 +1065,8 @@ class _PerubahanHargaScreenState extends State<PerubahanHargaScreen> {
                       item.photoUrl,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildPlaceholderImage(Icons.shopping_basket_rounded),
+                      errorBuilder: (_, __, ___) =>
+                          _buildPlaceholderImage(Icons.shopping_basket_rounded),
                     )
                   else
                     _buildPlaceholderImage(Icons.shopping_basket_rounded),
@@ -1059,11 +1080,7 @@ class _PerubahanHargaScreenState extends State<PerubahanHargaScreen> {
                         color: Colors.white.withOpacity(0.9),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        Icons.history_rounded,
-                        size: 14,
-                        color: _C.accent,
-                      ),
+                      child: Icon(Icons.history_rounded, size: 14, color: _C.accent),
                     ),
                   ),
                 ],
@@ -1072,7 +1089,7 @@ class _PerubahanHargaScreenState extends State<PerubahanHargaScreen> {
 
             // ── Text area ──
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                 child: Column(
@@ -1083,7 +1100,7 @@ class _PerubahanHargaScreenState extends State<PerubahanHargaScreen> {
                       item.namaSembako,
                       style: const TextStyle(
                         fontFamily: 'Poppins',
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: _C.dark,
                         letterSpacing: -0.3,
@@ -1093,28 +1110,84 @@ class _PerubahanHargaScreenState extends State<PerubahanHargaScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _C.accent.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(10),
+                    // Stok badge
+                    _buildStokSembakoBadge(item.stok),
+                    const SizedBox(height: 4),
+                    // Harga BSU — untuk BSI dan BSU
+                    if ((isBsi || isBsu) && poinBsu > 0)
+                      _buildPriceRow(
+                        label: 'BSU',
+                        poin: poinBsu,
+                        satuan: 'unit',
+                        color: _C.teal,
+                        bgColor: _C.teal.withOpacity(0.08),
                       ),
-                      child: Text(
-                        '${item.poin} poin',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: _C.accent,
-                        ),
+                    if ((isBsi || isBsu) && poinBsu > 0 && poinNasabah > 0)
+                      const SizedBox(height: 4),
+                    // Harga Nasabah
+                    if (poinNasabah > 0)
+                      _buildPriceRow(
+                        label: 'Nasabah',
+                        poin: poinNasabah,
+                        satuan: 'unit',
+                        color: _C.accent,
+                        bgColor: _C.accent.withOpacity(0.08),
                       ),
-                    ),
+                    // Harga Eksternal — BSI dan BSM
+                    if ((isBsi || isBsm) && poinEksternal > 0)
+                      const SizedBox(height: 4),
+                    if ((isBsi || isBsm) && poinEksternal > 0)
+                      _buildPriceRow(
+                        label: 'Eksternal',
+                        poin: poinEksternal,
+                        satuan: 'unit',
+                        color: const Color(0xFFE65100),
+                        bgColor: const Color(0xFFE65100).withOpacity(0.08),
+                      ),
                   ],
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildStokSembakoBadge(double stok) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: stok > 0
+            ? _C.teal.withOpacity(0.05)
+            : Colors.orange.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: stok > 0
+              ? _C.teal.withOpacity(0.12)
+              : Colors.orange.withOpacity(0.2),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.inventory_2_rounded,
+            size: 9,
+            color: stok > 0 ? _C.teal : Colors.orange,
+          ),
+          const SizedBox(width: 3),
+          Text(
+            stok > 0 ? 'Stok: ${_formatDouble(stok)}' : 'Stok Habis',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: stok > 0 ? _C.teal : Colors.orange,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -35,4 +35,38 @@ class JadwalService {
       };
     }
   }
+
+  /// Ambil data jadwal penimbangan untuk homepage nasabah
+  static Future<Map<String, dynamic>> getJadwalNasabah(String nasabahId, String token) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.getJadwalNasabahUrl}/$nasabahId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final Map<String, dynamic> body = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': body['message'],
+          'data': body['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': body['error'] ?? 'Gagal mengambil jadwal',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Gagal terhubung ke server: ${e.toString()}',
+      };
+    }
+  }
 }

@@ -1,9 +1,9 @@
 import 'package:enviroo/screens/admin_bsi/home_bsi_screen.dart';
 import 'package:enviroo/screens/admin_bsu/home_bsu_screen.dart';
-import 'package:enviroo/screens/infobsu_screen.dart';
+import 'package:enviroo/screens/info_bank_sampah_screen.dart';
 import 'package:enviroo/screens/katalog_screen.dart';
-import 'package:enviroo/screens/konversi_screen.dart';
 import 'package:enviroo/screens/nasabah/riwayat_setoran_screen.dart';
+import 'package:enviroo/screens/penarikan/penarikan_nasabah_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:enviroo/providers/auth_provider.dart';
@@ -65,7 +65,7 @@ class _MainMenuState extends State<MainMenu> {
                         iconColor: Colors.white,
                         onTap: () => Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const KonversiScreen()),
+                          MaterialPageRoute(builder: (context) => const PenarikanNasabahScreen()),
                         ),
                       ),
                     ),
@@ -87,13 +87,14 @@ class _MainMenuState extends State<MainMenu> {
                       width: itemWidth,
                       child: _buildMenuItem(
                         context: context,
-                        label: "Info BSU",
+                        label: "Bank Sampah",
                         icon: Icons.location_on_rounded,
                         color: const Color(0xFF1ABC9C), // Toska
                         iconColor: Colors.white,
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => InfoBsuScreen()));
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => InfoBankSampahScreen()),
+                        ),
                       ),
                     ),
                   ],

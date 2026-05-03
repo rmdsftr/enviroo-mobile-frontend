@@ -19,6 +19,9 @@ class _C {
 }
 
 class KatalogScreen extends StatefulWidget {
+  final String role;
+  final int initialTab;
+  const KatalogScreen({super.key, this.role = 'nasabah', this.initialTab = 0});
   @override
   State<KatalogScreen> createState() => _KatalogScreenState();
 }
@@ -29,11 +32,12 @@ class _KatalogScreenState extends State<KatalogScreen> {
   int _selectedFilter = 0;
   String _searchQuery = '';
   String _searchSembakoQuery = '';
-  int _selectedTab = 0;
+  late int _selectedTab;
 
   @override
   void initState() {
     super.initState();
+    _selectedTab = widget.initialTab;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = Provider.of<AuthProvider>(context, listen: false);
       if (auth.bankId != null && auth.currentUser?.accessToken != null) {
@@ -57,8 +61,20 @@ class _KatalogScreenState extends State<KatalogScreen> {
     }).toList();
   }
 
-  List<dynamic> _getFilteredSembako(KatalogProvider katalog) {
+  List<KatalogSembakoModel> _getFilteredSembako(KatalogProvider katalog) {
+    final role = widget.role;
     return katalog.katalogSembako.where((item) {
+      // Filter by role visibility
+      if (role == 'petugas_bsi') {
+        if (!item.hasAnyPrice) return false;
+      } else if (role == 'petugas_bsm') {
+        if (item.poinNasabah <= 0 && item.poinEksternal <= 0) return false;
+      } else if (role == 'petugas_bsu') {
+        if (item.poinNasabah <= 0 && item.poinBsu <= 0) return false;
+      } else {
+        // nasabah: hanya tampil jika ada harga nasabah
+        if (item.poinNasabah <= 0) return false;
+      }
       return item.namaSembako.toLowerCase().contains(_searchSembakoQuery.toLowerCase());
     }).toList();
   }
@@ -463,32 +479,49 @@ class _KatalogScreenState extends State<KatalogScreen> {
   }
 
   // ── Sembako Grid ──────────────────────────────────────────────────────────
-  Widget _buildSembakoGrid(List<dynamic> items) {
+  Widget _buildSembakoGrid(List<KatalogSembakoModel> items) {
     if (items.isEmpty) {
       return _buildEmptyState();
     }
+
+    final role = widget.role;
+    // nasabah: sama seperti sampah (0.72)
+    // BSI: card lebih tinggi karena 3 harga (0.56)
+    // BSM/BSU: 2 harga (0.66)
+    final double aspectRatio = role == 'nasabah'
+        ? 0.72
+        : role == 'petugas_bsi'
+            ? 0.56
+            : 0.66;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 0.72,
+          childAspectRatio: aspectRatio,
         ),
         itemCount: items.length,
-        itemBuilder: (context, index) {
-          final item = items[index] as KatalogSembakoModel;
-          return _buildSembakoCard(item);
-        },
+        itemBuilder: (context, index) => _buildSembakoCard(items[index]),
       ),
     );
   }
 
   Widget _buildSembakoCard(KatalogSembakoModel item) {
+    final role = widget.role;
+    final isNasabah = role == 'nasabah';
+    final isBsi = role == 'petugas_bsi';
+    final isBsm = role == 'petugas_bsm';
+    final isBsu = role == 'petugas_bsu';
+
+    final double poinNasabah = item.poinNasabah;
+    final double poinBsu = item.poinBsu;
+    final double poinEksternal = item.poinEksternal;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -511,16 +544,16 @@ class _KatalogScreenState extends State<KatalogScreen> {
             child: item.photoUrl.isNotEmpty
                 ? Image.network(
                     item.photoUrl,
-                    width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPlaceholderImage(Icons.shopping_basket_rounded),
+                    errorBuilder: (_, __, ___) =>
+                        _buildPlaceholderImage(Icons.shopping_basket_rounded),
                   )
                 : _buildPlaceholderImage(Icons.shopping_basket_rounded),
           ),
 
           // ── Text area ──
           Expanded(
-            flex: 2,
+            flex: isNasabah ? 2 : 3,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
               child: Column(
@@ -541,24 +574,130 @@ class _KatalogScreenState extends State<KatalogScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: _C.accent.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '${item.poin} poin',
-                      style: const TextStyle(
+
+                  // ── Nasabah: hanya tampil poin tanpa label/stok ──
+                  if (isNasabah)
+                    Text(
+                      '${_formatDouble(poinNasabah)} poin',
+                      style: TextStyle(
                         fontFamily: 'Poppins',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
                         color: _C.accent,
+                        letterSpacing: -0.2,
                       ),
                     ),
-                  ),
+
+                  // ── Petugas: tampil stok + harga per level ──
+                  if (!isNasabah) ...[
+                    _buildStokBadge(item.stok),
+                    const SizedBox(height: 4),
+                    if ((isBsi || isBsu) && poinBsu > 0)
+                      _buildPriceRow(
+                        label: 'BSU',
+                        poin: poinBsu,
+                        color: _C.teal,
+                        bgColor: _C.teal.withOpacity(0.08),
+                      ),
+                    if ((isBsi || isBsu) && poinBsu > 0 && poinNasabah > 0)
+                      const SizedBox(height: 3),
+                    if (poinNasabah > 0)
+                      _buildPriceRow(
+                        label: 'Nasabah',
+                        poin: poinNasabah,
+                        color: _C.accent,
+                        bgColor: _C.accent.withOpacity(0.08),
+                      ),
+                    if ((isBsi || isBsm) && poinEksternal > 0)
+                      const SizedBox(height: 3),
+                    if ((isBsi || isBsm) && poinEksternal > 0)
+                      _buildPriceRow(
+                        label: 'Eksternal',
+                        poin: poinEksternal,
+                        color: const Color(0xFFE65100),
+                        bgColor: const Color(0xFFE65100).withOpacity(0.08),
+                      ),
+                  ],
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStokBadge(double stok) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: stok > 0
+            ? _C.teal.withOpacity(0.05)
+            : Colors.orange.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: stok > 0
+              ? _C.teal.withOpacity(0.12)
+              : Colors.orange.withOpacity(0.2),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.inventory_2_rounded,
+            size: 9,
+            color: stok > 0 ? _C.teal : Colors.orange,
+          ),
+          const SizedBox(width: 3),
+          Text(
+            stok > 0 ? 'Stok: ${_formatDouble(stok)}' : 'Stok Habis',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: stok > 0 ? _C.teal : Colors.orange,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceRow({
+    required String label,
+    required double poin,
+    required Color color,
+    required Color bgColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '${_formatDouble(poin)} poin',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 9.5,
+              fontWeight: FontWeight.w500,
+              color: color,
+              letterSpacing: -0.2,
             ),
           ),
         ],
