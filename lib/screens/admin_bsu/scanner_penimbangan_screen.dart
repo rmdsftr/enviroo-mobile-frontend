@@ -3,6 +3,7 @@ import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/screens/admin_bsu/input_setoran_screen.dart';
 import 'package:enviroo/services/nasabah_service.dart';
 import 'package:enviroo/services/setoran_service.dart';
+import 'package:enviroo/widgets/search.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,6 +23,8 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
     with SingleTickerProviderStateMixin {
   final MobileScannerController _scannerController = MobileScannerController();
   bool _isProcessing = false;
+  bool _isError = false;
+  String _errorMessage = '';
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -48,64 +51,29 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
   Future<void> _verifikasiNasabah(String nasabahId, bool dariQr, {String? nasabahName}) async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final adminId = auth.identityId ?? '';
-    final token = auth.currentUser?.accessToken ?? '';
 
     final res = await SetoranService.verifikasiSetoran(
-        widget.penimbanganId, nasabahId, adminId, token);
+        widget.penimbanganId, nasabahId, adminId);
 
     if (!mounted) return;
 
     if (res['success'] == true && res['status'] == 'verified') {
+      final data = res['data'] ?? {};
       _navigateToSetoran(
-        nasabahId: nasabahId,
-        nasabahName: nasabahName ?? 'Nasabah via QR',
+        nasabahId: data['nasabah_id']?.toString() ?? nasabahId,
+        nasabahName: data['nama_nasabah']?.toString() ?? nasabahName ?? 'Nasabah via QR',
+        photoUrl: data['photo_url']?.toString() ?? '',
         dariQr: dariQr,
       );
     } else {
-      setState(() => _isProcessing = false);
-      _scannerController.start();
-      _showErrorDialog(res['message'] ?? 'Nasabah tidak valid');
+      // Tampilkan error overlay 1.5 detik, lalu kembali ke screen sebelumnya.
+      setState(() {
+        _isError = true;
+        _errorMessage = res['message'] ?? 'Akses ditolak';
+      });
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (mounted) Navigator.pop(context);
     }
-  }
-
-  void _showErrorDialog(String msg) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Verifikasi Gagal',
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-            color: Colors.red,
-          ),
-        ),
-        content: Text(
-          msg,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 13,
-            color: Colors.grey[700],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Tutup',
-              style: TextStyle(
-                color: Color(0xFF013236),
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   void _onDetect(BarcodeCapture capture) async {
@@ -130,6 +98,7 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
   void _navigateToSetoran({
     required String nasabahId,
     required String nasabahName,
+    required String photoUrl,
     required bool dariQr,
   }) {
     Navigator.push(
@@ -139,6 +108,7 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
           penimbanganId: widget.penimbanganId,
           nasabahId: nasabahId,
           nasabahName: nasabahName,
+          photoUrl: photoUrl,
           dariQr: dariQr,
         ),
       ),
@@ -252,7 +222,6 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
         borderRadius: BorderRadius.circular(28),
         child: Stack(
           children: [
-            // Feed kamera
             MobileScanner(
               controller: _scannerController,
               onDetect: _onDetect,
@@ -278,8 +247,8 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
                 ),
               ),
 
-            // Overlay berhasil scan
-            if (_isProcessing) _buildSuccessOverlay(),
+            // Overlay: loading → sukses → atau error
+            if (_isProcessing) _isError ? _buildErrorOverlay() : _buildSuccessOverlay(),
           ],
         ),
       ),
@@ -325,6 +294,57 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
                 fontFamily: 'Poppins',
                 fontSize: 12,
                 color: Colors.white.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorOverlay() {
+    return Container(
+      color: Colors.black.withOpacity(0.65),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE53935),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFE53935).withOpacity(0.45),
+                    blurRadius: 28,
+                    spreadRadius: 6,
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.close_rounded, color: Colors.white, size: 38),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Akses Ditolak',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                _errorMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 12,
+                  color: Colors.white.withOpacity(0.75),
+                ),
               ),
             ),
           ],
@@ -599,9 +619,8 @@ class _ManualPickerDialogState extends State<_ManualPickerDialog>
   Future<void> _fetchNasabah() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final bankId = auth.bankId ?? '';
-    final token = auth.currentUser?.accessToken ?? '';
 
-    final res = await NasabahService.getNasabahByBankId(bankId, token);
+    final res = await NasabahService.getNasabahByBankId(bankId);
     if (!mounted) return;
 
     if (res['success'] == true) {
@@ -712,48 +731,15 @@ class _ManualPickerDialogState extends State<_ManualPickerDialog>
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFFFF),
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: TextField(
-          controller: _searchCtrl,
-          onChanged: (v) => setState(() => _query = v),
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 13,
-            color: Color(0xFF013236),
-          ),
-          decoration: InputDecoration(
-            hintText: 'Cari nama, ID, atau no rekening...',
-            hintStyle: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12.5,
-              color: const Color(0xFF013236).withOpacity(0.38),
-            ),
-            prefixIcon: const Padding(
-              padding: EdgeInsets.only(left: 14, right: 8),
-              child: Icon(Icons.search_rounded, color: Color(0xFF4EA771), size: 20),
-            ),
-            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-            suffixIcon: _query.isNotEmpty
-                ? GestureDetector(
-              onTap: () {
-                _searchCtrl.clear();
-                setState(() => _query = '');
-              },
-              child: const Padding(
-                padding: EdgeInsets.only(right: 12),
-                child: Icon(Icons.cancel_rounded, size: 18, color: Color(0xFF4EA771)),
-              ),
-            )
-                : null,
-            suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-          ),
-        ),
+      child: CustomSearchBar(
+        controller: _searchCtrl,
+        hintText: 'Cari nama, ID, atau no rekening...',
+        searchQuery: _query,
+        onChanged: (v) => setState(() => _query = v),
+        onClear: () {
+          _searchCtrl.clear();
+          setState(() => _query = '');
+        },
       ),
     );
   }
@@ -882,7 +868,7 @@ class _NasabahTile extends StatelessWidget {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          nasabah.nomorRekening,
+                          nasabah.nasabahId,
                           style: TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 10,
@@ -891,15 +877,15 @@ class _NasabahTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        nasabah.nasabahId,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 10,
-                          color: const Color(0xFF013236).withOpacity(0.4),
-                        ),
-                      ),
+                      // const SizedBox(width: 8),
+                      // Text(
+                      //   nasabah.nasabahId,
+                      //   style: TextStyle(
+                      //     fontFamily: 'Poppins',
+                      //     fontSize: 10,
+                      //     color: const Color(0xFF013236).withOpacity(0.4),
+                      //   ),
+                      // ),
                     ],
                   ),
                 ],

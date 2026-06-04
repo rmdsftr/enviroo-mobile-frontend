@@ -1,11 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
-import 'package:enviroo/config/api_config.dart';
-import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/services/setoran_service.dart';
 import 'package:enviroo/screens/petugas/struk_setoran_nasabah.dart';
+import 'package:enviroo/widgets/filter_chip_row.dart';
+import 'package:enviroo/widgets/search.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 
 // ─── Model ───────────────────────────────────────────────────────────────────
@@ -13,19 +11,19 @@ import 'package:enviroo/widgets/topbar_back.dart';
 class SetoranSummary {
   final String setoranId;
   final String namaPetugas;
+  final String? nasabahId;
   final String namaNasabah;
   final String transaksiTimestamp;
   final int totalItem;
-  final int totalPoin;
   final String statusSetoran;
 
   SetoranSummary({
     required this.setoranId,
     required this.namaPetugas,
+    this.nasabahId,
     required this.namaNasabah,
     required this.transaksiTimestamp,
     required this.totalItem,
-    required this.totalPoin,
     required this.statusSetoran,
   });
 
@@ -33,8 +31,8 @@ class SetoranSummary {
     String timestamp = '-';
     if (json['transaksi_timestamp'] != null) {
       try {
-        timestamp = '${DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID')
-            .format(DateTime.parse(json['transaksi_timestamp']))} WIB';
+        timestamp = DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID')
+            .format(DateTime.parse(json['transaksi_timestamp']));
       } catch (_) {
         timestamp = json['transaksi_timestamp'].toString();
       }
@@ -42,10 +40,10 @@ class SetoranSummary {
     return SetoranSummary(
       setoranId: json['setoran_id'] ?? '',
       namaPetugas: json['nama_petugas'] ?? '-',
+      nasabahId: json['nasabah_id'] ?? '',
       namaNasabah: json['nama_nasabah'] ?? '-',
       transaksiTimestamp: timestamp,
       totalItem: (json['total_item'] ?? 0) as int,
-      totalPoin: (json['total_poin'] ?? 0) as int,
       statusSetoran: json['status_setoran'] ?? 'pending',
     );
   }
@@ -71,12 +69,37 @@ class ListSetoranNasabahScreen extends StatefulWidget {
 class _ListSetoranNasabahScreenState extends State<ListSetoranNasabahScreen> {
   bool _isLoading = true;
   List<SetoranSummary> _list = [];
+  Map<String, dynamic>? _headerData;
   String? _errorMsg;
+
+  // ─── Search & Filter ──────────────────────────────────────────────────────
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _selectedStatus = 'semua';
+
+  List<SetoranSummary> get _filtered {
+    return _list.where((s) {
+      final matchStatus = _selectedStatus == 'semua' ||
+          s.statusSetoran.toLowerCase() == _selectedStatus;
+      final q = _searchQuery.toLowerCase();
+      final matchSearch = q.isEmpty ||
+          s.namaNasabah.toLowerCase().contains(q) ||
+          s.namaPetugas.toLowerCase().contains(q) ||
+          s.setoranId.toLowerCase().contains(q);
+      return matchStatus && matchSearch;
+    }).toList();
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetchData());
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchData() async {
@@ -85,37 +108,19 @@ class _ListSetoranNasabahScreenState extends State<ListSetoranNasabahScreen> {
       _errorMsg = null;
     });
 
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final token = auth.currentUser?.accessToken ?? '';
-
-    try {
-      final uri = Uri.parse(
-          '${ApiConfig.listSetoranPenimbanganUrl}/${widget.penimbanganId}');
-      final response = await http.get(uri, headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-      });
-
-      if (!mounted) return;
-
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) {
-        final raw = body['data'] as List? ?? [];
-        setState(() {
-          _list = raw.map((e) => SetoranSummary.fromJson(e)).toList();
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _errorMsg = body['message'] ?? 'Gagal memuat data';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
+    final res = await SetoranService.getListSetoranPenimbangan(widget.penimbanganId);
+    if (!mounted) return;
+    if (res['success'] == true) {
+      final data = (res['data'] as Map<String, dynamic>?) ?? {};
+      final rawList = data['list_setoran'] as List? ?? [];
       setState(() {
-        _errorMsg = 'Terjadi kesalahan jaringan';
+        _headerData = data;
+        _list = rawList.map((e) => SetoranSummary.fromJson(e)).toList();
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _errorMsg = res['message'] ?? 'Gagal memuat data';
         _isLoading = false;
       });
     }
@@ -141,7 +146,7 @@ class _ListSetoranNasabahScreenState extends State<ListSetoranNasabahScreen> {
       case 'pending':
         return const Color(0xFFFFF8E1);
       default:
-        return Colors.red.withOpacity(0.08);
+        return Colors.red.withValues(alpha:0.08);
     }
   }
 
@@ -177,23 +182,29 @@ class _ListSetoranNasabahScreenState extends State<ListSetoranNasabahScreen> {
         child: Column(
           children: [
             TopBarBack(title: 'Setoran Nasabah'),
-            // Info card penimbangan
-            _buildInfoBanner(),
-            // Content
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: _fetchData,
-                color: const Color(0xFF4EA771),
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                            color: Color(0xFF4EA771)))
-                    : _errorMsg != null
-                        ? _buildError()
-                        : _list.isEmpty
-                            ? _buildEmpty()
-                            : _buildList(),
-              ),
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: Color(0xFF4EA771)))
+                  : RefreshIndicator(
+                      onRefresh: _fetchData,
+                      color: const Color(0xFF4EA771),
+                      child: CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          if (_headerData != null)
+                            SliverToBoxAdapter(child: _buildInfoBanner()),
+                          if (_headerData != null)
+                            SliverToBoxAdapter(child: _buildListHeader()),
+                          if (_errorMsg != null)
+                            SliverFillRemaining(child: _buildError())
+                          else if (_list.isEmpty)
+                            SliverFillRemaining(child: _buildEmpty())
+                          else
+                            _buildSliverList(),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -201,63 +212,151 @@ class _ListSetoranNasabahScreenState extends State<ListSetoranNasabahScreen> {
     );
   }
 
-  Widget _buildInfoBanner() {
+  Widget _buildListHeader() {
+    // Hitung stats dari data asli (bukan filtered)
+    final totalTransaksi = _list.length;
+    final totalNasabah = _list
+        .map((s) => s.nasabahId)
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Summary Stats ───────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+          child: Row(
+            children: [
+              Expanded(child: _statCard(
+                icon: Icons.people_alt_rounded,
+                label: 'Total Nasabah',
+                value: totalNasabah.toString(),
+              )),
+              const SizedBox(width: 12),
+              Expanded(child: _statCard(
+                icon: Icons.receipt_long_rounded,
+                label: 'Total Transaksi',
+                value: totalTransaksi.toString(),
+              )),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        // ── Search ───────────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: CustomSearchBar(
+            controller: _searchController,
+            hintText: 'Cari nama nasabah, petugas...',
+            searchQuery: _searchQuery,
+            onChanged: (v) => setState(() => _searchQuery = v),
+            onClear: () => setState(() {
+              _searchController.clear();
+              _searchQuery = '';
+            }),
+          ),
+        ),
+        const SizedBox(height: 10),
+        // ── Filter status ─────────────────────────────────────────────────
+        FilterChipRow<String>(
+          items: const [
+            FilterChipItem(value: 'semua',    label: 'Semua'),
+            FilterChipItem(value: 'berhasil', label: 'Berhasil'),
+            FilterChipItem(value: 'pending',  label: 'Pending'),
+            FilterChipItem(value: 'gagal',    label: 'Gagal'),
+          ],
+          selectedValue: _selectedStatus,
+          onSelected: (v) => setState(() => _selectedStatus = v),
+        ),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+
+  Widget _statCard({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF013236),
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white.withValues(alpha:0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF013236).withValues(alpha:0.08),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: const Color(0xFF013236).withValues(alpha:0.06),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.scale_rounded,
-                color: Color(0xFF94DF0C), size: 18),
+            child: Icon(icon, size: 16, color: const Color(0xFF013236)),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF013236),
+                  height: 1.1,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 10,
+                  color: const Color(0xFF013236).withValues(alpha:0.5),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Sesi Penimbangan',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    color: Colors.white60,
-                  ),
-                ),
-                Text(
-                  widget.tanggalPenimbangan,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
+            flex: 2,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                color: const Color(0xFF013236).withValues(alpha:0.55),
+              ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF94DF0C).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
-            ),
+          Expanded(
+            flex: 3,
             child: Text(
-              '${_list.length} setoran',
+              value,
+              textAlign: TextAlign.right,
               style: const TextStyle(
                 fontFamily: 'Poppins',
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF94DF0C),
+                color: Color(0xFF013236),
               ),
             ),
           ),
@@ -266,12 +365,171 @@ class _ListSetoranNasabahScreenState extends State<ListSetoranNasabahScreen> {
     );
   }
 
-  Widget _buildList() {
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-      itemCount: _list.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => _buildTile(_list[i]),
+  Widget _buildInfoBanner() {
+    final status = _headerData!['status_penimbangan'] ?? 'aktif';
+    final startedBy = _headerData!['started_by'] ?? '-';
+    final endedBy = _headerData!['ended_by'];
+    
+    String startedAtStr = widget.tanggalPenimbangan;
+    if (_headerData!['started_at'] != null) {
+       try {
+         final dt = DateTime.parse(_headerData!['started_at']);
+         startedAtStr = DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID').format(dt);
+       } catch (_) {}
+    }
+
+    String? endedAtStr;
+    if (_headerData!['ended_at'] != null) {
+       try {
+         final dt = DateTime.parse(_headerData!['ended_at']);
+         endedAtStr = DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID').format(dt);
+       } catch (_) {}
+    }
+
+    final isSelesai    = status == 'selesai';
+    final isDibatalkan = status == 'dibatalkan';
+    final isClosed     = isSelesai || isDibatalkan;
+
+    final Color badgeBg    = isSelesai    ? const Color(0xFFE8F5E9)
+                           : isDibatalkan ? const Color(0xFFFFEEEA)
+                           :                const Color(0xFFE3F2FD);
+    final Color badgeColor = isSelesai    ? const Color(0xFF4EA771)
+                           : isDibatalkan ? const Color(0xFFFF5A36)
+                           :                const Color(0xFF1E88E5);
+    final String badgeLabel = isSelesai    ? 'SELESAI'
+                            : isDibatalkan ? 'DIBATALKAN'
+                            :                'AKTIF';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha:0.5),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          width: 1,
+          color: const Color(0xFF013236).withValues(alpha:0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(22),
+                topRight: Radius.circular(22),
+              ),
+              border: Border(
+                bottom: BorderSide(
+                  color: const Color(0xFF013236).withValues(alpha:0.04),
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF013236).withValues(alpha:0.06),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.scale_rounded,
+                      color: Color(0xFF013236), size: 16),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Sesi Penimbangan',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF013236),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'ID: ${_headerData!['penimbangan_id'] ?? widget.penimbanganId}',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF013236).withValues(alpha:0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: badgeBg,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    badgeLabel,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: badgeColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _infoRow('Sesi Dibuka', startedAtStr),
+                _infoRow('Dibuka Oleh', startedBy),
+                if (isClosed && endedAtStr != null)
+                  _infoRow(isDibatalkan ? 'Sesi Dibatalkan' : 'Sesi Ditutup', endedAtStr),
+                if (isClosed && endedBy != null && endedBy.toString().trim().isNotEmpty)
+                  _infoRow(isDibatalkan ? 'Dibatalkan Oleh' : 'Ditutup Oleh', endedBy.toString()),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSliverList() {
+    final filtered = _filtered;
+    if (filtered.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 40),
+          child: Center(
+            child: Text(
+              'Tidak ada setoran yang cocok',
+              style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: Colors.grey[400]),
+            ),
+          ),
+        ),
+      );
+    }
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (_, i) => Padding(
+            padding: EdgeInsets.only(bottom: i < filtered.length - 1 ? 10 : 0),
+            child: _buildTile(filtered[i]),
+          ),
+          childCount: filtered.length,
+        ),
+      ),
     );
   }
 
@@ -293,15 +551,17 @@ class _ListSetoranNasabahScreenState extends State<ListSetoranNasabahScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            )
-          ],
+          // 1. Warna Latar Semi-Transparan (Glassmorphic vibe)
+          color: Colors.white.withValues(alpha:0.5),
+
+          // 2. Sudut Rounded yang Cukup Besar (Modern & Friendly)
+          borderRadius: BorderRadius.circular(25),
+
+          // 3. Batas Garis Super Tipis & Halus (Magic Formula!)
+          border: Border.all(
+            width: 1,
+            color: const Color(0xFF013236).withValues(alpha:0.1), // Brand color dengan opacity cuma 10%
+          ),
         ),
         child: Row(
           children: [
@@ -339,15 +599,7 @@ class _ListSetoranNasabahScreenState extends State<ListSetoranNasabahScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      _chipInfo(
-                          Icons.category_outlined, '${s.totalItem} jenis'),
-                      const SizedBox(width: 8),
-                      _chipInfo(
-                          Icons.stars_rounded, '${s.totalPoin} poin'),
-                    ],
-                  ),
+                  _chipInfo(Icons.category_outlined, '${s.totalItem} jenis'),
                 ],
               ),
             ),

@@ -21,27 +21,25 @@ class _StokSampah {
   final String nama;
   final double stok;
   final String satuan;   // "kg" | "pcs"
-  final String kategori; // "uang" | "poin"
 
   const _StokSampah({
     required this.nama,
     required this.stok,
     required this.satuan,
-    required this.kategori,
   });
 }
 
 const List<_StokSampah> _dummyStok = [
-  _StokSampah(nama: 'Botol Plastik',      stok: 24.5, satuan: 'kg',  kategori: 'uang'),
-  _StokSampah(nama: 'Botol Plastik',      stok: 130,  satuan: 'pcs', kategori: 'uang'),
-  _StokSampah(nama: 'Kertas Kardus',      stok: 18.0, satuan: 'kg',  kategori: 'poin'),
-  _StokSampah(nama: 'Kaleng Aluminium',   stok: 7.2,  satuan: 'kg',  kategori: 'poin'),
-  _StokSampah(nama: 'Botol Kaca',         stok: 45,   satuan: 'pcs', kategori: 'uang'),
-  _StokSampah(nama: 'Minyak Jelantah',    stok: 12.8, satuan: 'kg',  kategori: 'poin'),
-  _StokSampah(nama: 'Besi Tua',           stok: 9.5,  satuan: 'kg',  kategori: 'uang'),
-  _StokSampah(nama: 'Kertas HVS',         stok: 15.0, satuan: 'kg',  kategori: 'poin'),
-  _StokSampah(nama: 'Gelas Plastik',      stok: 200,  satuan: 'pcs', kategori: 'uang'),
-  _StokSampah(nama: 'Ember Plastik',      stok: 8,    satuan: 'pcs', kategori: 'poin'),
+  _StokSampah(nama: 'Botol Plastik',      stok: 24.5, satuan: 'kg'),
+  _StokSampah(nama: 'Botol Plastik',      stok: 130,  satuan: 'pcs'),
+  _StokSampah(nama: 'Kertas Kardus',      stok: 18.0, satuan: 'kg'),
+  _StokSampah(nama: 'Kaleng Aluminium',   stok: 7.2,  satuan: 'kg'),
+  _StokSampah(nama: 'Botol Kaca',         stok: 45,   satuan: 'pcs'),
+  _StokSampah(nama: 'Minyak Jelantah',    stok: 12.8, satuan: 'kg'),
+  _StokSampah(nama: 'Besi Tua',           stok: 9.5,  satuan: 'kg'),
+  _StokSampah(nama: 'Kertas HVS',         stok: 15.0, satuan: 'kg'),
+  _StokSampah(nama: 'Gelas Plastik',      stok: 200,  satuan: 'pcs'),
+  _StokSampah(nama: 'Ember Plastik',      stok: 8,    satuan: 'pcs'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -507,23 +505,6 @@ class _StokCardState extends State<_StokCard>
   bool get _hasValue =>
       (double.tryParse(widget.controller.text) ?? 0) > 0;
 
-  _BadgeStyle get _badgeStyle {
-    if (widget.item.kategori.toLowerCase() == 'uang') {
-      return const _BadgeStyle(
-        bg: Color(0xFFD6F0E8),
-        text: Color(0xFF006644),
-        icon: Icons.payments_rounded,
-        label: 'uang',
-      );
-    } else {
-      return const _BadgeStyle(
-        bg: Color(0xFFE8F4D6),
-        text: Color(0xFF2D5A1D),
-        icon: Icons.stars_rounded,
-        label: 'poin',
-      );
-    }
-  }
 
   @override
   void initState() {
@@ -563,8 +544,6 @@ class _StokCardState extends State<_StokCard>
 
   @override
   Widget build(BuildContext context) {
-    final badge = _badgeStyle;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
       child: GestureDetector(
@@ -653,31 +632,6 @@ class _StokCardState extends State<_StokCard>
                                 ),
                               ),
                             ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Badge kategori
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: badge.bg,
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(badge.icon, size: 11, color: badge.text),
-                          const SizedBox(width: 4),
-                          Text(
-                            badge.label,
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: badge.text,
-                            ),
                           ),
                         ],
                       ),

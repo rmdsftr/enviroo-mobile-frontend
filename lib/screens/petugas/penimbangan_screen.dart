@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
-import 'package:enviroo/screens/admin_bsu/scanner_penimbangan_screen.dart';
+import 'package:enviroo/widgets/filter_month_year.dart';
 import 'package:enviroo/screens/petugas/list_setoran_nasabah.dart';
+import 'package:enviroo/screens/petugas/penimbangan_aktif_screen.dart';
 import 'package:enviroo/services/penimbangan_service.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 
@@ -12,32 +14,55 @@ import 'package:enviroo/providers/auth_provider.dart';
 class SessionData {
   final String id;
   final String tanggal;
-  final String namaAdmin;
+  final String waktu;
+  final String fullTanggal;
   final String status;
+  final DateTime? rawDate;
 
   SessionData({
     required this.id,
     required this.tanggal,
-    required this.namaAdmin,
+    required this.waktu,
+    required this.fullTanggal,
     required this.status,
+    this.rawDate,
   });
 
   factory SessionData.fromJson(Map<String, dynamic> json) {
     String tanggal = '-';
+    String waktu = '';
+    String fullTanggal = '-';
+    DateTime? rawDate;
+
     if (json['started_at'] != null) {
       try {
-        tanggal = '${DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID')
-            .format(DateTime.parse(json['started_at']))} WIB';
+        final parsedStart = DateTime.parse(json['started_at']);
+        rawDate = parsedStart;
+        tanggal = DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(parsedStart);
+
+        final startTimeStr = DateFormat('HH:mm', 'id_ID').format(parsedStart);
+        String endTimeStr = '';
+
+        if (json['ended_at'] != null) {
+          final parsedEnd = DateTime.parse(json['ended_at']);
+          endTimeStr = ' - ${DateFormat('HH:mm', 'id_ID').format(parsedEnd)}';
+        }
+
+        waktu = '$startTimeStr$endTimeStr';
+        fullTanggal = '$tanggal $waktu';
       } catch (_) {
         tanggal = json['started_at'].toString();
+        fullTanggal = tanggal;
       }
     }
 
     return SessionData(
       id: json['penimbangan_id'] ?? '',
       tanggal: tanggal,
-      namaAdmin: json['nama_admin'] ?? json['started_by'] ?? 'Admin',
+      waktu: waktu,
+      fullTanggal: fullTanggal,
       status: json['status_penimbangan'] ?? 'selesai',
+      rawDate: rawDate,
     );
   }
 }
@@ -60,9 +85,21 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
   List<SessionData> _riwayat = [];
   SessionData? _activeSession;
 
+  late DateTime _filterStart;
+  late DateTime _filterEnd;
+
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    int startMonth = now.month - 2;
+    int startYear = now.year;
+    if (startMonth <= 0) {
+      startMonth += 12;
+      startYear--;
+    }
+    _filterStart = DateTime(startYear, startMonth);
+    _filterEnd = DateTime(now.year, now.month);
     WidgetsBinding.instance.addPostFrameCallback((_) => _init());
   }
 
@@ -77,14 +114,13 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final bankId = auth.bankId ?? '';
-    final token = auth.currentUser?.accessToken ?? '';
 
-    if (bankId.isEmpty || token.isEmpty) {
+    if (bankId.isEmpty) {
       setState(() => _listLoading = false);
       return;
     }
 
-    final res = await PenimbanganService.getPenimbangan(bankId, token);
+    final res = await PenimbanganService.getPenimbangan(bankId);
 
     if (!mounted) return;
     if (res['success'] == true) {
@@ -108,7 +144,7 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
       });
     } else {
       setState(() => _listLoading = false);
-      _showSnackBar(res['message'] ?? 'Gagal memuat data', isError: true);
+      showCustomSnackBar(context, res['message'] ?? 'Gagal memuat data');
     }
   }
 
@@ -118,14 +154,13 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final bankId = auth.bankId ?? '';
-    final token = auth.currentUser?.accessToken ?? '';
 
-    if (bankId.isEmpty || token.isEmpty) {
+    if (bankId.isEmpty) {
       setState(() => _checkStatus = _CheckStatus.idle);
       return;
     }
 
-    final res = await PenimbanganService.checkJadwalHariIni(bankId, token);
+    final res = await PenimbanganService.checkJadwalHariIni(bankId);
 
     if (!mounted) return;
     if (res['success'] == true) {
@@ -141,7 +176,7 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
       });
     } else {
       setState(() => _checkStatus = _CheckStatus.idle);
-      _showSnackBar(res['message'] ?? 'Gagal mengecek jadwal', isError: true);
+      showCustomSnackBar(context, res['message'] ?? 'Gagal mengecek jadwal');
     }
   }
 
@@ -152,10 +187,9 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final bankId = auth.bankId ?? '';
     final adminId = auth.userId;
-    final token = auth.currentUser?.accessToken ?? '';
 
     final res = await PenimbanganService.addPenimbangan(
-      bankId, adminId, token,
+      bankId, adminId,
       forceDadakan: forceDadakan,
     );
 
@@ -163,33 +197,10 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
     setState(() => _actionLoading = false);
 
     if (res['success'] == true) {
-      _showSnackBar('Sesi penimbangan berhasil dimulai');
+      showCustomSnackBar(context, 'Sesi penimbangan berhasil dimulai', type: SnackBarType.success);
       await _init();
     } else {
-      _showSnackBar(res['message'] ?? 'Gagal memulai penimbangan', isError: true);
-    }
-  }
-
-  // ── 4. Akhiri / batalkan sesi ────────────────────────────────────────────
-  Future<void> _updateSesi(String status) async {
-    if (_activeSession == null) return;
-    setState(() => _actionLoading = true);
-
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final adminId = auth.userId;
-    final token = auth.currentUser?.accessToken ?? '';
-
-    final res = await PenimbanganService.updatePenimbangan(
-      _activeSession!.id, adminId, status, token);
-
-    if (!mounted) return;
-    setState(() => _actionLoading = false);
-
-    if (res['success'] == true) {
-      _showSnackBar('Sesi penimbangan telah $status');
-      await _init();
-    } else {
-      _showSnackBar(res['message'] ?? 'Gagal memperbarui sesi', isError: true);
+      showCustomSnackBar(context, res['message'] ?? 'Gagal memulai penimbangan');
     }
   }
 
@@ -207,181 +218,110 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
     }
   }
 
-  // ── Dialog konfirmasi dadakan ────────────────────────────────────────────
+  // ── Bottom sheet konfirmasi dadakan ──────────────────────────────────────
   void _showDadakanDialog() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.5),
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.12),
-                blurRadius: 30,
-                offset: const Offset(0, 12),
-              )
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Ikon peringatan
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF3CD),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.warning_amber_rounded,
-                  color: Color(0xFFFAA324),
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Tidak Ada Jadwal Hari Ini',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: Color(0xFF013236),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Hari ini tidak tercatat dalam jadwal penimbangan. '
-                'Apakah Anda ingin mengadakan sesi penimbangan dadakan?',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12.5,
-                  color: Colors.grey[600],
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 22),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text(
-                        'Tidak',
-                        style: TextStyle(
-                          color: Color(0xFF013236),
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _memulaiSesi(forceDadakan: true);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFAA324),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text(
-                        'Ya, Dadakan',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-      ),
-    );
-  }
-
-  // ── Dialog konfirmasi akhiri / batalkan ─────────────────────────────────
-  void _showKonfirmasiDialog(String status) {
-    final isSelesai = status == 'selesai';
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          isSelesai ? 'Sudahi Penimbangan' : 'Batalkan Penimbangan',
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-          ),
-        ),
-        content: Text(
-          isSelesai
-              ? 'Apakah sesi penimbangan ini benar-benar sudah selesai?'
-              : 'Apakah Anda yakin ingin membatalkan sesi penimbangan ini?',
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 13,
-            color: Colors.grey[700],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Tidak',
-                style: TextStyle(color: Colors.grey, fontFamily: 'Poppins')),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _updateSesi(status);
-            },
-            child: Text(
-              isSelesai ? 'Ya, Sudahi' : 'Ya, Batalkan',
-              style: TextStyle(
-                color: isSelesai ? const Color(0xFF4EA771) : Colors.red,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.bold,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(4),
               ),
             ),
-          ),
-        ],
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFF3CD),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFFAA324), size: 28),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Tidak Ada Jadwal Hari Ini',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                color: Color(0xFF013236),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Hari ini tidak tercatat dalam jadwal penimbangan.\nApakah Anda ingin mengadakan sesi penimbangan dadakan?',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                color: const Color(0xFF013236).withValues(alpha: 0.5),
+                height: 1.6,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 28),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF013236),
+                      side: BorderSide(color: const Color(0xFF013236).withValues(alpha: 0.25)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                    ),
+                    child: const Text('Tidak', style: TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _memulaiSesi(forceDadakan: true);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFAA324),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                    ),
+                    child: const Text('Ya, Dadakan', style: TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  void _showSnackBar(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg,
-          style: const TextStyle(fontFamily: 'Poppins', color: Colors.white)),
-      backgroundColor: isError ? Colors.red.shade700 : const Color(0xFF4EA771),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      margin: const EdgeInsets.all(16),
-    ));
+
+  List<SessionData> get _filteredRiwayat {
+    return _riwayat.where((s) {
+      if (s.rawDate == null) return true;
+      final d = DateTime(s.rawDate!.year, s.rawDate!.month);
+      final start = DateTime(_filterStart.year, _filterStart.month);
+      final end = DateTime(_filterEnd.year, _filterEnd.month);
+      return !d.isBefore(start) && !d.isAfter(end);
+    }).toList();
   }
+
 
   // ═══════════════════════════════════════════════════════════════════════════
   //  BUILD
@@ -390,10 +330,17 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9F8),
-      body: SafeArea(
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bg_struk.webp'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
         child: Column(
           children: [
-            TopBarBack(title: 'Sesi Penimbangan'),
+            TopBarBack(title: 'Penimbangan Sampah'),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _init,
@@ -404,31 +351,59 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                             color: Color(0xFF4EA771)))
                     : SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // ── Sesi aktif atau tombol mulai ──
-                            if (_activeSession != null)
-                              _buildActiveCard()
-                            else
-                              _buildStartSection(),
-
-                            const SizedBox(height: 28),
-
-                            // ── Riwayat ──
-                            const Text(
-                              'Riwayat Penimbangan',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF013236),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildHeaderCard(),
+                                  const SizedBox(height: 16),
+                                  _buildSummaryStats(),
+                                  const SizedBox(height: 25),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    child : const Text(
+                                      'Riwayat Penimbangan',
+                                      style: TextStyle(
+                                        fontFamily: 'Poppins',
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF013236),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  MonthYearFilterRow(
+                                    filterStart: _filterStart,
+                                    filterEnd: _filterEnd,
+                                    onChanged: (start, end) => setState(() {
+                                      _filterStart = start;
+                                      _filterEnd = end;
+                                    }),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            _buildRiwayatList(),
+                            // ── Riwayat ──
+                            Container(
+                              width: double.infinity,
+                              constraints: BoxConstraints(
+                                minHeight: MediaQuery.of(context).size.height,
+                              ),
+                              padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildRiwayatList(),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -437,329 +412,282 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
           ],
         ),
       ),
+      ),
     );
   }
 
-  // ── Info badge jadwal ────────────────────────────────────────────────────
-  Widget _buildJadwalBadge() {
-    if (_checkStatus == _CheckStatus.loading || _checkStatus == _CheckStatus.idle) {
-      return const SizedBox.shrink();
+  // ── HEADER CARD (gabungan jadwal + aksi) ──────────────────────────────────
+  Widget _buildHeaderCard() {
+    final now = DateTime.now();
+    final todayStr = DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(now);
+
+    // ── Sesi aktif ──
+    if (_activeSession != null) {
+      return GestureDetector(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PenimbanganAktifScreen(
+              penimbanganId: _activeSession!.id,
+            ),
+          ),
+        ).then((_) => _init()),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF013236), Color(0xFF025059)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Dot badge
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF94DF0C),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Hari ini, $todayStr',
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 11,
+                      color: Colors.white60,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Sesi penimbangan sedang berlangsung',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Button
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF94DF0C),
+                  borderRadius: BorderRadius.circular(50),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.open_in_new_rounded,
+                        color: Color(0xFF013236), size: 16),
+                    SizedBox(width: 8),
+                    Text(
+                      'Buka Sesi Aktif',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF013236),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
+    // ── Tidak ada sesi aktif ──
+    final isLoading = _actionLoading || _checkStatus == _CheckStatus.loading;
     final isScheduled = _checkStatus == _CheckStatus.scheduled;
+    final isUnscheduled = _checkStatus == _CheckStatus.unscheduled;
+
+    String statusLabel;
+    if (_checkStatus == _CheckStatus.loading || _checkStatus == _CheckStatus.idle) {
+      statusLabel = 'Mengecek jadwal...';
+    } else if (isScheduled) {
+      statusLabel = 'Ada jadwal penimbangan hari ini';
+    } else {
+      statusLabel = 'Tidak ada jadwal penimbangan';
+    }
+
+    String btnLabel;
+    if (isScheduled) {
+      btnLabel = 'Mulai Sesi Penimbangan';
+    } else {
+      btnLabel = 'Buka Penimbangan Dadakan';
+    }
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isScheduled
-            ? const Color(0xFFE8F5E9)
-            : const Color(0xFFFFF8E1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isScheduled
-              ? const Color(0xFF4EA771).withOpacity(0.4)
-              : const Color(0xFFFAA324).withOpacity(0.4),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF013236), Color(0xFF025059)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(22),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            isScheduled
-                ? Icons.event_available_rounded
-                : Icons.event_busy_rounded,
-            size: 18,
-            color: isScheduled ? const Color(0xFF4EA771) : const Color(0xFFFAA324),
+          Text(
+            'Hari ini, $todayStr',
+            style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 11,
+              color: Colors.white60,
+            ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              isScheduled
-                  ? 'Hari ini ada jadwal penimbangan terjadwal'
-                  : 'Tidak ada jadwal penimbangan hari ini',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: isScheduled
-                    ? const Color(0xFF2E7D32)
-                    : const Color(0xFF8D6E00),
+          const SizedBox(height: 4),
+          Text(
+            statusLabel,
+            style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 14),
+          // Button
+          GestureDetector(
+            onTap: isLoading ? null : _onMulaiSesiTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: isLoading
+                    ? Colors.white.withOpacity(0.5)
+                    : Colors.white,
+                borderRadius: BorderRadius.circular(50),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Tombol + info mulai sesi ─────────────────────────────────────────────
-  Widget _buildStartSection() {
-    final isLoading = _actionLoading ||
-        _checkStatus == _CheckStatus.loading;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildJadwalBadge(),
-        GestureDetector(
-          onTap: isLoading ? null : _onMulaiSesiTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 17),
-            decoration: BoxDecoration(
-              color: isLoading
-                  ? const Color(0xFF4EA771).withOpacity(0.6)
-                  : const Color(0xFF4EA771),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF4EA771).withOpacity(0.32),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                )
-              ],
-            ),
-            child: Center(
               child: isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2.5),
+                  ? const Center(
+                      child: SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(
+                            color: Color(0xFF013236), strokeWidth: 2),
+                      ),
                     )
                   : Row(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.play_circle_filled_rounded,
-                            color: Colors.white, size: 20),
+                        Icon(
+                          isScheduled
+                              ? Icons.play_circle_filled_rounded
+                              : Icons.add_circle_outline_rounded,
+                          color: const Color(0xFF013236),
+                          size: 16,
+                        ),
                         const SizedBox(width: 8),
                         Text(
-                          _checkStatus == _CheckStatus.unscheduled
-                              ? 'Buka Penimbangan Dadakan'
-                              : 'Mulai Sesi Penimbangan',
+                          btnLabel,
                           style: const TextStyle(
                             fontFamily: 'Poppins',
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: Color(0xFF013236),
                           ),
                         ),
                       ],
                     ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  // ── Card sesi aktif ──────────────────────────────────────────────────────
-  Widget _buildActiveCard() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  // ── SUMMARY STATS ──────────────────────────────────────────────────
+  Widget _buildSummaryStats() {
+    final allSessions = [..._riwayat, if (_activeSession != null) _activeSession!];
+    final totalSesi = allSessions.length;
+    final totalSelesai = allSessions.where((s) => s.status == 'selesai').length;
+    final totalDibatalkan = allSessions.where((s) => s.status != 'selesai' && s.status != 'aktif').length;
+
+    return Row(
       children: [
-        // Label kecil
-        Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFF94DF0C).withOpacity(0.15),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF4CAF50),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 6),
-              const Text(
-                'Sesi Berjalan',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2E7D32),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Card utama
-        GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) => ScannerPenimbanganScreen(
-                  penimbanganId: _activeSession!.id,
-                )),
-          ),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF013236), Color(0xFF025059)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(22),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF013236).withOpacity(0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                )
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Penimbangan Aktif',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF94DF0C),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'AKTIF',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF013236),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _infoRow(
-                    Icons.calendar_today_rounded, _activeSession!.tanggal),
-                const SizedBox(height: 8),
-                _infoRow(Icons.person_rounded,
-                    'Dibuka oleh: ${_activeSession!.namaAdmin}'),
-                const SizedBox(height: 18),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: const [
-                    Text(
-                      'Buka Scanner',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF94DF0C),
-                      ),
-                    ),
-                    SizedBox(width: 4),
-                    Icon(Icons.arrow_forward_ios_rounded,
-                        color: Color(0xFF94DF0C), size: 12),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        // Tombol Selesai & Batalkan
-        _actionLoading
-            ? const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: CircularProgressIndicator(
-                      color: Color(0xFF4EA771), strokeWidth: 2.5),
-                ),
-              )
-            : Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () =>
-                          _showKonfirmasiDialog('dibatalkan'),
-                      icon: const Icon(Icons.cancel_outlined,
-                          size: 16, color: Colors.red),
-                      label: const Text('Batalkan',
-                          style: TextStyle(
-                              color: Colors.red,
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w600)),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.red),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () =>
-                          _showKonfirmasiDialog('selesai'),
-                      icon: const Icon(
-                          Icons.check_circle_outline_rounded,
-                          size: 16,
-                          color: Colors.white),
-                      label: const Text('Sudahi',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w600)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4EA771),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+        Expanded(child: _statCard(
+          iconColor: const Color(0xFF013236),
+          label: 'Sesi Total',
+          value: totalSesi.toString(),
+        )),
+        const SizedBox(width: 10),
+        Expanded(child: _statCard(
+          iconColor: const Color(0xFF4EA771),
+          label: 'Selesai',
+          value: totalSelesai.toString(),
+        )),
+        const SizedBox(width: 10),
+        Expanded(child: _statCard(
+          iconColor: Colors.red.shade400,
+          label: 'Dibatalkan',
+          value: totalDibatalkan.toString(),
+        )),
       ],
     );
   }
 
-  Widget _infoRow(IconData icon, String text) => Row(
+  Widget _statCard({
+    required Color iconColor,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF013236).withOpacity(0.08),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.white70),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: Colors.white70,
-              ),
+          Text(
+            value,
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: iconColor,
+              height: 1.1,
             ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 10,
+              color: const Color(0xFF013236).withOpacity(0.5),
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
-      );
+      ),
+    );
+  }
 
   // ── Riwayat ─────────────────────────────────────────────────────────────
   Widget _buildRiwayatList() {
@@ -785,12 +713,35 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
       );
     }
 
+    final filtered = _filteredRiwayat;
+    if (filtered.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 36),
+          child: Column(
+            children: [
+              Icon(Icons.search_off_rounded,
+                  size: 44, color: Colors.grey[300]),
+              const SizedBox(height: 10),
+              Text(
+                'Tidak ada riwayat di rentang waktu ini',
+                style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 13,
+                    color: Colors.grey[400]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: _riwayat.length,
+      itemCount: filtered.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => _buildRiwayatTile(_riwayat[i]),
+      itemBuilder: (_, i) => _buildRiwayatTile(filtered[i]),
     );
   }
 
@@ -800,7 +751,7 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
         isSelesai ? const Color(0xFF4EA771) : Colors.red.shade400;
     final bgColor = isSelesai
         ? const Color(0xFFE8F5E9)
-        : Colors.red.withOpacity(0.07);
+        : Colors.red.withValues(alpha: 0.07);
 
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -808,24 +759,21 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
         MaterialPageRoute(
           builder: (_) => ListSetoranNasabahScreen(
             penimbanganId: s.id,
-            tanggalPenimbangan: s.tanggal,
+            tanggalPenimbangan: s.fullTanggal,
           ),
         ),
       ),
       child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: Row(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            width: 1,
+            color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+          ),
+        ),
+        child: Row(
         children: [
           // Ikon status
           Container(
@@ -856,7 +804,7 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  s.namaAdmin,
+                  s.waktu,
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 11.5,
@@ -890,3 +838,4 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
     );
   }
 }
+

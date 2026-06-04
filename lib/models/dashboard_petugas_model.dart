@@ -7,7 +7,6 @@ class DashboardPetugasModel {
   final int? jumlahStaff; // BSU, BSM
   final int? jumlahBsu; // BSI
   final double kasUang;
-  final double kasEmas;
 
   DashboardPetugasModel({
     required this.namaBank,
@@ -18,7 +17,6 @@ class DashboardPetugasModel {
     this.jumlahStaff,
     this.jumlahBsu,
     this.kasUang = 0,
-    this.kasEmas = 0,
   });
 
   factory DashboardPetugasModel.fromJson(Map<String, dynamic> json) {
@@ -40,7 +38,6 @@ class DashboardPetugasModel {
       jumlahStaff: json['jumlah_staff'] ?? json['JumlahStaff'],
       jumlahBsu: json['jumlah_bsu'] ?? json['JumlahBSU'],
       kasUang: kas != null ? _toDouble(kas['total_uang']) : 0,
-      kasEmas: kas != null ? _toDouble(kas['total_emas']) : 0,
     );
   }
 }

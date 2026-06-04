@@ -41,7 +41,8 @@ class PengangkutanBsu {
   final StatusPengangkutan status;
   final String adminBsuName;
   final String adminBsiName;
-  final List<TransaksiItem>? detailSampah;
+  // detailSampah: list of {nama_sampah, qty, satuan}
+  final List<Map<String, dynamic>>? detailSampah;
 
   PengangkutanBsu({
     required this.id,
@@ -52,13 +53,7 @@ class PengangkutanBsu {
     this.detailSampah,
   });
 
-  int get totalUang => (detailSampah ?? [])
-      .where((i) => i.nilaiType == NilaiType.uang)
-      .fold(0, (sum, item) => sum + item.nilai);
-
-  int get totalPoin => (detailSampah ?? [])
-      .where((i) => i.nilaiType == NilaiType.poin)
-      .fold(0, (sum, item) => sum + item.nilai);
+  int get totalJenis => detailSampah?.length ?? 0;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -201,11 +196,11 @@ List<PengangkutanBsu> getDummyPengangkutanBsuData() {
       adminBsuName: 'Budi Santoso',
       adminBsiName: 'Hendra Kurniawan',
       detailSampah: [
-        TransaksiItem(nama: 'Botol Plastik', jumlah: '25 kg', nilai: 75000, nilaiType: NilaiType.uang),
-        TransaksiItem(nama: 'Kardus', jumlah: '18 kg', nilai: 36000, nilaiType: NilaiType.uang),
-        TransaksiItem(nama: 'Kaleng Aluminium', jumlah: '10 kg', nilai: 80000, nilaiType: NilaiType.uang),
-        TransaksiItem(nama: 'Kertas HVS', jumlah: '8 kg', nilai: 120, nilaiType: NilaiType.poin),
-        TransaksiItem(nama: 'Plastik Kemasan', jumlah: '5 kg', nilai: 50, nilaiType: NilaiType.poin),
+        {'nama_sampah': 'Botol Plastik', 'qty': 25.0, 'satuan': 'kg'},
+        {'nama_sampah': 'Kardus', 'qty': 18.0, 'satuan': 'kg'},
+        {'nama_sampah': 'Kaleng Aluminium', 'qty': 10.0, 'satuan': 'kg'},
+        {'nama_sampah': 'Kertas HVS', 'qty': 8.0, 'satuan': 'kg'},
+        {'nama_sampah': 'Plastik Kemasan', 'qty': 5.0, 'satuan': 'kg'},
       ],
     ),
     PengangkutanBsu(
@@ -222,9 +217,9 @@ List<PengangkutanBsu> getDummyPengangkutanBsuData() {
       adminBsuName: 'Ramadhani Safitri',
       adminBsiName: 'Hendra Kurniawan',
       detailSampah: [
-        TransaksiItem(nama: 'Besi Bekas', jumlah: '15 kg', nilai: 75000, nilaiType: NilaiType.uang),
-        TransaksiItem(nama: 'Botol Kaca', jumlah: '20 pcs', nilai: 30000, nilaiType: NilaiType.uang),
-        TransaksiItem(nama: 'Minyak Jelantah', jumlah: '5 L', nilai: 125, nilaiType: NilaiType.poin),
+        {'nama_sampah': 'Besi Bekas', 'qty': 15.0, 'satuan': 'kg'},
+        {'nama_sampah': 'Botol Kaca', 'qty': 20.0, 'satuan': 'pcs'},
+        {'nama_sampah': 'Minyak Jelantah', 'qty': 5.0, 'satuan': 'L'},
       ],
     ),
     PengangkutanBsu(
@@ -234,8 +229,8 @@ List<PengangkutanBsu> getDummyPengangkutanBsuData() {
       adminBsuName: 'Budi Santoso',
       adminBsiName: 'Hendra Kurniawan',
       detailSampah: [
-        TransaksiItem(nama: 'Botol Plastik', jumlah: '30 kg', nilai: 90000, nilaiType: NilaiType.uang),
-        TransaksiItem(nama: 'Kardus', jumlah: '20 kg', nilai: 40000, nilaiType: NilaiType.uang),
+        {'nama_sampah': 'Botol Plastik', 'qty': 30.0, 'satuan': 'kg'},
+        {'nama_sampah': 'Kardus', 'qty': 20.0, 'satuan': 'kg'},
       ],
     ),
   ];
@@ -941,21 +936,92 @@ class _PengangkutanBsuCardState extends State<_PengangkutanBsuCard> {
             ),
           ],
 
-          // Detail sampah for "Selesai"
+          // Detail sampah (qty fisik only) for "Selesai"
           if (p.status == StatusPengangkutan.selesai && p.detailSampah != null && p.detailSampah!.isNotEmpty) ...[
             const SizedBox(height: 14),
             Row(
               children: [
                 Icon(Icons.inventory_2_outlined, size: 15, color: _C.green.withAlpha(180)),
                 const SizedBox(width: 6),
-                Text('Detail Sampah Diangkut', style: TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600, color: _C.dark.withAlpha(180))),
+                Text('Sampah Diangkut', style: TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600, color: _C.dark.withAlpha(180))),
               ],
             ),
             const SizedBox(height: 8),
-            _itemsContainer(p.detailSampah!, widget.formatCurrency),
+            _qtyItemsContainer(p.detailSampah!),
           ],
         ],
       ),
     );
   }
+}
+
+// Widget khusus pengangkutan — hanya tampilkan qty fisik, tanpa nilai uang/poin
+Widget _qtyItemsContainer(List<Map<String, dynamic>> items) {
+  String _fmtQty(double v) {
+    if (v == v.truncateToDouble()) return v.toInt().toString();
+    return v.toStringAsFixed(2).replaceAll('.', ',');
+  }
+
+  return Container(
+    decoration: BoxDecoration(
+      color: _C.softGreen.withAlpha(120),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: _C.green.withAlpha(30)),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Header row
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(flex: 5, child: Text('Jenis Sampah', style: TextStyle(fontFamily: 'Poppins', fontSize: 10.5, fontWeight: FontWeight.w600, color: _C.dark.withAlpha(120)))),
+              Text('Qty', style: TextStyle(fontFamily: 'Poppins', fontSize: 10.5, fontWeight: FontWeight.w600, color: _C.dark.withAlpha(120))),
+            ],
+          ),
+        ),
+        Container(height: 1, color: _C.green.withAlpha(20)),
+        ...items.asMap().entries.map((e) {
+          final item = e.value;
+          final isLast = e.key == items.length - 1;
+          final namaSampah = item['nama_sampah']?.toString() ?? '-';
+          final qty = (item['qty'] as num?)?.toDouble() ?? 0;
+          final satuan = item['satuan']?.toString() ?? '';
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                child: Row(
+                  children: [
+                    Expanded(flex: 5, child: Text(namaSampah, style: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: _C.dark.withAlpha(200)))),
+                    Text('${_fmtQty(qty)} $satuan', style: const TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600, color: _C.dark)),
+                  ],
+                ),
+              ),
+              if (!isLast) Container(height: 1, margin: const EdgeInsets.symmetric(horizontal: 14), color: _C.green.withAlpha(15)),
+            ],
+          );
+        }),
+        // Footer: total jenis
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: _C.green.withAlpha(20),
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(12),
+              bottomRight: Radius.circular(12),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Total jenis', style: const TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600, color: _C.green)),
+              Text('${items.length} jenis', style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w700, color: _C.green)),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }

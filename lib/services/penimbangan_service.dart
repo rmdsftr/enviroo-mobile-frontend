@@ -1,157 +1,90 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import 'api_client.dart';
 
 class PenimbanganService {
-  /// Cek jadwal BSU hari ini. Mengembalikan status:
-  /// - "active_session"  → ada sesi aktif
-  /// - "scheduled"       → ada jadwal hari ini, belum ada sesi aktif
-  /// - "unscheduled"     → tidak ada jadwal hari ini
-  static Future<Map<String, dynamic>> checkJadwalHariIni(String bankId, String token) async {
+  static Future<Map<String, dynamic>> checkJadwalHariIni(String bankId) async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.checkPenimbanganUrl}/$bankId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      final Map<String, dynamic> body = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'status': body['status'], // "scheduled" | "unscheduled"
-        };
-      } else if (response.statusCode == 409) {
-        // active_session → status conflict
-        return {
-          'success': true,
-          'status': body['status'] ?? 'active_session',
-        };
-      } else {
-        return {
-          'success': false,
-          'message': body['error'] ?? 'Gagal mengecek jadwal',
-        };
-      }
+      final response = await ApiClient.get(Uri.parse('${ApiConfig.checkPenimbanganUrl}/$bankId'));
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) return {'success': true, 'status': body['status']};
+      if (response.statusCode == 409) return {'success': true, 'status': body['status'] ?? 'active_session'};
+      return {'success': false, 'message': body['error'] ?? 'Gagal mengecek jadwal'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
     }
   }
 
-  /// Memulai sesi penimbangan.
-  /// [forceDadakan] = true jika tidak ada jadwal hari ini (dadakan).
-  static Future<Map<String, dynamic>> addPenimbangan(
-      String bankId, String adminId, String token,
-      {bool forceDadakan = false}) async {
+  static Future<Map<String, dynamic>> checkActiveSession(String bankId) async {
     try {
-      final response = await http.post(
+      final response = await ApiClient.get(Uri.parse('${ApiConfig.checkActivePenimbanganUrl}/$bankId'));
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) return {'success': true, 'is_active': body['is_active'] ?? false};
+      return {'success': false, 'message': body['error'] ?? 'Gagal mengecek jadwal'};
+    } catch (e) {
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> addPenimbangan(
+    String bankId,
+    String adminId, {
+    bool forceDadakan = false,
+  }) async {
+    try {
+      final response = await ApiClient.post(
         Uri.parse('${ApiConfig.addPenimbanganUrl}/$bankId/$adminId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode({'force_dadakan': forceDadakan}),
       );
-
-      final Map<String, dynamic> body = jsonDecode(response.body);
-
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 201) {
-        return {
-          'success': true,
-          'data': body['data'],
-          'message': body['message'] ?? 'Sesi penimbangan berhasil dimulai',
-        };
-      } else {
-        return {
-          'success': false,
-          'statusCode': response.statusCode,
-          'message': body['error'] ?? 'Gagal memulai penimbangan',
-        };
+        return {'success': true, 'data': body['data'], 'message': body['message'] ?? 'Sesi penimbangan berhasil dimulai'};
       }
+      return {'success': false, 'statusCode': response.statusCode, 'message': body['error'] ?? 'Gagal memulai penimbangan'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
     }
   }
 
-  /// Memperbarui / Menyudahi / Membatalkan sesi penimbangan aktif.
-  /// [status] = "selesai" | "dibatalkan"
   static Future<Map<String, dynamic>> updatePenimbangan(
-      String penimbanganId, String adminId, String status, String token) async {
+    String penimbanganId,
+    String adminId,
+    String status,
+  ) async {
     try {
-      final response = await http.patch(
+      final response = await ApiClient.patch(
         Uri.parse('${ApiConfig.updatePenimbanganUrl}/$penimbanganId/$adminId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode({'status_penimbangan': status}),
       );
-
-      final Map<String, dynamic> body = jsonDecode(response.body);
-
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': body['data'],
-          'message': body['message'] ?? 'Status berhasil diperbarui',
-        };
-      } else {
-        return {
-          'success': false,
-          'message': body['error'] ?? 'Gagal memperbarui status',
-        };
+        return {'success': true, 'data': body['data'], 'message': body['message'] ?? 'Status berhasil diperbarui'};
       }
+      return {'success': false, 'message': body['error'] ?? 'Gagal memperbarui status'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
     }
   }
 
-  /// Mendapatkan daftar riwayat penimbangan suatu BSU.
-  static Future<Map<String, dynamic>> getPenimbangan(
-      String bankId, String token) async {
+  static Future<Map<String, dynamic>> getSesiAktif(String penimbanganId) async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.getPenimbanganUrl}/$bankId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      final Map<String, dynamic> body = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': body['data'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': body['error'] ?? 'Gagal mengambil data penimbangan',
-        };
-      }
+      final response = await ApiClient.get(Uri.parse('${ApiConfig.getSesiAktifUrl}/$penimbanganId'));
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      return {'success': false, 'message': body['error'] ?? 'Gagal mengambil data sesi'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getPenimbangan(String bankId) async {
+    try {
+      final response = await ApiClient.get(Uri.parse('${ApiConfig.getPenimbanganUrl}/$bankId'));
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      return {'success': false, 'message': body['error'] ?? 'Gagal mengambil data penimbangan'};
+    } catch (e) {
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
     }
   }
 }

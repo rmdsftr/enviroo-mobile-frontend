@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/redeem_models.dart';
-import '../../models/redeem_overview_model.dart';
+import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/redeem_nasabah_provider.dart';
-import '../../widgets/filter_chip_row.dart';
+import '../../providers/penarikan_nasabah_provider.dart';
+import '../../widgets/filter_month_year.dart';
 import '../../widgets/navbar.dart';
-import '../../widgets/redeem_card.dart';
 import '../../widgets/topbar_back.dart';
 import 'detail_penarikan_screen.dart';
 import 'request_penarikan_screen.dart';
@@ -17,169 +15,425 @@ class PenarikanNasabahScreen extends StatefulWidget {
   const PenarikanNasabahScreen({super.key});
 
   @override
-  State<PenarikanNasabahScreen> createState() => _PenarikanNasabahScreenState();
+  State<PenarikanNasabahScreen> createState() =>
+      _PenarikanNasabahScreenState();
 }
 
 class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
   static const Color primary = Color(0xFF4EA771);
   static const Color dark = Color(0xFF013236);
-  static const Color accent = Color(0xFF94DF0C);
 
-  // Tab index: 0=Diajukan, 1=Dalam Proses, 2=Riwayat
+  // 0=Uang, 1=Sembako
   int _tabIndex = 0;
-  // Filter dipilih saat ini ('Semua' + nama reward dari backend)
-  String _filter = 'Semua';
-  // PageView controller untuk overview cards
-  final PageController _overviewController = PageController();
-  int _overviewPage = 0;
 
   @override
   void initState() {
     super.initState();
-    _overviewController.addListener(() {
-      final page = _overviewController.page?.round() ?? 0;
-      if (page != _overviewPage) setState(() => _overviewPage = page);
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
-      final prov = context.read<RedeemNasabahProvider>();
+      final prov = context.read<PenarikanNasabahProvider>();
       prov.bind(auth);
-      prov.loadList();
-      prov.loadRewardTypes();
-      prov.loadRedeemOverview();
+      prov.loadInitial();
     });
   }
 
-  @override
-  void dispose() {
-    _overviewController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _openForm() async {
+  Future<void> _openAjukan() async {
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const RequestPenarikanScreen()),
     );
     if (result == true && mounted) {
-      context.read<RedeemNasabahProvider>().loadList();
+      context.read<PenarikanNasabahProvider>().loadList(refresh: true);
     }
+  }
+
+  void _onTabChanged(int index, PenarikanNasabahProvider prov) {
+    setState(() => _tabIndex = index);
+    final rewardId = index == 0
+        ? prov.rewardUang?.rewardId
+        : prov.rewardSembako?.rewardId;
+    prov.setFilter(rewardId: rewardId);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FA),
-      body: SafeArea(
-        child: Column(
-          children: [
-            const TopBarBack(title: 'Penarikan Saldo'),
-            Expanded(
-              child: Consumer<RedeemNasabahProvider>(
-                builder: (context, prov, _) {
-                  return RefreshIndicator(
-                    color: primary,
-                    onRefresh: prov.loadList,
-                    child: CustomScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      slivers: [
-                        SliverToBoxAdapter(
-                          child: Column(
-                            children: [
-                              // ── 1. Tombol Ajukan Penarikan ──────────────
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: dark,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(50),
-                                      ),
-                                      elevation: 0,
+      backgroundColor: const Color(0xFFF5F7F5),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bg_struk.webp'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Consumer<PenarikanNasabahProvider>(
+            builder: (_, prov, __) {
+              return Column(
+                children: [
+                  const TopBarBack(title: 'Penarikan Saldo'),
+                  Expanded(
+                    child: RefreshIndicator(
+                      color: primary,
+                      onRefresh: () => prov.loadInitial(),
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 16),
+                            // 1. Ajukan button
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: dark,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 15),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(50),
                                     ),
-                                    onPressed: _openForm,
-                                    icon: const Icon(Icons.add_rounded, size: 22),
-                                    label: const Text(
-                                      'Ajukan Penarikan',
-                                      style: TextStyle(
-                                        fontFamily: 'Poppins',
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
-                                      ),
+                                    elevation: 0,
+                                  ),
+                                  onPressed: _openAjukan,
+                                  icon: const Icon(Icons.add_rounded, size: 20),
+                                  label: const Text(
+                                    'Ajukan Penarikan',
+                                    style: TextStyle(
+                                      fontFamily: 'Poppins',
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
                                     ),
                                   ),
                                 ),
                               ),
-
-                              const SizedBox(height: 16),
-
-                              // ── 2. Overview Card + Dot Indicator ────────
-                              _buildOverviewCards(prov),
-                              const SizedBox(height: 8),
-                              _buildDotIndicator(
-                                prov.redeemOverview.isNotEmpty
-                                    ? prov.redeemOverview.length
-                                    : 3,
+                            ),
+                            const SizedBox(height: 16),
+                            // 3. Tab filter jenis reward
+                            MainNavbar(
+                              selectedIndex: _tabIndex,
+                              tabs: const ['Uang', 'Sembako'],
+                              backgroundColor: Colors.white.withOpacity(0.6),
+                              border: Border.all(
+                                color: const Color(0xFF013236).withOpacity(0.1),
+                                width: 1,
                               ),
+                              onTabChanged: (i) => _onTabChanged(i, prov),
+                            ),
+                            const SizedBox(height: 14),
+                            // 4. Date filter
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              child: MonthYearFilterRow(
+                                filterStart: prov.filterStart,
+                                filterEnd: prov.filterEnd,
+                                onChanged: (s, e) => prov.setFilter(start: s, end: e),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
 
-                              const SizedBox(height: 16),
-
-                              // ── 3. Tab Navbar ───────────────────────────
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(50),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.05),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 2),
+                            // White container for the list
+                            Container(
+                              width: double.infinity,
+                              constraints: BoxConstraints(
+                                minHeight: MediaQuery.of(context).size.height,
+                              ),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                              ),
+                              padding: const EdgeInsets.only(top: 5, bottom: 40),
+                              child: Column(
+                                children: [
+                                  if (prov.loadingList && prov.penarikanList.isEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                                      child: Column(
+                                        children: List.generate(
+                                          5,
+                                          (_) => const _ShimmerCard(),
+                                        ),
                                       ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      _buildTab(0, 'Diajukan'),
-                                      _buildTab(1, 'Dalam Proses'),
-                                      _buildTab(2, 'Riwayat'),
-                                    ],
-                                  ),
-                                ),
+                                    )
+                                  else if (prov.errorList != null && prov.penarikanList.isEmpty)
+                                    _ErrorState(
+                                      message: prov.errorList!,
+                                      onRetry: () => prov.loadList(refresh: true),
+                                    )
+                                  else if (prov.penarikanList.isEmpty)
+                                    _EmptyState(tabIndex: _tabIndex)
+                                  else
+                                    ListView.builder(
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                                      itemCount: prov.penarikanList.length + 1,
+                                      itemBuilder: (ctx, i) {
+                                        if (i == prov.penarikanList.length) {
+                                          return prov.hasMore
+                                              ? const Padding(
+                                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                                  child: Center(
+                                                    child: CircularProgressIndicator(
+                                                      color: primary,
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  ),
+                                                )
+                                              : const SizedBox.shrink();
+                                        }
+                                        final item = prov.penarikanList[i];
+                                        return _PenarikanCard(
+                                          item: item,
+                                          onTap: () => Navigator.push(
+                                            ctx,
+                                            MaterialPageRoute(
+                                              builder: (_) => DetailPenarikanScreen(
+                                                penarikanId: item.penarikanId,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                ],
                               ),
-
-                              const SizedBox(height: 14),
-
-                              // ── 4. Filter Chip ──────────────────────────
-                              _buildFilterChips(prov.rewardTypes),
-
-                              const SizedBox(height: 14),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-
-                        // ── 5. List Penarikan ─────────────────────────
-                        if (prov.loadingList && prov.list.isEmpty)
-                          const SliverFillRemaining(
-                            child: Center(
-                                child: CircularProgressIndicator(color: primary)),
-                          )
-                        else if (prov.error != null && prov.list.isEmpty)
-                          SliverFillRemaining(
-                            child: _buildError(prov.error!, prov),
-                          )
-                        else
-                          _buildList(prov),
-                      ],
+                      ),
                     ),
-                  );
-                },
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Saldo Summary Card ────────────────────────────────────────────────────────
+
+// ── Penarikan Card ────────────────────────────────────────────────────────────
+
+class _PenarikanCard extends StatelessWidget {
+  final PenarikanItem item;
+  final VoidCallback onTap;
+
+  const _PenarikanCard({required this.item, required this.onTap});
+
+  static const Color dark = Color(0xFF013236);
+
+  Color get _statusColor {
+    switch (item.status) {
+      case StatusPenarikan.pending:
+        return const Color(0xFFF59E0B);
+      case StatusPenarikan.berhasil:
+        return const Color(0xFF4EA771);
+      case StatusPenarikan.dibatalkan:
+        return const Color(0xFFEF4444);
+      case StatusPenarikan.kadaluarsa:
+        return const Color(0xFF9CA3AF);
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String get _statusLabel {
+    switch (item.status) {
+      case StatusPenarikan.pending:
+        return 'Menunggu';
+      case StatusPenarikan.berhasil:
+        return 'Berhasil';
+      case StatusPenarikan.dibatalkan:
+        return 'Dibatalkan';
+      case StatusPenarikan.kadaluarsa:
+        return 'Kadaluarsa';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  IconData get _rewardIcon {
+    if (item.isUang) return Icons.payments_rounded;
+    return Icons.shopping_basket_rounded;
+  }
+
+  String get _nominalText {
+    final f = NumberFormat.decimalPattern('id_ID');
+    f.maximumFractionDigits = 4;
+    f.minimumFractionDigits = 0;
+    final lower = item.satuanPenarikan.toLowerCase();
+    if (lower.contains('rupiah') || item.isUang) {
+      return 'Rp ${f.format(item.nominalPenarikan)}';
+    }
+    return '${f.format(item.nominalPenarikan)} ${item.satuanPenarikan.isEmpty ? 'poin' : item.satuanPenarikan}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dateStr = DateFormat('dd MMM yyyy, HH:mm', 'id_ID')
+        .format(item.updatedAt);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          width: 1,
+          color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(_rewardIcon,
+                      color: _statusColor, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.namaReward.isEmpty
+                            ? 'Penarikan'
+                            : _capitalize(item.namaReward),
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: dark,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        dateStr,
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11,
+                          color: Colors.black.withValues(alpha: 0.45),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _nominalText,
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: dark,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _statusColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: Text(
+                        _statusLabel,
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: _statusColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}';
+}
+
+// ── Shimmer placeholder ───────────────────────────────────────────────────────
+
+class _ShimmerCard extends StatelessWidget {
+  const _ShimmerCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      height: 76,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(18),
+      ),
+    );
+  }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+class _EmptyState extends StatelessWidget {
+  final int tabIndex;
+  const _EmptyState({required this.tabIndex});
+
+  @override
+  Widget build(BuildContext context) {
+    const dark = Color(0xFF013236);
+    final labels = ['Uang', 'Sembako'];
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inbox_rounded,
+                size: 64, color: dark.withValues(alpha: 0.12)),
+            const SizedBox(height: 14),
+            Text(
+              'Belum ada riwayat penarikan ${labels[tabIndex]}',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: dark.withValues(alpha: 0.4),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Transaksi penarikan kamu akan muncul di sini',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                color: dark.withValues(alpha: 0.3),
               ),
             ),
           ],
@@ -187,302 +441,17 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
       ),
     );
   }
+}
 
-  Widget _buildTab(int index, String label) {
-    final isSelected = _tabIndex == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _tabIndex = index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? accent : Colors.transparent,
-            borderRadius: BorderRadius.circular(50),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected
-                    ? dark
-                    : dark.withOpacity(0.45),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+// ── Error state ───────────────────────────────────────────────────────────────
 
-  Widget _buildFilterChips(List<String> rewardTypes) {
-    // Fallback: jika belum dimuat dari API, tampilkan semua 3 jenis
-    final effectiveTypes = rewardTypes.isNotEmpty
-        ? rewardTypes
-        : ['Uang tunai', 'Emas', 'Sembako'];
+class _ErrorState extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _ErrorState({required this.message, required this.onRetry});
 
-    // Normalisasi nama reward dari backend ke label display singkat
-    String toDisplay(String nama) {
-      final lower = nama.toLowerCase();
-      if (lower.contains('uang')) return 'Uang Tunai';
-      if (lower.contains('emas')) return 'Emas';
-      if (lower.contains('sembako')) return 'Sembako';
-      return nama;
-    }
-
-    final items = <FilterChipItem<String>>[
-      const FilterChipItem(value: 'Semua', label: 'Semua'),
-      ...effectiveTypes.map((r) {
-        final display = toDisplay(r);
-        return FilterChipItem<String>(value: r, label: display);
-      }),
-    ];
-
-    if (_filter != 'Semua' && !effectiveTypes.contains(_filter)) {
-      WidgetsBinding.instance.addPostFrameCallback(
-          (_) => setState(() => _filter = 'Semua'));
-    }
-
-    return FilterChipRow<String>(
-      items: items,
-      selectedValue: _filter,
-      onSelected: (v) => setState(() => _filter = v),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-    );
-  }
-
-  Widget _buildOverviewCards(RedeemNasabahProvider prov) {
-    final f = NumberFormat.decimalPattern('id_ID');
-    f.maximumFractionDigits = 2;
-    f.minimumFractionDigits = 0;
-
-    // Gunakan data real dari API jika tersedia
-    if (prov.redeemOverview.isNotEmpty) {
-      final cards = prov.redeemOverview.map((item) {
-        if (item.isUang) {
-          return _OverviewCard(
-            icon: Icons.payments_rounded,
-            color: const Color(0xFF1E88E5),
-            label: 'Total Uang Tunai',
-            value: 'Rp ${f.format(item.totalNominal)}',
-            sub: 'Dari seluruh riwayat penarikan',
-          );
-        } else if (item.isEmas) {
-          return _OverviewCard(
-            icon: Icons.diamond_rounded,
-            color: const Color(0xFFFFB300),
-            label: 'Total Emas',
-            value: '${f.format(item.totalNominal)} gram',
-            sub: 'Dari seluruh riwayat penarikan',
-          );
-        } else {
-          // Sembako — tampilkan ringkasan item
-          final items = item.detailItemReward;
-          final subText = items.isEmpty
-              ? 'Belum pernah mendapatkan sembako'
-              : items.map((d) => '${d.namaSembako} (x${f.format(d.totalQty)})').join(', ');
-          return _OverviewCard(
-            icon: Icons.shopping_basket_rounded,
-            color: const Color(0xFF4EA771),
-            label: 'Penarikan Sembako',
-            value: items.isEmpty ? 'Belum pernah' : '${items.length} jenis',
-            sub: subText,
-            isSembako: true,
-          );
-        }
-      }).toList();
-
-      return SizedBox(
-        height: 140,
-        child: PageView.builder(
-          padEnds: false,
-          controller: _overviewController,
-          itemCount: cards.length,
-          itemBuilder: (context, i) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: cards[i],
-          ),
-        ),
-      );
-    }
-
-    // Fallback saat data belum dimuat: hitung manual dari list lokal
-    final list = prov.list;
-    double totalUang = 0, totalEmas = 0;
-    bool adaSembako = false;
-    for (final item in list) {
-      if (item.isUang) totalUang += item.nominal;
-      if (item.isEmas) totalEmas += item.nominal;
-      if (item.isSembako) adaSembako = true;
-    }
-
-    final fallbackCards = [
-      _OverviewCard(
-        icon: Icons.payments_rounded,
-        color: const Color(0xFF1E88E5),
-        label: 'Total Uang Tunai',
-        value: 'Rp ${f.format(totalUang)}',
-        sub: 'Dari seluruh riwayat penarikan',
-      ),
-      _OverviewCard(
-        icon: Icons.diamond_rounded,
-        color: const Color(0xFFFFB300),
-        label: 'Total Emas',
-        value: '${f.format(totalEmas)} gram',
-        sub: 'Dari seluruh riwayat penarikan',
-      ),
-      _OverviewCard(
-        icon: Icons.shopping_basket_rounded,
-        color: const Color(0xFF4EA771),
-        label: 'Penarikan Sembako',
-        value: adaSembako ? 'Pernah diterima' : 'Belum pernah',
-        sub: 'Barang sembako yang pernah Anda dapatkan',
-        isSembako: true,
-      ),
-    ];
-
-    return SizedBox(
-      height: 140,
-      child: PageView.builder(
-        padEnds: false,
-        controller: _overviewController,
-        itemCount: fallbackCards.length,
-        itemBuilder: (context, i) => Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: fallbackCards[i],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDotIndicator(int count) {
-    if (count <= 1) return const SizedBox.shrink();
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(count, (i) {
-        final isActive = i == _overviewPage;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: isActive ? 20 : 7,
-          height: 7,
-          decoration: BoxDecoration(
-            color: isActive ? primary : primary.withOpacity(0.25),
-            borderRadius: BorderRadius.circular(50),
-          ),
-        );
-      }),
-    );
-  }
-
-  List<RedeemTransaksi> _getFilteredList(List<RedeemTransaksi> all) {
-    // filter by tab
-    List<RedeemTransaksi> byTab;
-    switch (_tabIndex) {
-      case 0: // Diajukan
-        byTab = all
-            .where((t) => t.status == RedeemStatus.waiting)
-            .toList();
-        break;
-      case 1: // Dalam Proses
-        byTab = all
-            .where((t) => t.status == RedeemStatus.approved)
-            .toList();
-        break;
-      case 2: // Riwayat
-        byTab = all
-            .where((t) =>
-                t.status == RedeemStatus.success ||
-                t.status == RedeemStatus.rejected ||
-                t.status == RedeemStatus.canceled ||
-                t.status == RedeemStatus.failed)
-            .toList();
-        break;
-      default:
-        byTab = all;
-    }
-
-    // filter by jenis: cocokkan nama reward backend (case-insensitive)
-    if (_filter == 'Semua') return byTab;
-    return byTab
-        .where((t) =>
-            (t.reward?.namaReward ?? '').toLowerCase() ==
-            _filter.toLowerCase())
-        .toList();
-  }
-
-  Widget _buildList(RedeemNasabahProvider prov) {
-    final filtered = _getFilteredList(prov.list);
-
-    if (filtered.isEmpty) {
-      return SliverFillRemaining(
-        hasScrollBody: false,
-        child: _buildEmpty(),
-      );
-    }
-
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-      sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, i) {
-            final item = filtered[i];
-            return RedeemCard(
-              data: item,
-              onTap: () => _openDetail(item),
-            );
-          },
-          childCount: filtered.length,
-        ),
-      ),
-    );
-  }
-
-  void _openDetail(RedeemTransaksi item) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DetailPenarikanScreen(item: item),
-      ),
-    );
-  }
-
-  Widget _buildEmpty() {
-    final labels = ['Diajukan', 'Dalam Proses', 'Riwayat'];
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.inbox_rounded, size: 60, color: dark.withOpacity(0.15)),
-          const SizedBox(height: 14),
-          Text(
-            'Tidak ada data ${labels[_tabIndex]}',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: dark.withOpacity(0.4),
-            ),
-          ),
-          const SizedBox(height: 4),
-          if (_filter != 'Semua')
-            Text(
-              'Filter: $_filter',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: dark.withOpacity(0.3),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildError(String message, RedeemNasabahProvider prov) {
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -495,115 +464,23 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontFamily: 'Poppins', fontSize: 13),
+              style: const TextStyle(
+                  fontFamily: 'Poppins', fontSize: 13),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
+                backgroundColor: const Color(0xFF4EA771),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(50)),
               ),
-              onPressed: prov.loadList,
-              child: const Text('Coba lagi'),
+              onPressed: onRetry,
+              child: const Text('Coba lagi',
+                  style: TextStyle(fontFamily: 'Poppins')),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ── Overview Card Widget ──────────────────────────────────────────────────────
-
-class _OverviewCard extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String label;
-  final String value;
-  final String sub;
-  final bool isSembako;
-
-  const _OverviewCard({
-    required this.icon,
-    required this.color,
-    required this.label,
-    required this.value,
-    required this.sub,
-    this.isSembako = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [color, color.withOpacity(0.75)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.3),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: Colors.white70, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white70,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (isSembako)
-            Text(
-              sub,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
-              ),
-            )
-          else ...[
-            Text(
-              value,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              sub,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 10,
-                color: Colors.white60,
-              ),
-            ),
-          ],
-        ],
       ),
     );
   }

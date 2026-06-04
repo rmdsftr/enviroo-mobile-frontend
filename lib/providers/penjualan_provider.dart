@@ -37,38 +37,40 @@ class PenjualanProvider extends ChangeNotifier {
   RewardModel? _selectedReward;
   String _identitasPembeli = '';
   final List<ItemSampahPilihan> _itemsSampah = [];
-  final List<ItemSembakoPilihan> _itemsSembako = [];
   File? _buktiFoto;
 
   RewardModel? get selectedReward => _selectedReward;
   String get identitasPembeli => _identitasPembeli;
   List<ItemSampahPilihan> get itemsSampah => _itemsSampah;
-  List<ItemSembakoPilihan> get itemsSembako => _itemsSembako;
   File? get buktiFoto => _buktiFoto;
-  bool get isSembako => _selectedReward?.isSembako ?? false;
 
-  double get totalPoin {
+  /// Total harga penjualan real-time: jumlah (qty × hargaJual) tiap item.
+  double get totalHarga {
     double total = 0;
     for (final item in _itemsSampah) {
-      total += item.qty * item.hargaEksternal;
+      total += item.qty * item.hargaJual;
     }
     return total;
   }
 
-  double get totalPoinSembako {
-    double total = 0;
-    for (final item in _itemsSembako) {
-      total += item.qty * item.hargaEksternal;
-    }
-    return total;
-  }
+
+  // ── Preview ────────────────────────────────────────────────────────────────
+  FetchStatus _previewStatus = FetchStatus.idle;
+  String? _previewError;
+  PreviewPenjualanModel? _preview;
+
+  FetchStatus get previewStatus => _previewStatus;
+  String? get previewError => _previewError;
+  PreviewPenjualanModel? get preview => _preview;
 
   // ── Submit ─────────────────────────────────────────────────────────────────
   bool _submitting = false;
   String? _submitError;
+  String? _lastPenjualanId;
 
   bool get submitting => _submitting;
   String? get submitError => _submitError;
+  String? get lastPenjualanId => _lastPenjualanId;
 
   // ───────────────────────────────────────────────────────────────────────────
   // Form mutations
@@ -84,7 +86,7 @@ class PenjualanProvider extends ChangeNotifier {
     // Tidak perlu notify — biasanya dipakai di TextField yang sudah re-render sendiri.
   }
 
-  void toggleSampah(ItemSampahPilihan item, {bool? selected, double? qty}) {
+  void toggleSampah(ItemSampahPilihan item, {bool? selected}) {
     final idx = _itemsSampah.indexWhere((e) => e.sampahId == item.sampahId);
     final isSelected = selected ?? idx == -1;
 
@@ -96,12 +98,10 @@ class PenjualanProvider extends ChangeNotifier {
           sampahId: item.sampahId,
           namaSampah: item.namaSampah,
           satuan: item.satuan,
-          hargaEksternal: item.hargaEksternal,
           stokTersedia: item.stokTersedia,
-          qty: qty ?? 0,
+          qty: 0,
+          hargaJual: 0,
         ));
-      } else if (qty != null) {
-        _itemsSampah[idx].qty = qty;
       }
     }
     notifyListeners();
@@ -115,49 +115,19 @@ class PenjualanProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateHargaJualSampah(String sampahId, double harga) {
+    final idx = _itemsSampah.indexWhere((e) => e.sampahId == sampahId);
+    if (idx == -1) return;
+    _itemsSampah[idx].hargaJual = harga < 0 ? 0 : harga;
+    notifyListeners();
+  }
+
   bool isSampahSelected(String sampahId) =>
       _itemsSampah.any((e) => e.sampahId == sampahId);
 
   double qtySampahOf(String sampahId) {
     final idx = _itemsSampah.indexWhere((e) => e.sampahId == sampahId);
     return idx == -1 ? 0 : _itemsSampah[idx].qty;
-  }
-
-  void toggleSembako(ItemSembakoPilihan item, {bool? selected, double? qty}) {
-    final idx =
-        _itemsSembako.indexWhere((e) => e.sembakoId == item.sembakoId);
-    final isSelected = selected ?? idx == -1;
-
-    if (!isSelected) {
-      if (idx != -1) _itemsSembako.removeAt(idx);
-    } else {
-      if (idx == -1) {
-        _itemsSembako.add(ItemSembakoPilihan(
-          sembakoId: item.sembakoId,
-          namaSembako: item.namaSembako,
-          hargaEksternal: item.hargaEksternal,
-          qty: qty ?? 0,
-        ));
-      } else if (qty != null) {
-        _itemsSembako[idx].qty = qty;
-      }
-    }
-    notifyListeners();
-  }
-
-  void updateQtySembako(String sembakoId, double qty) {
-    final idx = _itemsSembako.indexWhere((e) => e.sembakoId == sembakoId);
-    if (idx == -1) return;
-    _itemsSembako[idx].qty = qty < 0 ? 0 : qty;
-    notifyListeners();
-  }
-
-  bool isSembakoSelected(String sembakoId) =>
-      _itemsSembako.any((e) => e.sembakoId == sembakoId);
-
-  double qtySembakoOf(String sembakoId) {
-    final idx = _itemsSembako.indexWhere((e) => e.sembakoId == sembakoId);
-    return idx == -1 ? 0 : _itemsSembako[idx].qty;
   }
 
   void setBuktiFoto(File? file) {
@@ -171,10 +141,13 @@ class PenjualanProvider extends ChangeNotifier {
     _selectedReward = null;
     _identitasPembeli = '';
     _itemsSampah.clear();
-    _itemsSembako.clear();
     _buktiFoto = null;
     _submitError = null;
     _submitting = false;
+    _preview = null;
+    _previewStatus = FetchStatus.idle;
+    _previewError = null;
+    _lastPenjualanId = null;
     notifyListeners();
   }
 
@@ -182,12 +155,12 @@ class PenjualanProvider extends ChangeNotifier {
   // Network calls
   // ───────────────────────────────────────────────────────────────────────────
 
-  Future<void> fetchRiwayat(String bankId, String token) async {
+  Future<void> fetchRiwayat(String bankId) async {
     _riwayatStatus = FetchStatus.loading;
     _riwayatError = null;
     notifyListeners();
 
-    final res = await PenjualanService.getRiwayatEksternal(bankId, token);
+    final res = await PenjualanService.getRiwayatEksternal(bankId);
     if (res['success'] == true) {
       final List data = res['data'] ?? [];
       _riwayat = data.map((e) => RiwayatPenjualanModel.fromJson(e)).toList();
@@ -199,19 +172,45 @@ class PenjualanProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchDetail(String penjualanId, String token) async {
+  Future<void> fetchDetail(String penjualanId) async {
     _detailStatus = FetchStatus.loading;
     _detailError = null;
     _detail = null;
     notifyListeners();
 
-    final res = await PenjualanService.getDetailEksternal(penjualanId, token);
+    final res = await PenjualanService.getDetailEksternal(penjualanId);
     if (res['success'] == true && res['data'] != null) {
       _detail = DetailPenjualanModel.fromJson(res['data']);
       _detailStatus = FetchStatus.success;
     } else {
       _detailError = res['message'];
       _detailStatus = FetchStatus.error;
+    }
+    notifyListeners();
+  }
+
+  // ── Mitra Penjualan ─────────────────────────────────────────────────────────
+  FetchStatus _mitraStatus = FetchStatus.idle;
+  List<String> _mitraList = [];
+  String? _mitraError;
+
+  FetchStatus get mitraStatus => _mitraStatus;
+  List<String> get mitraList => _mitraList;
+  String? get mitraError => _mitraError;
+
+  Future<void> fetchMitra(String bankId) async {
+    _mitraStatus = FetchStatus.loading;
+    _mitraError = null;
+    notifyListeners();
+
+    final res = await PenjualanService.getMitraEksternal(bankId);
+    if (res['success'] == true) {
+      final List data = res['data'] ?? [];
+      _mitraList = data.map((e) => (e['nama'] ?? '').toString()).toList();
+      _mitraStatus = FetchStatus.success;
+    } else {
+      _mitraError = res['message'];
+      _mitraStatus = FetchStatus.error;
     }
     notifyListeners();
   }
@@ -224,12 +223,12 @@ class PenjualanProvider extends ChangeNotifier {
   List<RewardModel> get rewards => _rewards;
   String? get rewardError => _rewardError;
 
-  Future<void> fetchRewards(String token) async {
+  Future<void> fetchRewards() async {
     _rewardStatus = FetchStatus.loading;
     _rewardError = null;
     notifyListeners();
 
-    final res = await RewardService.getAllReward(token);
+    final res = await RewardService.getAllReward();
     if (res['success'] == true) {
       final List data = res['data'] ?? [];
       _rewards = data.map((e) => RewardModel.fromJson(e)).toList();
@@ -241,46 +240,45 @@ class PenjualanProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Nilai Reward Bank (Card Konversi Screen 3) ─────────────────────────────
-  FetchStatus _nilaiStatus = FetchStatus.idle;
-  List<NilaiRewardBankModel> _nilaiRewards = [];
-  String? _nilaiError;
-  FetchStatus get nilaiStatus => _nilaiStatus;
-  List<NilaiRewardBankModel> get nilaiRewards => _nilaiRewards;
-  String? get nilaiError => _nilaiError;
 
-  /// Cari nilai konversi untuk reward yang sedang dipilih.
-  NilaiRewardBankModel? get nilaiUntukRewardTerpilih {
-    if (_selectedReward == null) return null;
-    for (final n in _nilaiRewards) {
-      if (n.rewardId == _selectedReward!.rewardId) return n;
+  // ── Preview Penjualan ─────────────────────────────────────────────────────
+  Future<bool> fetchPreview({required String bankId}) async {
+    if (_selectedReward == null || _itemsSampah.isEmpty) {
+      _previewError = 'Data belum lengkap';
+      _previewStatus = FetchStatus.error;
+      notifyListeners();
+      return false;
     }
-    return null;
-  }
 
-  Future<void> fetchNilaiReward(String bankId, String token) async {
-    _nilaiStatus = FetchStatus.loading;
-    _nilaiError = null;
+    _previewStatus = FetchStatus.loading;
+    _previewError = null;
+    _preview = null;
     notifyListeners();
 
-    final res = await RewardService.getNilaiReward(bankId, token);
-    if (res['success'] == true) {
-      final List data = res['data'] ?? [];
-      _nilaiRewards =
-          data.map((e) => NilaiRewardBankModel.fromJson(e)).toList();
-      _nilaiStatus = FetchStatus.success;
+    final res = await PenjualanService.previewPenjualanEksternal(
+      bankId: bankId,
+      rewardId: _selectedReward!.rewardId,
+      itemsSampah: _itemsSampah.map((e) => e.toPayload()).toList(),
+    );
+
+    if (res['success'] == true && res['data'] != null) {
+      _preview = PreviewPenjualanModel.fromJson(
+          res['data'] as Map<String, dynamic>);
+      _previewStatus = FetchStatus.success;
+      notifyListeners();
+      return true;
     } else {
-      _nilaiError = res['message'];
-      _nilaiStatus = FetchStatus.error;
+      _previewError = res['message']?.toString();
+      _previewStatus = FetchStatus.error;
+      notifyListeners();
+      return false;
     }
-    notifyListeners();
   }
 
   // ── Submit Penjualan ──────────────────────────────────────────────────────
   Future<bool> submitPenjualan({
     required String bankId,
     required String adminId,
-    required String token,
   }) async {
     if (_selectedReward == null ||
         _identitasPembeli.isEmpty ||
@@ -298,22 +296,19 @@ class PenjualanProvider extends ChangeNotifier {
     final res = await PenjualanService.submitPenjualanEksternal(
       bankId: bankId,
       adminId: adminId,
-      token: token,
       rewardId: _selectedReward!.rewardId,
       identitasPembeli: _identitasPembeli,
       itemsSampah: _itemsSampah.map((e) => e.toPayload()).toList(),
-      itemsSembako: isSembako
-          ? _itemsSembako.map((e) => e.toPayload()).toList()
-          : null,
       buktiFoto: _buktiFoto!,
     );
 
     _submitting = false;
     if (res['success'] == true) {
+      _lastPenjualanId = res['penjualan_id']?.toString();
       notifyListeners();
       return true;
     } else {
-      _submitError = res['message'];
+      _submitError = res['message']?.toString();
       notifyListeners();
       return false;
     }

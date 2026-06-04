@@ -1,17 +1,20 @@
-import 'package:enviroo/screens/form_daftar_nasabah.dart';
+import 'package:enviroo/models/bsu_unit_model.dart';
+import 'package:enviroo/screens/detail_profil_nasabah.dart';
+import 'package:enviroo/services/nasabah_service.dart';
+import 'package:enviroo/widgets/dropdown_custom.dart';
+import 'package:enviroo/widgets/filter_chip_row.dart';
+import 'package:enviroo/widgets/search.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:enviroo/providers/nasabah_provider.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/models/nasabah_model.dart';
-import 'package:intl/intl.dart';
 
 // ─── Palette ────────────────────────────────────────────────────────────────
 class _C {
   static const bg        = Color(0xFFF2FAF0); // putih-hijau sangat terang
   static const dark      = Color(0xFF0D3B3E); // teal gelap
-  static const lime      = Color(0xFF8ED60A); // lime aksen
   static const midGreen  = Color(0xFF4B9E6B); // hijau tengah
   static const softGreen = Color(0xFFD8F0D0); // hijau pucat
   static const redSoft   = Color(0xFFFF5A36); // merah nonaktif
@@ -30,13 +33,44 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
   String _searchQuery  = '';
   String _filterStatus = 'Semua';
 
+  // ── BSI-only dropdown state ───────────────────────────────────────────────
+  bool _isBsi = false;
+  String? _selectedBankId;
+  List<BsuUnitModel> _bsuUnits = [];
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
+      if (auth.role == 'petugas_bsi') {
+        setState(() {
+          _isBsi = true;
+          _selectedBankId = auth.bankId;
+        });
+        if (auth.bankId != null) {
+          _fetchBsuUnits(auth.bankId!);
+        }
+      }
       context.read<NasabahProvider>().fetchNasabahs(auth);
     });
+  }
+
+  Future<void> _fetchBsuUnits(String bankId) async {
+    final res = await NasabahService.getBsuByBsiId(bankId);
+    if (mounted && res['success'] == true) {
+      setState(() {
+        _bsuUnits = (res['data'] as List? ?? [])
+            .map((j) => BsuUnitModel.fromJson(j))
+            .toList();
+      });
+    }
+  }
+
+  void _onBankSelected(String? bankId) {
+    if (bankId == null || bankId == _selectedBankId) return;
+    setState(() => _selectedBankId = bankId);
+    context.read<NasabahProvider>().fetchNasabahsByBankId(bankId);
   }
 
   int get _totalSemua    => context.watch<NasabahProvider>().totalSemua;
@@ -53,44 +87,52 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _C.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            TopBarBack(title: "Kelola Nasabah"),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(),
-                    _buildStatCards(),
-                    _buildSearchBar(),
-                    _buildFilterChips(),
-                    _buildResultInfo(),
-                    _buildListNasabah(),
-                    const SizedBox(height: 30),
-                  ],
-                ),
-              ),
+      body: Stack(
+        children: [
+          // Background image
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/bg_struk.webp',
+              fit: BoxFit.cover,
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(right: 10, bottom: 10),
-        child: FloatingActionButton(
-          onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => FormDaftarNasabahScreen()));
-          },
-          backgroundColor: Color(0xFF94DF0C),
-          child: Icon(
-            Icons.person_add_alt_rounded,
-            color: Color(0xFF013236),
-            size: 30,
           ),
-        ),
+          SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TopBarBack(title: "Daftar Nasabah"),
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildHeader(),
+                        if (_isBsi) _buildBankDropdown(),
+                        _buildStatCards(),
+                        const SizedBox(height: 10),
+                        // White panel: search, filter, list
+                        Container(
+                          decoration: const BoxDecoration(color: Colors.white),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSearchBar(),
+                              _buildFilterChips(),
+                              const SizedBox(height: 15),
+                              _buildListNasabah(),
+                              const SizedBox(height: 30),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -99,12 +141,12 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 6, 28, 0),
       child: Text(
-        "Di sini kamu bisa lihat daftar nasabah yang tergabung di BSU Fakultas Teknologi Informasi.",
+        "Di sini kamu bisa lihat daftar nasabah yang tergabung di bank sampah beserta keaktifan mereka",
         style: TextStyle(
           fontFamily: 'Poppins',
           fontSize: 12.5,
           height: 1.6,
-          color: _C.dark.withOpacity(0.75),
+          color: _C.dark.withValues(alpha:0.75),
         ),
       ),
     );
@@ -114,152 +156,128 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0D3B3E), Color(0xFF1A5C61)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: const Color(0xFF013236).withValues(alpha: 0.08),
+            width: 1,
           ),
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: _C.dark.withOpacity(0.25),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.15),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Total Nasabah",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.65),
-                        ),
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              // Kolom 1 — Total
+              Expanded(
+                flex: 5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "$_totalSemua",
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: _C.dark,
+                        height: 1.0,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "$_totalSemua",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          height: 1.0,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: _C.lime.withOpacity(0.2),
-                      shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.people_rounded, color: _C.lime, size: 28),
-                  ),
-                ],
+                    const SizedBox(height: 3),
+                    Text(
+                      "Total Nasabah",
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 11,
+                        color: _C.dark.withValues(alpha: 0.45),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 3 Status dalam row
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMiniStat(
-                    value: "$_totalAktif",
-                    label: "Aktif",
-                    color: Color(0xFF06C0C9),
-                  ),
+              VerticalDivider(
+                width: 28,
+                thickness: 0.5,
+                color: _C.dark.withValues(alpha: 0.1),
+              ),
+              // Kolom 2 — 3 baris
+              Expanded(
+                flex: 6,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildMiniStat(value: "$_totalAktif",    label: "Aktif",    color: const Color(0xFF4EA771)),
+                    Divider(height: 10, thickness: 0.5, color: _C.dark.withValues(alpha: 0.08)),
+                    _buildMiniStat(value: "$_totalPending",  label: "Pending",  color: _C.orangeSoft),
+                    Divider(height: 10, thickness: 0.5, color: _C.dark.withValues(alpha: 0.08)),
+                    _buildMiniStat(value: "$_totalNonaktif", label: "Nonaktif", color: _C.redSoft),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMiniStat(
-                    value: "$_totalPending",
-                    label: "Pending",
-                    color: _C.orangeSoft,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMiniStat(
-                    value: "$_totalNonaktif",
-                    label: "Nonaktif",
-                    color: _C.redSoft,
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+
 
   Widget _buildMiniStat({
     required String value,
     required String label,
     required Color color,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(14),
+    return Row(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+            height: 1.0,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: _C.dark.withValues(alpha: 0.4),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBankDropdown() {
+    final auth = context.read<AuthProvider>();
+    final items = <CustomDropdownItem<String>>[
+      CustomDropdownItem(
+        value: auth.bankId ?? '',
+        label: 'Nasabah BSI Anda',
+        icon: Icons.home_work_rounded,
       ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              height: 1.0,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-            ),
-          ),
-        ],
+      ..._bsuUnits.map((b) => CustomDropdownItem(
+        value: b.bankId,
+        label: b.namaBank,
+        icon: Icons.house_rounded,
+      )),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+      child: CustomDropdown<String>(
+        value: _selectedBankId,
+        items: items,
+        onChanged: _onBankSelected,
+        hintText: 'Pilih bank sampah',
+        prefixIcon: Icons.account_balance_rounded,
       ),
     );
   }
@@ -267,95 +285,32 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-      child: TextField(
+      child: CustomSearchBar(
         controller: _searchController,
+        hintText: 'Cari nama nasabah...',
+        searchQuery: _searchQuery,
         onChanged: (v) => setState(() => _searchQuery = v),
-        style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: _C.dark),
-        decoration: InputDecoration(
-          hintText: "Cari nama nasabah...",
-          hintStyle: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 13,
-            color: _C.dark.withOpacity(0.35),
-          ),
-          prefixIcon: Icon(Icons.search_rounded, color: _C.midGreen, size: 22),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-            icon: Icon(Icons.close_rounded, size: 18, color: _C.dark.withOpacity(0.35)),
-            onPressed: () {
-              _searchController.clear();
-              setState(() => _searchQuery = '');
-            },
-          )
-              : null,
-          filled: true,
-          fillColor: Colors.transparent,
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(50),
-            borderSide: BorderSide(color: Color(0xFF4EA771).withOpacity(0.5), width: 1.5),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(50),
-            borderSide: BorderSide(color: _C.midGreen, width: 1.5),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        ),
+        onClear: () {
+          _searchController.clear();
+          setState(() => _searchQuery = '');
+        },
       ),
     );
   }
 
   Widget _buildFilterChips() {
-    const filters = ['Semua', 'Aktif', 'Nonaktif', 'Pending'];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Expanded(
-          child: Row(
-            children: filters.map((f) {
-              final selected = _filterStatus == f;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: GestureDetector(
-                  onTap: () => setState(() => _filterStatus = f),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: selected ? Color(0xFF4EA771) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: selected ? Color(0xFF4EA771) : Color(0xFF4EA771).withOpacity(0.5),
-                        width: 1,
-                      ),
-                    ),
-                    child: Text(f,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                          color: selected ? Colors.white : Color(0xFF4EA771),
-                        )),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      )
-    );
-  }
-
-  Widget _buildResultInfo() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 20, 28, 4),
-      child: Text(
-        "${_filteredNasabah.length} nasabah ditemukan",
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 11.5,
-          color: Color(0xFF4EA771)
-        ),
+      padding: const EdgeInsets.only(top: 14),
+      child: FilterChipRow<String>(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        selectedValue: _filterStatus,
+        onSelected: (v) => setState(() => _filterStatus = v),
+        items: const [
+          FilterChipItem(value: 'Semua',    label: 'Semua'),
+          FilterChipItem(value: 'Aktif',    label: 'Aktif'),
+          FilterChipItem(value: 'Nonaktif', label: 'Nonaktif'),
+          FilterChipItem(value: 'Pending',  label: 'Pending'),
+        ],
       ),
     );
   }
@@ -383,10 +338,10 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
         padding: const EdgeInsets.symmetric(vertical: 48),
         child: Center(
           child: Column(children: [
-            Icon(Icons.person_search_rounded, size: 52, color: _C.dark.withOpacity(0.15)),
+            Icon(Icons.person_search_rounded, size: 52, color: _C.dark.withValues(alpha:0.15)),
             const SizedBox(height: 12),
             Text("Nasabah tidak ditemukan",
-                style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: _C.dark.withOpacity(0.35))),
+                style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: _C.dark.withValues(alpha:0.35))),
           ]),
         ),
       );
@@ -402,73 +357,57 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
   }
 
   Widget _buildCardNasabah(NasabahModel nasabah) {
-    // Tentukan warna berdasarkan status
-    Color dotColor;
-    Color badgeBgColor;
-    Color badgeTextColor;
+    final statusLower = nasabah.statusNasabah.toLowerCase();
+    final Color dotColor = statusLower == 'aktif'
+        ? const Color(0xFF4EA771)
+        : statusLower == 'pending'
+            ? _C.orangeSoft
+            : _C.redSoft;
 
-    String status = nasabah.statusNasabah;
-    String statusLower = status.toLowerCase();
+    final initials = nasabah.user.nama
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .take(2)
+        .map((w) => w[0].toUpperCase())
+        .join();
 
-    if (statusLower == 'aktif') {
-      dotColor = Color(0xFF06C0C9);
-      badgeBgColor = Color(0xFFD6F4F6);
-      badgeTextColor = Color(0xFF06C0C9);
-    } else if (statusLower == 'pending') {
-      dotColor = _C.orangeSoft;
-      badgeBgColor = _C.orangeSoft.withOpacity(0.1);
-      badgeTextColor = _C.orangeSoft;
-    } else {
-      // Nonaktif
-      dotColor = _C.redSoft;
-      badgeBgColor = _C.redSoft.withOpacity(0.1);
-      badgeTextColor = _C.redSoft;
-    }
-
-    String formattedDate = DateFormat('dd MMM yyyy').format(nasabah.joinedAt);
-    String displayStatus = status.isNotEmpty ? status[0].toUpperCase() + status.substring(1).toLowerCase() : '';
-
-    return Container(
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DetailProfilNasabahScreen(nasabahId: nasabah.nasabahId),
+        ),
+      ),
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           width: 1,
-          color: Color(0xFF4EA771).withOpacity(0.2)
+          color: const Color(0xFF013236).withValues(alpha: 0.08),
         ),
       ),
       child: Row(
         children: [
-          // Avatar + status dot
           Stack(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: nasabah.user.photoUrl.isNotEmpty
-                    ? Image.network(
+              nasabah.user.photoUrl.isNotEmpty
+                  ? ClipOval(
+                      child: Image.network(
                         nasabah.user.photoUrl,
                         width: 52,
                         height: 52,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Image.asset(
-                          "assets/images/profile.png",
-                          width: 52,
-                          height: 52,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Image.asset(
-                        "assets/images/profile.png",
-                        width: 52,
-                        height: 52,
-                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _buildInitialsAvatar(initials),
                       ),
-              ),
+                    )
+                  : _buildInitialsAvatar(initials),
               Positioned(
                 bottom: 0, right: 0,
                 child: Container(
-                  width: 14, height: 14,
+                  width: 13, height: 13,
                   decoration: BoxDecoration(
                     color: dotColor,
                     shape: BoxShape.circle,
@@ -479,46 +418,70 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
             ],
           ),
           const SizedBox(width: 14),
-
-          // Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(nasabah.user.nama,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: _C.dark,
-                    ),
-                    overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 3),
-                Text("Terdaftar $formattedDate",
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10.5,
-                      color: _C.dark.withOpacity(0.6),
-                    )),
-                const SizedBox(height: 7),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: badgeBgColor,
-                    borderRadius: BorderRadius.circular(20),
+                Text(
+                  nasabah.user.nama,
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: _C.dark,
                   ),
-                  child: Text(displayStatus,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w600,
-                        color: badgeTextColor,
-                      )),
+                  overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 4),
+                _buildInfoRow(Icons.badge_outlined, nasabah.nasabahId),
+                const SizedBox(height: 2),
+                _buildInfoRow(Icons.email_outlined, nasabah.user.email),
               ],
             ),
           ),
         ],
+      ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 11, color: _C.dark.withValues(alpha: 0.35)),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 10,
+              color: _C.dark.withValues(alpha: 0.45),
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInitialsAvatar(String initials) {
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: const BoxDecoration(
+        color: _C.softGreen,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initials,
+        style: const TextStyle(
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+          color: _C.midGreen,
+        ),
       ),
     );
   }

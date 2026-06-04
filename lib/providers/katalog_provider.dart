@@ -1,142 +1,145 @@
 import 'package:flutter/material.dart';
 import '../models/katalog_model.dart';
-import '../models/katalog_history_model.dart';
 import '../services/katalog_service.dart';
 
 class KatalogProvider extends ChangeNotifier {
   List<KatalogSampahModel> _katalogSampah = [];
   List<KatalogSembakoModel> _katalogSembako = [];
   List<KategoriSampahModel> _categories = [];
-  Map<String, List<KatalogHistoryModel>> _historyCache = {};
   bool _isLoading = false;
-  bool _isHistoryLoading = false;
   String? _errorMessage;
+
+  DetailSampahModel? _currentDetail;
+  bool _isDetailLoading = false;
 
   List<KatalogSampahModel> get katalogSampah => _katalogSampah;
   List<KatalogSembakoModel> get katalogSembako => _katalogSembako;
   List<KategoriSampahModel> get categories => _categories;
-  Map<String, List<KatalogHistoryModel>> get historyCache => _historyCache;
   bool get isLoading => _isLoading;
-  bool get isHistoryLoading => _isHistoryLoading;
   String? get errorMessage => _errorMessage;
+  DetailSampahModel? get currentDetail => _currentDetail;
+  bool get isDetailLoading => _isDetailLoading;
 
-  Future<void> fetchCategories(String token) async {
+  Future<void> fetchCategories() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    final result = await KatalogService.getKategori(token);
-
-    if (result['success'] == true) {
-      final List<dynamic> data = result['data'];
-      _categories = data.map((json) => KategoriSampahModel.fromJson(json)).toList();
-    } else {
-      _errorMessage = result['message'];
+    try {
+      final result = await KatalogService.getKategori();
+      if (result['success'] == true) {
+        final data = result['data'] as List? ?? [];
+        _categories = data.map((json) => KategoriSampahModel.fromJson(json)).toList();
+      } else {
+        _errorMessage = result['message']?.toString();
+      }
+    } catch (_) {
+      _errorMessage = 'Gagal memuat kategori';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    _isLoading = false;
-    notifyListeners();
   }
 
-  Future<void> fetchKatalogSampah(String bankId, String token) async {
+  Future<void> fetchKatalogSampah(String bankId) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    final result = await KatalogService.getKatalogSampah(bankId, token);
-
-    if (result['success'] == true) {
-      final List<dynamic> data = result['data'];
-      _katalogSampah = data.map((json) => KatalogSampahModel.fromJson(json)).toList();
-    } else {
-      _errorMessage = result['message'];
+    try {
+      final result = await KatalogService.getKatalogSampah(bankId);
+      if (result['success'] == true) {
+        final data = result['data'] as List? ?? [];
+        _katalogSampah = data.map((json) => KatalogSampahModel.fromJson(json)).toList();
+      } else {
+        _errorMessage = result['message']?.toString();
+      }
+    } catch (_) {
+      _errorMessage = 'Gagal memuat katalog';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    _isLoading = false;
-    notifyListeners();
   }
 
-  Future<void> fetchKatalogSembako(String bankId, String token) async {
+  Future<void> fetchAll(String bankId) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    final result = await KatalogService.getKatalogSembako(bankId, token);
+    try {
+      final results = await Future.wait([
+        KatalogService.getKatalogSampah(bankId),
+        KatalogService.getKategori(),
+      ]);
 
-    if (result['success'] == true) {
-      final List<dynamic> data = result['data'];
-      _katalogSembako = data.map((json) => KatalogSembakoModel.fromJson(json)).toList();
-    } else {
-      _errorMessage = result['message'];
+      final sampahResult = results[0];
+      final kategoriResult = results[1];
+
+      if (sampahResult['success'] == true) {
+        final data = sampahResult['data'] as List? ?? [];
+        _katalogSampah = data.map((json) => KatalogSampahModel.fromJson(json)).toList();
+      } else {
+        _errorMessage = sampahResult['message']?.toString();
+      }
+
+      if (kategoriResult['success'] == true) {
+        final data = kategoriResult['data'] as List? ?? [];
+        _categories = data.map((json) => KategoriSampahModel.fromJson(json)).toList();
+      } else {
+        _errorMessage ??= kategoriResult['message']?.toString();
+      }
+    } catch (_) {
+      _errorMessage = 'Gagal memuat katalog';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    _isLoading = false;
-    notifyListeners();
   }
 
-  /// Optional metadata: Fetch both
-  Future<void> fetchAll(String bankId, String token) async {
-    _isLoading = true;
-    _errorMessage = null;
+  Future<void> fetchDetailSampah(String sampahId) async {
+    _isDetailLoading = true;
+    _currentDetail = null;
     notifyListeners();
 
-    final results = await Future.wait([
-      KatalogService.getKatalogSampah(bankId, token),
-      KatalogService.getKatalogSembako(bankId, token),
-      KatalogService.getKategori(token),
-    ]);
-
-    final sampahResult = results[0];
-    final sembakoResult = results[1];
-    final kategoriResult = results[2];
-
-    if (sampahResult['success'] == true) {
-      final List<dynamic> data = sampahResult['data'];
-      _katalogSampah = data.map((json) => KatalogSampahModel.fromJson(json)).toList();
-    } else {
-      _errorMessage = sampahResult['message'];
+    try {
+      final result = await KatalogService.getDetailSampah(sampahId);
+      if (result['success'] == true && result['data'] != null) {
+        _currentDetail = DetailSampahModel.fromJson(result['data'] as Map<String, dynamic>);
+      } else {
+        _errorMessage = result['message']?.toString();
+      }
+    } catch (_) {
+      _errorMessage = 'Gagal memuat detail';
+    } finally {
+      _isDetailLoading = false;
+      notifyListeners();
     }
-
-    if (sembakoResult['success'] == true) {
-      final List<dynamic> data = sembakoResult['data'];
-      _katalogSembako = data.map((json) => KatalogSembakoModel.fromJson(json)).toList();
-    } else {
-      // Don't overwrite error if already set by sampah
-      _errorMessage ??= sembakoResult['message'];
-    }
-
-    if (kategoriResult['success'] == true) {
-      final List<dynamic> data = kategoriResult['data'];
-      _categories = data.map((json) => KategoriSampahModel.fromJson(json)).toList();
-    } else {
-      // Don't overwrite error if already set
-      _errorMessage ??= kategoriResult['message'];
-    }
-
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  Future<void> fetchHistory(String sampahId, String token) async {
-    _isHistoryLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    final result = await KatalogService.getKatalogHistory(sampahId, token);
-
-    if (result['success'] == true) {
-      final List<dynamic> data = result['data'];
-      _historyCache[sampahId] = data.map((json) => KatalogHistoryModel.fromJson(json)).toList();
-    } else {
-      _errorMessage = result['message'];
-    }
-
-    _isHistoryLoading = false;
-    notifyListeners();
   }
 
   void clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  Future<void> silentRefresh(String bankId) async {
+    try {
+      final sampahResult = await KatalogService.getKatalogSampah(bankId);
+      if (sampahResult['success'] == true) {
+        final data = sampahResult['data'] as List? ?? [];
+        _katalogSampah = data.map((json) => KatalogSampahModel.fromJson(json)).toList();
+        notifyListeners();
+      }
+    } catch (_) {}
+
+    if (_currentDetail != null) {
+      try {
+        final detailResult = await KatalogService.getDetailSampah(_currentDetail!.sampahId);
+        if (detailResult['success'] == true && detailResult['data'] != null) {
+          _currentDetail = DetailSampahModel.fromJson(detailResult['data'] as Map<String, dynamic>);
+          notifyListeners();
+        }
+      } catch (_) {}
+    }
   }
 }

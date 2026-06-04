@@ -13,8 +13,7 @@ class DashboardProvider with ChangeNotifier {
   String get error => _error;
 
   Future<void> fetchDashboardPetugas(AuthProvider authProvider) async {
-    final token = authProvider.currentUser?.accessToken;
-    if (token == null || authProvider.bankId == null) {
+    if (authProvider.bankId == null) {
       _error = 'Anda belum login atau bank tidak ditemukan.';
       notifyListeners();
       return;
@@ -25,12 +24,8 @@ class DashboardProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await DashboardService.getDashboardPetugas(
-        authProvider.bankId!,
-        token,
-      );
-
-      if (response['success']) {
+      final response = await DashboardService.getDashboardPetugas(authProvider.bankId!);
+      if (response['success'] == true) {
         _dashboardData = DashboardPetugasModel.fromJson(response['data']);
       } else {
         _error = response['message'] ?? 'Gagal memuat data dashboard';
@@ -41,5 +36,13 @@ class DashboardProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  int _saldoRefreshToken = 0;
+  int get saldoRefreshToken => _saldoRefreshToken;
+
+  void requestSaldoRefresh() {
+    _saldoRefreshToken++;
+    notifyListeners();
   }
 }

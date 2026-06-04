@@ -1,18 +1,24 @@
+import 'package:enviroo/screens/admin_bsi/list_nasabah_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/jadwal_service.dart';
 
 class JadwalSetoranSection extends StatefulWidget {
+  const JadwalSetoranSection({super.key});
+
   @override
-  State<JadwalSetoranSection> createState() => _JadwalSetoranSectionState();
+  State<JadwalSetoranSection> createState() => JadwalSetoranSectionState();
 }
 
-class _JadwalSetoranSectionState extends State<JadwalSetoranSection> {
+class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
   String _namaBank = "";
+  String _bankId = "";
   List<Map<String, dynamic>> _jadwalOperasional = [];
   bool _isLoading = true;
   String? _error;
+
+  late final AppLifecycleListener _lifecycleListener;
 
   static const _darkTeal = Color(0xFF013236);
   static const _greenAccent = Color(0xFF4EA771);
@@ -21,14 +27,22 @@ class _JadwalSetoranSectionState extends State<JadwalSetoranSection> {
   void initState() {
     super.initState();
     _fetchJadwal();
+    _lifecycleListener = AppLifecycleListener(onResume: _fetchJadwal);
   }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
+
+  Future<void> refresh() => _fetchJadwal();
 
   Future<void> _fetchJadwal() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final nasabahId = auth.currentUser?.identityId;
-    final token = auth.currentUser?.accessToken;
 
-    if (nasabahId == null || token == null) {
+    if (nasabahId == null) {
       setState(() {
         _isLoading = false;
         _error = "Sesi tidak valid.";
@@ -36,7 +50,7 @@ class _JadwalSetoranSectionState extends State<JadwalSetoranSection> {
       return;
     }
 
-    final result = await JadwalService.getJadwalNasabah(nasabahId, token);
+    final result = await JadwalService.getJadwalNasabah(nasabahId);
 
     if (result['success'] == true) {
       final dynamic rawData = result['data'];
@@ -46,6 +60,9 @@ class _JadwalSetoranSectionState extends State<JadwalSetoranSection> {
 
       if (rawData is Map<String, dynamic>) {
         namaBank = rawData['nama_bank']?.toString() ?? "";
+        _bankId = rawData['bank_id']?.toString().isNotEmpty == true
+            ? rawData['bank_id'].toString()
+            : auth.nasabahProfile?.bankId ?? auth.bankId ?? '';
         final rawJadwal = rawData['jadwal'];
         if (rawJadwal is List) {
           jadwalList = rawJadwal
@@ -146,13 +163,6 @@ class _JadwalSetoranSectionState extends State<JadwalSetoranSection> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: _darkTeal.withOpacity(0.07),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(18),
@@ -161,7 +171,7 @@ class _JadwalSetoranSectionState extends State<JadwalSetoranSection> {
               // ─── Header: Nama Bank ───────────────────────────────────
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   border: Border(
@@ -171,36 +181,39 @@ class _JadwalSetoranSectionState extends State<JadwalSetoranSection> {
                     ),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: _greenAccent.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.storefront_rounded,
-                        size: 14,
-                        color: _greenAccent,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _namaBank,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: _darkTeal,
-                          letterSpacing: 0.2,
+                child: GestureDetector(
+                  onTap: _bankId.isEmpty
+                      ? null
+                      : () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ListNasabahScreen(bsuId: _bankId),
+                            ),
+                          ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _namaBank,
+                          style: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: _darkTeal,
+                            letterSpacing: 0.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 12,
+                        color: Color(0xFF4EA771),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -250,7 +263,7 @@ class _JadwalSetoranSectionState extends State<JadwalSetoranSection> {
           children: [
             // Calendar icon
             Container(
-              padding: const EdgeInsets.all(9),
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
                 color: _greenAccent.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
@@ -258,7 +271,7 @@ class _JadwalSetoranSectionState extends State<JadwalSetoranSection> {
               child: const Icon(
                 Icons.calendar_month_rounded,
                 color: _greenAccent,
-                size: 18,
+                size: 16,
               ),
             ),
             const SizedBox(width: 12),
@@ -272,8 +285,8 @@ class _JadwalSetoranSectionState extends State<JadwalSetoranSection> {
                     hari,
                     style: const TextStyle(
                       fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                       color: _darkTeal,
                     ),
                   ),

@@ -1,16 +1,15 @@
-import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/penjualan_model.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/penjualan_provider.dart';
+import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'pilih_sampah_screen.dart';
 
 class _C {
   static const dark = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
+  static const green = Color(0xFF94DF0C);
   static const cardBg = Color(0xFFF7FBF5);
   static const muted = Color(0xFF8A9A92);
   static const danger = Color(0xFFD94848);
@@ -32,11 +31,10 @@ class _JenisTransaksiScreenState extends State<JenisTransaksiScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = context.read<AuthProvider>();
       final prov = context.read<PenjualanProvider>();
       // Pre-fill kalau user balik ke halaman ini
       _identitasCtrl.text = prov.identitasPembeli;
-      prov.fetchRewards(auth.currentUser?.accessToken ?? '');
+      prov.fetchRewards();
     });
   }
 
@@ -50,13 +48,7 @@ class _JenisTransaksiScreenState extends State<JenisTransaksiScreen> {
     if (!_formKey.currentState!.validate()) return;
     final prov = context.read<PenjualanProvider>();
     if (prov.selectedReward == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: _C.danger,
-          content: Text('Jenis reward wajib dipilih',
-              style: TextStyle(fontFamily: 'Poppins')),
-        ),
-      );
+      showCustomSnackBar(context, 'Jenis reward wajib dipilih');
       return;
     }
     prov.setIdentitasPembeli(_identitasCtrl.text.trim());
@@ -83,9 +75,40 @@ class _JenisTransaksiScreenState extends State<JenisTransaksiScreen> {
                       child: CircularProgressIndicator(color: _C.green),
                     );
                   }
+                  if (prov.rewardStatus == FetchStatus.error) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.wifi_off_rounded, size: 48, color: _C.muted.withValues(alpha: 0.5)),
+                            const SizedBox(height: 12),
+                            Text(
+                              prov.rewardError ?? 'Gagal memuat data',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontFamily: 'Poppins', fontSize: 12.5, color: _C.muted),
+                            ),
+                            const SizedBox(height: 20),
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                prov.fetchRewards();
+                              },
+                              icon: const Icon(Icons.refresh_rounded, size: 16),
+                              label: const Text('Coba Lagi', style: TextStyle(fontFamily: 'Poppins')),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _C.dark,
+                                side: const BorderSide(color: _C.border),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
                   return SingleChildScrollView(
-                    padding:
-                        const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                     child: Form(
                       key: _formKey,
                       child: Column(
@@ -99,25 +122,20 @@ class _JenisTransaksiScreenState extends State<JenisTransaksiScreen> {
                                 'Masukkan jenis reward dan identitas pihak yang membeli sampah dari bank.',
                           ),
                           const SizedBox(height: 24),
-
-                          // ── Dropdown Jenis Reward ──────────────────
                           const _LabelField(label: 'Jenis Reward'),
                           const SizedBox(height: 6),
-                          _RewardDropdown(
+                          _RewardSelector(
                             rewards: prov.rewards,
                             value: prov.selectedReward,
                             onChanged: prov.setReward,
-                            errorText: prov.rewardError,
                           ),
                           const SizedBox(height: 18),
-
-                          // ── Identitas Pembeli ──────────────────────
                           const _LabelField(label: 'Identitas Pembeli'),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _identitasCtrl,
                             decoration: _inputDecoration(
-                              hint: 'Contoh: Pabrik Kertas Sumbar',
+                              hint: 'Contoh: PT Semen Padang',
                               icon: Icons.store_rounded,
                             ),
                             style: const TextStyle(
@@ -134,31 +152,6 @@ class _JenisTransaksiScreenState extends State<JenisTransaksiScreen> {
                               }
                               return null;
                             },
-                          ),
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: _C.cardBg,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.info_outline_rounded,
-                                    size: 16, color: _C.green),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Jika reward "Sembako", langkah berikutnya akan menampilkan pilihan barter sembako.',
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 11,
-                                      color: _C.dark,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                         ],
                       ),
@@ -187,21 +180,21 @@ InputDecoration _inputDecoration({String? hint, IconData? icon}) {
     filled: true,
     fillColor: Colors.white,
     contentPadding:
-        const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       borderSide: const BorderSide(color: _C.border),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: _C.green, width: 1.5),
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: _C.border, width: 1.5),
     ),
     errorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       borderSide: const BorderSide(color: _C.danger),
     ),
     focusedErrorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       borderSide: const BorderSide(color: _C.danger, width: 1.5),
     ),
   );
@@ -245,7 +238,7 @@ class _Heading extends StatelessWidget {
             subtitle,
             style: const TextStyle(
               fontFamily: 'Poppins',
-              fontSize: 11.5,
+              fontSize: 12,
               color: _C.muted,
             ),
           ),
@@ -259,7 +252,7 @@ class _StepIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const total = 4; // Jenis → Sampah → (Sembako) → Foto
+    const total = 3; // Jenis → Sampah → Foto
     return Row(
       children: List.generate(total, (i) {
         final isActive = i + 1 <= currentStep;
@@ -278,99 +271,109 @@ class _StepIndicator extends StatelessWidget {
   }
 }
 
-class _RewardDropdown extends StatelessWidget {
+class _RewardSelector extends StatelessWidget {
   final List<RewardModel> rewards;
   final RewardModel? value;
   final ValueChanged<RewardModel?> onChanged;
-  final String? errorText;
-  const _RewardDropdown({
+  const _RewardSelector({
     required this.rewards,
     required this.value,
     required this.onChanged,
-    this.errorText,
   });
+
+  // Tambahkan ke _C kalau belum ada
+  static const _lime = Color(0xFF94DF0C);
+  static const _limeTint = Color(0xFFF4FBE6);
+  static const _green = Color(0xFF4EA771);
+  static const _iconIdleBg = Color(0xFFEDF4EF);
+
+  IconData _iconFor(RewardModel r) {
+    final s = '${r.namaReward} ${r.satuan}'.toLowerCase();
+    if (s.contains('uang') || s.contains('rp') || s.contains('rupiah')) {
+      return Icons.payments_outlined;
+    }
+    return Icons.shopping_basket_outlined;
+  }
+
+  String _subtitleFor(RewardModel r) {
+    final s = r.satuan.toLowerCase();
+    if (s.contains('rp') || s.contains('rupiah')) return 'Dibayar Rupiah';
+    if (s.contains('poin')) return 'Ditukar dengan poin';
+    return 'Satuan ${r.satuan}';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        DropdownButtonHideUnderline(
-          child: DropdownButton2<RewardModel>(
-            isExpanded: true,
-            hint: const Text('Pilih jenis reward',
-                style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12.5,
-                    color: _C.muted)),
-            value: rewards.contains(value) ? value : null,
-            items: rewards
-                .map((r) => DropdownMenuItem<RewardModel>(
-                      value: r,
-                      child: Row(
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: rewards.asMap().entries.map((e) {
+          final i = e.key;
+          final r = e.value;
+          final isSelected = value?.rewardId == r.rewardId;
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(left: i == 0 ? 0 : 10),
+              child: GestureDetector(
+                onTap: () => onChanged(r),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: isSelected ? _limeTint : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected ? _lime : _C.border,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
                         children: [
-                          Icon(
-                            r.isSembako
-                                ? Icons.shopping_basket_rounded
-                                : Icons.account_balance_wallet_rounded,
-                            size: 16,
-                            color: _C.green,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            r.namaReward,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: _C.dark,
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: isSelected ? _lime : _iconIdleBg,
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '(${r.satuan})',
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 11,
-                              color: _C.muted,
-                            ),
+                            alignment: Alignment.center,
+                            child: Icon(_iconFor(r), size: 20, color: _C.dark),
                           ),
                         ],
                       ),
-                    ))
-                .toList(),
-            onChanged: onChanged,
-            buttonStyleData: ButtonStyleData(
-              height: 50,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: _C.border),
-                borderRadius: BorderRadius.circular(12),
+                      const SizedBox(height: 12),
+                      Text(
+                        r.namaReward,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _C.dark,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _subtitleFor(r),
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 12,
+                          color: isSelected ? Color(0xFF013236).withValues(alpha: 0.75) : _C.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            iconStyleData: const IconStyleData(
-              icon: Icon(Icons.expand_more_rounded, color: _C.muted),
-            ),
-            dropdownStyleData: DropdownStyleData(
-              maxHeight: 280,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            menuItemStyleData: const MenuItemStyleData(height: 44),
-          ),
-        ),
-        if (errorText != null) ...[
-          const SizedBox(height: 6),
-          Text(errorText!,
-              style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  color: _C.danger,
-                  fontSize: 11)),
-        ],
-      ],
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -406,7 +409,7 @@ class _BottomBar extends StatelessWidget {
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
+                borderRadius: BorderRadius.circular(50)),
           ),
         ),
       ),

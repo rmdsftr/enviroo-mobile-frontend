@@ -36,7 +36,7 @@ class NavbarKatalog extends StatelessWidget {
                       'Katalog sampah',
                       style: TextStyle(
                         fontFamily: 'Poppins',
-                        fontSize: 14,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: Colors.black,
                       ),
@@ -59,7 +59,7 @@ class NavbarKatalog extends StatelessWidget {
                       'Katalog sembako',
                       style: TextStyle(
                         fontFamily: 'Poppins',
-                        fontSize: 14,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: Colors.black,
                       ),

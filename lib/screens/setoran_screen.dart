@@ -64,7 +64,7 @@ class _SetoranScreenState extends State<SetoranScreen> {
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(
-                        "Tunjukkan QR code ini pada petugas BSU untuk konfirmasi setoran",
+                        "Tunjukkan QR code ini pada petugas bank sampah untuk konfirmasi setoran",
                         style: TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 13,
@@ -112,11 +112,11 @@ class _SetoranScreenState extends State<SetoranScreen> {
                       dataModuleShape: QrDataModuleShape.square,
                       color: Color(0xFF013236),
                     ),
-                    embeddedImage:
-                        const AssetImage('assets/images/logo-fix.png'),
-                    embeddedImageStyle: const QrEmbeddedImageStyle(
-                      size: Size(50, 50),
-                    ),
+                    // embeddedImage:
+                    //     const AssetImage('assets/images/logo-fix.png'),
+                    // embeddedImageStyle: const QrEmbeddedImageStyle(
+                    //   size: Size(50, 50),
+                    // ),
                   ),
                 ),
               ),

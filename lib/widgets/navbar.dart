@@ -3,29 +3,35 @@ import 'package:flutter/material.dart';
 class MainNavbar extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onTabChanged;
+  final List<String> tabs;
+  final Color? backgroundColor;
+  final BoxBorder? border;
 
   const MainNavbar({
     Key? key,
     required this.selectedIndex,
     required this.onTabChanged,
+    this.tabs = const ['Beranda', 'Transaksi', 'Reward'],
+    this.backgroundColor,
+    this.border,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        padding: EdgeInsets.all(8),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: backgroundColor ?? Colors.white,
+          border: border,
           borderRadius: BorderRadius.circular(50),
         ),
         child: Row(
-          children: [
-            _buildTab(0, 'Beranda'),
-            _buildTab(1, 'Transaksi'),
-            _buildTab(2, 'Reward'),
-          ],
+          children: List.generate(
+            tabs.length,
+            (i) => _buildTab(i, tabs[i]),
+          ),
         ),
       ),
     );
@@ -40,7 +46,7 @@ class MainNavbar extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? Color(0xFF94DF0C) : Colors.transparent,
+            color: isSelected ? const Color(0xFF94DF0C) : Colors.transparent,
             borderRadius: BorderRadius.circular(50),
           ),
           child: Center(
@@ -48,8 +54,8 @@ class MainNavbar extends StatelessWidget {
               label,
               style: TextStyle(
                 fontFamily: 'Poppins',
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected
                     ? const Color(0xFF013236)
                     : const Color(0xFF013236).withOpacity(0.5),

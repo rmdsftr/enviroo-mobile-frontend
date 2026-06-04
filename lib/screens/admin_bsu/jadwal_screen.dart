@@ -1,10 +1,9 @@
-import 'dart:ui';
 import 'package:enviroo/services/pengangkutan_service.dart';
 import 'package:enviroo/widgets/kalender.dart';
 import 'package:enviroo/widgets/navbar_jadwal.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
+import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:enviroo/providers/jadwal_provider.dart';
 import 'package:enviroo/providers/auth_provider.dart';
@@ -33,11 +32,12 @@ const _weekLabels = ['Minggu 1','Minggu 2','Minggu 3','Minggu 4'];
 // Model: Jadwal Rutin
 // ─────────────────────────────────────────────────────────────────────────────
 class JadwalRutin {
-  final List<int> days;      // 1=Senin … 7=Minggu
-  final List<int> weeks;     // 1-4, empty = setiap minggu
-  final String waktu;        // e.g. "08:00 – 12:00"
+  final List<int> days;           // 1=Senin … 7=Minggu
+  final List<int> weeks;          // 1-4, empty = setiap minggu
+  final String waktu;             // e.g. "08:00 – 12:00"
+  final String targetBankName;    // nama BSU tujuan (hanya terisi untuk jadwal pengangkutan BSI)
 
-  JadwalRutin({required this.days, required this.weeks, required this.waktu});
+  JadwalRutin({required this.days, required this.weeks, required this.waktu, this.targetBankName = ''});
 
   String get label {
     final dayStr = days.map((d) => _dayNames[d - 1]).join(', ');
@@ -88,6 +88,9 @@ class JadwalCustom {
 // MAIN SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
 class JadwalScreen extends StatefulWidget {
+  final VoidCallback? onBack;
+  const JadwalScreen({super.key, this.onBack});
+
   @override
   State<JadwalScreen> createState() => _JadwalScreenState();
 }
@@ -96,24 +99,15 @@ class _JadwalScreenState extends State<JadwalScreen>
     with SingleTickerProviderStateMixin {
   int _selectedTab = 0;
 
-  late List<JadwalRutin> _rutinPenimbangan;
-  late List<JadwalRutin> _rutinPengangkutan;
-  late List<JadwalCustom> _customPenimbangan;
-  late List<JadwalCustom> _customPengangkutan;
-
   // For smooth content transitions
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
 
-  bool _isLoading = false;
+  DateTime _focusedMonth = DateTime.now();
 
   @override
   void initState() {
     super.initState();
-    _rutinPenimbangan   = [];
-    _rutinPengangkutan  = [];
-    _customPenimbangan  = [];
-    _customPengangkutan = [];
 
     _fadeCtrl = AnimationController(
       vsync: this,
@@ -128,19 +122,9 @@ class _JadwalScreenState extends State<JadwalScreen>
   }
 
   Future<void> _fetchData() async {
-    setState(() => _isLoading = true);
     final auth = context.read<AuthProvider>();
     final prov = context.read<JadwalProvider>();
     await prov.fetchJadwal(auth);
-    if (mounted) {
-      setState(() {
-        _rutinPenimbangan = List.from(prov.rutinPenimbangan);
-        _rutinPengangkutan = List.from(prov.rutinPengangkutan);
-        _customPenimbangan = List.from(prov.customPenimbangan);
-        _customPengangkutan = List.from(prov.customPengangkutan);
-        _isLoading = false;
-      });
-    }
   }
 
   @override
@@ -158,10 +142,15 @@ class _JadwalScreenState extends State<JadwalScreen>
   }
 
   // ── Getters for current tab ──
-  List<JadwalRutin> get _currentRutin =>
-      _selectedTab == 0 ? _rutinPenimbangan : _rutinPengangkutan;
-  List<JadwalCustom> get _currentCustom =>
-      _selectedTab == 0 ? _customPenimbangan : _customPengangkutan;
+  List<JadwalRutin> get _currentRutin {
+    final prov = context.read<JadwalProvider>();
+    return _selectedTab == 0 ? prov.rutinPenimbangan : prov.rutinPengangkutan;
+  }
+  
+  List<JadwalCustom> get _currentCustom {
+    final prov = context.read<JadwalProvider>();
+    return _selectedTab == 0 ? prov.customPenimbangan : prov.customPengangkutan;
+  }
 
   // ── Build calendar event map ──
   Map<DateTime, List<String>> _buildEvents() {
@@ -184,26 +173,22 @@ class _JadwalScreenState extends State<JadwalScreen>
 
     for (final c in _currentCustom) {
       addEvent(c.tanggal, _selectedTab == 0
-          ? 'Penimbangan Custom  ${c.waktu}'
+          ? 'Penimbangan dadakan  ${c.waktu}'
           : 'Pengajuan Pengangkutan  ${c.waktu}');
     }
     return map;
   }
 
   void _onDaySelected(DateTime date) {
+    final role = context.read<AuthProvider>().role;
+    final isBsi = role == 'petugas_bsi';
     final events = _buildEvents();
     final key = DateTime(date.year, date.month, date.day);
     final dayEvents = events[key] ?? [];
 
     if (dayEvents.isEmpty) {
-      // No events → go directly to add form
-      if (_selectedTab == 0) {
-        _showAddCustomPenimbangan(date);
-      } else {
-        _showAjukanPengangkutan(date);
-      }
+      if (_selectedTab == 1 && !isBsi) _showAjukanPengangkutan(date);
     } else {
-      // Has events → show choice sheet first
       _showDayOptions(date, dayEvents);
     }
   }
@@ -285,31 +270,27 @@ class _JadwalScreenState extends State<JadwalScreen>
           )),
           const SizedBox(height: 16),
 
-          // Action buttons
-          SizedBox(
-            width: double.infinity, height: 48,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(ctx);
-                if (_selectedTab == 0) {
-                  _showAddCustomPenimbangan(date);
-                } else {
+          if (_selectedTab == 1 && context.read<AuthProvider>().role != 'petugas_bsi')
+            SizedBox(
+              width: double.infinity, height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
                   _showAjukanPengangkutan(date);
-                }
-              },
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: Text(
-                _selectedTab == 0 ? 'Tambah Jadwal' : 'Ajukan Pengangkutan',
-                style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _C.green,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                },
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text(
+                  'Ajukan Pengangkutan',
+                  style: TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _C.green,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -318,24 +299,30 @@ class _JadwalScreenState extends State<JadwalScreen>
   // ─── BUILD ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final role = context.watch<AuthProvider>().role;
+    final isBsm = role == 'petugas_bsm';
+    final isBsi = role == 'petugas_bsi';
+    final isLoading = context.watch<JadwalProvider>().isLoading;
+
     return Scaffold(
-      backgroundColor: _C.softGreen,
+      backgroundColor: _C.surface,
       body: SafeArea(
         child: Column(
           children: [
-            TopBarBack(title: "Kelola Jadwal"),
+            TopBarBack(title: "Monitoring Jadwal", onBack: widget.onBack),
 
             // ── Tab Navbar ──
-            NavbarJadwal(
-              selectedIndex: _selectedTab,
-              onTabChanged: _switchTab,
-            ),
+            if (!isBsm)
+              NavbarJadwal(
+                selectedIndex: _selectedTab,
+                onTabChanged: _switchTab,
+              ),
 
-            const SizedBox(height: 12),
+            if (!isBsm) const SizedBox(height: 12),
 
             // ── Scrollable content with fade transition ──
             Expanded(
-              child: _isLoading
+              child: isLoading
                 ? const Center(child: CircularProgressIndicator(color: _C.green))
                 : FadeTransition(
                 opacity: _fadeAnim,
@@ -348,29 +335,25 @@ class _JadwalScreenState extends State<JadwalScreen>
                       // ── Jadwal Rutin section ──
                       _buildRutinSection(),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
 
-                      // ── Info banner (Pengangkutan only) ──
-                      if (_selectedTab == 1) _buildInfoBanner(),
-
-                      // ── "Tambah" button ──
-                      if (_selectedTab == 0) _buildTambahButton(),
-
-                      const SizedBox(height: 16),
+                      // ── Info banner (Pengangkutan only, khusus BSU/BSM) ──
+                      if (_selectedTab == 1 && !isBsi) _buildInfoBanner(),
 
                       // ── Calendar ──
                       CalendarWidget(
                         events: _buildEvents(),
                         onDaySelected: _onDaySelected,
+                        onPageChanged: (m) => setState(() => _focusedMonth = m),
                         eventDotColor: _selectedTab == 0 ? _C.green : _C.orange,
                       ),
 
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 25),
 
                       // ── Jadwal Khusus bulan ini ──
                       _buildJadwalKhususSection(),
 
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 60),
                     ],
                   ),
                 ),
@@ -386,136 +369,148 @@ class _JadwalScreenState extends State<JadwalScreen>
   // JADWAL KHUSUS BULAN INI
   // ═════════════════════════════════════════════════════════════════════════
   Widget _buildJadwalKhususSection() {
-    final now = DateTime.now();
     final monthCustom = _currentCustom.where((c) {
-      return c.tanggal.year == now.year && c.tanggal.month == now.month;
+      return c.tanggal.year == _focusedMonth.year && c.tanggal.month == _focusedMonth.month;
     }).toList()
       ..sort((a, b) => a.tanggal.compareTo(b.tanggal));
 
     if (monthCustom.isEmpty) return const SizedBox.shrink();
 
     final months = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-    final monthLabel = '${months[now.month]} ${now.year}';
+    final monthLabel = '${months[_focusedMonth.month]} ${_focusedMonth.year}';
     final typeLabel = _selectedTab == 0 ? 'Penimbangan' : 'Pengangkutan';
     final accentColor = _selectedTab == 0 ? _C.green : _C.orange;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: _frostedCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Section header ──
+        Padding(
+          padding: const EdgeInsets.fromLTRB(30, 0, 30, 12),
+          child: Row(
+            children: [
+              Text(
+                'Jadwal Khusus',
+                style: const TextStyle(
+                  fontFamily: 'Poppins', fontSize: 13.5,
+                  fontWeight: FontWeight.w600, color: _C.dark,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: accentColor.withAlpha(18),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  monthLabel,
+                  style: TextStyle(
+                    fontFamily: 'Poppins', fontSize: 10,
+                    fontWeight: FontWeight.w600, color: accentColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
 
-            // ── List ──
-            ...monthCustom.asMap().entries.map((entry) {
-              final idx = entry.key;
-              final c = entry.value;
-              final dayNames = ['', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-              final dayName = dayNames[c.tanggal.weekday];
-              final dateStr = '$dayName, ${c.tanggal.day} ${months[c.tanggal.month]} ${c.tanggal.year}';
-              final isLast = idx == monthCustom.length - 1;
+        // ── List ──
+        ...monthCustom.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final c = entry.value;
+          final dayNames = ['', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+          final dayName = dayNames[c.tanggal.weekday];
+          final dateStr = '$dayName, ${c.tanggal.day} ${months[c.tanggal.month]}';
+          final isLast = idx == monthCustom.length - 1;
 
-              return Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ── Date badge ──
-                        Container(
-                          width: 44, height: 44,
-                          decoration: BoxDecoration(
-                            color: accentColor.withAlpha(14),
-                            borderRadius: BorderRadius.circular(12),
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 27, vertical: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // ── Date badge ──
+                    Container(
+                      width: 44, height: 44,
+                      decoration: BoxDecoration(
+                        color: accentColor.withAlpha(14),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '${c.tanggal.day}',
+                            style: TextStyle(
+                              fontFamily: 'Poppins', fontSize: 16,
+                              fontWeight: FontWeight.w700, color: accentColor,
+                              height: 1.1,
+                            ),
                           ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                '${c.tanggal.day}',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins', fontSize: 16,
-                                  fontWeight: FontWeight.w700, color: accentColor,
-                                  height: 1.1,
-                                ),
-                              ),
-                              Text(
-                                months[c.tanggal.month].substring(0, 3).toUpperCase(),
-                                style: TextStyle(
-                                  fontFamily: 'Poppins', fontSize: 8.5,
-                                  fontWeight: FontWeight.w600, color: accentColor.withAlpha(160),
-                                ),
-                              ),
-                            ],
+                          Text(
+                            months[c.tanggal.month].substring(0, 3).toUpperCase(),
+                            style: TextStyle(
+                              fontFamily: 'Poppins', fontSize: 8.5,
+                              fontWeight: FontWeight.w600, color: accentColor.withAlpha(160),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 13),
-                        // ── Info ──
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 13),
+                    // ── Info ──
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            c.pesan != null && c.pesan!.isNotEmpty
+                                ? c.pesan!
+                                : '$typeLabel Khusus',
+                            style: TextStyle(
+                              fontFamily: 'Poppins', fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: _C.dark.withAlpha(210),
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
                             children: [
-                              Text(
-                                c.pesan != null && c.pesan!.isNotEmpty
-                                    ? c.pesan!
-                                    : '$typeLabel Khusus',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins', fontSize: 12.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: _C.dark.withAlpha(210),
-                                ),
-                              ),
-                              const SizedBox(height: 3),
+                              Icon(Icons.calendar_today_rounded, size: 10, color: _C.dark.withAlpha(60)),
+                              const SizedBox(width: 4),
                               Text(dateStr, style: TextStyle(
                                 fontFamily: 'Poppins', fontSize: 11,
                                 color: _C.dark.withAlpha(80),
                               )),
-                              const SizedBox(height: 3),
-                              Row(
-                                children: [
-                                  Icon(Icons.access_time_rounded, size: 11, color: _C.dark.withAlpha(60)),
-                                  const SizedBox(width: 4),
-                                  Text(c.waktu, style: TextStyle(
-                                    fontFamily: 'Poppins', fontSize: 11,
-                                    color: _C.dark.withAlpha(90),
-                                  )),
-                                ],
-                              ),
+                              const SizedBox(width: 10),
+                              Icon(Icons.access_time_rounded, size: 10, color: _C.dark.withAlpha(60)),
+                              const SizedBox(width: 4),
+                              Text(c.waktu, style: TextStyle(
+                                fontFamily: 'Poppins', fontSize: 11,
+                                color: _C.dark.withAlpha(80),
+                              )),
                             ],
                           ),
-                        ),
-                        // ── Tag ──
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: accentColor.withAlpha(14),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'Khusus',
-                            style: TextStyle(
-                              fontFamily: 'Poppins', fontSize: 9.5,
-                              fontWeight: FontWeight.w600, color: accentColor,
-                            ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  if (!isLast)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 36),
-                      child: Container(height: 0.5, color: _C.dark.withAlpha(8)),
-                    ),
-                ],
-              );
-            }),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
+                  ],
+                ),
+              ),
+              if (!isLast)
+                Divider(
+                  height: 1,
+                  thickness: 0.5,
+                  indent: 24,
+                  endIndent: 24,
+                  color: _C.dark.withAlpha(18),
+                ),
+            ],
+          );
+        }),
+      ],
     );
   }
 
@@ -528,20 +523,8 @@ class _JadwalScreenState extends State<JadwalScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF013236), Color(0xFF024950)],
-          ),
+          color : Color(0xFF013236),
           borderRadius: BorderRadius.circular(25),
-          boxShadow: [
-            BoxShadow(
-              color: _C.dark.withAlpha(30),
-              blurRadius: 20,
-              spreadRadius: -2,
-              offset: const Offset(0, 8),
-            ),
-          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -573,46 +556,7 @@ class _JadwalScreenState extends State<JadwalScreen>
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // TAMBAH BUTTON (elegant outlined)
-  // ═════════════════════════════════════════════════════════════════════════
-  Widget _buildTambahButton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _showTambahRutin(),
-          borderRadius: BorderRadius.circular(50),
-          splashColor: _C.green.withAlpha(20),
-          highlightColor: _C.green.withAlpha(10),
-          child: Container(
-            height: 48,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(50),
-              border: Border.all(color: _C.dark.withAlpha(50), width: 1.2),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add_rounded, size: 20, color: _C.dark.withAlpha(160)),
-                const SizedBox(width: 8),
-                Text(
-                  'Tambah Jadwal Rutin',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: _C.dark.withAlpha(180),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  
 
   // ═════════════════════════════════════════════════════════════════════════
   // JADWAL RUTIN SECTION
@@ -624,7 +568,8 @@ class _JadwalScreenState extends State<JadwalScreen>
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
         child: _frostedCard(
-          child: Padding(
+          child: Container(
+            width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 28),
             child: Column(
               children: [
@@ -693,7 +638,7 @@ class _JadwalScreenState extends State<JadwalScreen>
             ),
 
             ...rutin.asMap().entries.map(
-              (e) => _buildRutinRow(e.value, isLast: e.key == rutin.length - 1),
+              (e) => _buildRutinRow(e.value, isLast: e.key == rutin.length - 1, hideTarget: context.read<AuthProvider>().role == 'petugas_bsu'),
             ),
             const SizedBox(height: 8),
           ],
@@ -708,20 +653,12 @@ class _JadwalScreenState extends State<JadwalScreen>
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.9), // Reduced opacity slightly since there's no blur
         borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: _C.dark.withOpacity(0.08),
-            blurRadius: 24,
-            spreadRadius: -4,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       child: child,
     );
   }
 
-  Widget _buildRutinRow(JadwalRutin r, {bool isLast = false}) {
+  Widget _buildRutinRow(JadwalRutin r, {bool isLast = false, bool hideTarget = false}) {
     return Column(
       children: [
         Padding(
@@ -765,6 +702,26 @@ class _JadwalScreenState extends State<JadwalScreen>
                         )),
                       ],
                     ),
+                    if (r.targetBankName.isNotEmpty && !hideTarget) ...[
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          Icon(Icons.place_rounded, size: 12, color: _C.orange.withAlpha(160)),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              r.targetBankName,
+                              style: TextStyle(
+                                fontFamily: 'Poppins', fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: _C.orange.withAlpha(200),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -801,159 +758,10 @@ class _JadwalScreenState extends State<JadwalScreen>
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // POPUP: TAMBAH JADWAL RUTIN
-  // ═════════════════════════════════════════════════════════════════════════
-  void _showTambahRutin() {
-    final selectedDays  = <int>{};
-    final selectedWeeks = <int>{};
-    final jamMulaiCtrl   = TextEditingController(text: '08:00');
-    final jamSelesaiCtrl = TextEditingController(text: '12:00');
-
-    _showSheet(
-      builder: (ctx, setBS) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _handleBar(),
-          _sheetTitle('Tambah Jadwal Rutin'),
-          const SizedBox(height: 24),
-
-          // ── Pilih Hari ──
-          _sectionLabel('Pilih Hari'),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8, runSpacing: 10,
-            children: List.generate(7, (i) {
-              final day = i + 1;
-              final sel = selectedDays.contains(day);
-              return _chip(
-                label: _dayNames[i],
-                selected: sel,
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  setBS(() => sel ? selectedDays.remove(day) : selectedDays.add(day));
-                },
-              );
-            }),
-          ),
-          const SizedBox(height: 24),
-
-          // ── Pilih Minggu ──
-          _sectionLabel('Pilih Minggu'),
-          const SizedBox(height: 4),
-          Text('Kosongkan untuk setiap minggu',
-            style: TextStyle(fontFamily: 'Poppins', fontSize: 11, color: _C.dark.withAlpha(80)),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8, runSpacing: 10,
-            children: List.generate(4, (i) {
-              final week = i + 1;
-              final sel = selectedWeeks.contains(week);
-              return _chip(
-                label: _weekLabels[i],
-                selected: sel,
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  setBS(() => sel ? selectedWeeks.remove(week) : selectedWeeks.add(week));
-                },
-              );
-            }),
-          ),
-          const SizedBox(height: 24),
-
-          // ── Waktu ──
-          _sectionLabel('Waktu'),
-          const SizedBox(height: 10),
-          _timeRow(jamMulaiCtrl, jamSelesaiCtrl),
-          const SizedBox(height: 16),
-
-          // ── Preview label ──
-          if (selectedDays.isNotEmpty) ...[
-            _previewBox(
-              JadwalRutin(
-                days: selectedDays.toList()..sort(),
-                weeks: selectedWeeks.toList()..sort(),
-                waktu: '${jamMulaiCtrl.text} – ${jamSelesaiCtrl.text}',
-              ).label,
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          // ── Submit ──
-          _submitButton(
-            label: 'Simpan',
-            enabled: selectedDays.isNotEmpty,
-            color: _C.green,
-            onPressed: () {
-              final newRutin = JadwalRutin(
-                days: selectedDays.toList()..sort(),
-                weeks: selectedWeeks.toList()..sort(),
-                waktu: '${jamMulaiCtrl.text} – ${jamSelesaiCtrl.text}',
-              );
-              setState(() {
-                if (_selectedTab == 0) {
-                  _rutinPenimbangan.add(newRutin);
-                } else {
-                  _rutinPengangkutan.add(newRutin);
-                }
-              });
-              Navigator.pop(ctx);
-            },
-          ),
-        ],
-      ),
-    );
-  }
 
   // ═════════════════════════════════════════════════════════════════════════
   // POPUP: TAMBAH JADWAL PENIMBANGAN CUSTOM
   // ═════════════════════════════════════════════════════════════════════════
-  void _showAddCustomPenimbangan(DateTime date) {
-    final months = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-    final jamMulaiCtrl   = TextEditingController(text: '08:00');
-    final jamSelesaiCtrl = TextEditingController(text: '10:00');
-
-    _showSheet(
-      builder: (ctx, setBS) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _handleBar(),
-          _sheetTitle('Tambah Jadwal Penimbangan'),
-          const SizedBox(height: 20),
-
-          _dateBox(
-            dateText: '${date.day} ${months[date.month]} ${date.year}',
-            color: _C.green,
-            bgColor: _C.softGreen,
-          ),
-          const SizedBox(height: 22),
-
-          _sectionLabel('Waktu'),
-          const SizedBox(height: 10),
-          _timeRow(jamMulaiCtrl, jamSelesaiCtrl),
-          const SizedBox(height: 28),
-
-          _submitButton(
-            label: 'Simpan',
-            color: _C.green,
-            onPressed: () {
-              setState(() {
-                _customPenimbangan.add(JadwalCustom(
-                  tanggal: date,
-                  waktu: '${jamMulaiCtrl.text} – ${jamSelesaiCtrl.text}',
-                ));
-              });
-              Navigator.pop(ctx);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   // ═════════════════════════════════════════════════════════════════════════
   // POPUP: AJUKAN PENGANGKUTAN
   // ═════════════════════════════════════════════════════════════════════════
@@ -1065,11 +873,10 @@ class _JadwalScreenState extends State<JadwalScreen>
                     final auth = context.read<AuthProvider>();
                     final bsuId   = auth.bankId ?? '';
                     final adminId = auth.identityId ?? '';
-                    final token   = auth.currentUser?.accessToken ?? '';
 
                     final res = await PengangkutanService.requestPengangkutan(
                       bsuId, adminId, date, jamMulaiCtrl.text.trim(),
-                      pesanCtrl.text.trim(), token,
+                      pesanCtrl.text.trim(),
                     );
 
                     if (!mounted) return;
@@ -1077,23 +884,11 @@ class _JadwalScreenState extends State<JadwalScreen>
 
                     Navigator.pop(ctx);
                     if (res['success'] == true) {
-                      // Tambahkan ke local state agar kalender langsung update
-                      setState(() {
-                        _customPengangkutan.add(JadwalCustom(
-                          tanggal: date,
-                          waktu: jamMulaiCtrl.text.trim(),
-                          pesan: pesanCtrl.text.trim(),
-                        ));
-                      });
+                      // Refresh data dari server agar kalender langsung update
+                      _fetchData();
                       _showSuccessSnackbar('Pengajuan pengangkutan berhasil dikirim');
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(res['message'] ?? 'Gagal mengajukan', style: const TextStyle(fontFamily: 'Poppins', color: Colors.white)),
-                        backgroundColor: Colors.red.shade700,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        margin: const EdgeInsets.all(16),
-                      ));
+                      showCustomSnackBar(context, res['message'] ?? 'Gagal mengajukan');
                     }
                   },
                 ),
@@ -1162,87 +957,6 @@ class _JadwalScreenState extends State<JadwalScreen>
     ));
   }
 
-  /// Selectable chip with smooth animation.
-  Widget _chip({
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        decoration: BoxDecoration(
-          color: selected ? _C.green : _C.surface,
-          borderRadius: BorderRadius.circular(50),
-          border: Border.all(
-            color: selected ? _C.green : _C.dark.withAlpha(12),
-            width: 1,
-          ),
-          boxShadow: selected ? [
-            BoxShadow(color: _C.green.withAlpha(30), blurRadius: 10, offset: const Offset(0, 3)),
-          ] : [],
-        ),
-        child: Text(label, style: TextStyle(
-          fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600,
-          color: selected ? Colors.white : _C.dark.withAlpha(150),
-        )),
-      ),
-    );
-  }
-
-  Widget _timeRow(TextEditingController mulai, TextEditingController selesai) {
-    return Row(
-      children: [
-        Expanded(child: _timeField(mulai, 'Mulai')),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text('–', style: TextStyle(
-            fontSize: 14, fontWeight: FontWeight.w400,
-            color: _C.dark.withAlpha(60),
-          )),
-        ),
-        Expanded(child: _timeField(selesai, 'Selesai')),
-      ],
-    );
-  }
-
-  Widget _timeField(TextEditingController ctrl, String hint) {
-    return TextField(
-      controller: ctrl,
-      textAlign: TextAlign.center,
-      cursorColor: _C.green,
-      style: const TextStyle(
-        fontFamily: 'Poppins', fontSize: 14,
-        fontWeight: FontWeight.w600, color: _C.dark,
-      ),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(
-          fontFamily: 'Poppins', fontSize: 13,
-          fontWeight: FontWeight.w400, color: _C.dark.withAlpha(55),
-        ),
-        filled: true,
-        fillColor: _C.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: _C.green.withAlpha(80), width: 1.5),
-        ),
-      ),
-    );
-  }
-
   Widget _dateBox({
     required String dateText,
     required Color color,
@@ -1269,34 +983,6 @@ class _JadwalScreenState extends State<JadwalScreen>
           Text(dateText, style: const TextStyle(
             fontFamily: 'Poppins', fontSize: 14,
             fontWeight: FontWeight.w600, color: _C.dark,
-          )),
-        ],
-      ),
-    );
-  }
-
-  Widget _previewBox(String text) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _C.softGreen,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: Icon(Icons.info_outline_rounded, size: 15, color: _C.green.withAlpha(140)),
-          ),
-          const SizedBox(width: 10),
-          Expanded(child: Text(
-            text,
-            style: TextStyle(
-              fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w500,
-              color: _C.dark.withAlpha(180), height: 1.45,
-            ),
           )),
         ],
       ),
@@ -1338,19 +1024,6 @@ class _JadwalScreenState extends State<JadwalScreen>
   }
 
   void _showSuccessSnackbar(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Row(
-        children: [
-          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-          const SizedBox(width: 10),
-          Expanded(child: Text(msg, style: const TextStyle(fontFamily: 'Poppins', fontSize: 13))),
-        ],
-      ),
-      backgroundColor: _C.green,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      duration: const Duration(seconds: 2),
-    ));
+    showCustomSnackBar(context, msg, type: SnackBarType.success);
   }
 }

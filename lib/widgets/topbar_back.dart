@@ -37,9 +37,9 @@ class TopBarBack extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 15,
               fontFamily: 'Poppins',
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               color: Color(0xFF013236),
             ),
           ),

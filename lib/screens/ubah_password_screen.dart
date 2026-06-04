@@ -1,5 +1,6 @@
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/services/auth_service.dart';
+import 'package:enviroo/widgets/success_bottom_sheet.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -42,12 +43,10 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
       _isLoading = true;
     });
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final email = authProvider.currentUser?.email ?? '';
-    final token = authProvider.currentUser?.accessToken ?? '';
+    final token = Provider.of<AuthProvider>(context, listen: false)
+        .currentUser?.accessToken ?? '';
 
     final response = await AuthService.changePassword(
-      email,
       passwordLama,
       passwordBaru,
       konfirmasiPassword,
@@ -60,80 +59,12 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
 
     if (response['success']) {
       if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            backgroundColor: const Color(0xFFFFFFFF),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4EA771).withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check_circle_outline_rounded,
-                      size: 40,
-                      color: Color(0xFF013236),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    "Berhasil!",
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF013236),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "Password kamu berhasil diperbarui.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      height: 1.6,
-                      color: Color(0xFF2D3748),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context); // Tutup dialog
-                        Navigator.pop(context); // Kembali ke profil screen
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4EA771),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text(
-                        "Kembali",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFFFFFFF),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        await showSuccessBottomSheet(
+          context,
+          title: 'Berhasil!',
+          message: 'Password kamu berhasil diperbarui.',
+          buttonLabel: 'Kembali',
+          onDismiss: () => Navigator.pop(context), // Kembali ke profil screen
         );
       }
     } else {

@@ -8,7 +8,12 @@ import 'package:flutter/services.dart';
 ///
 /// Mengembalikan [File] foto yang sudah diambil, atau null jika dibatalkan.
 class InAppCameraScreen extends StatefulWidget {
-  const InAppCameraScreen({super.key});
+  final String? hint;
+
+  const InAppCameraScreen({
+    super.key,
+    this.hint,
+  });
 
   @override
   State<InAppCameraScreen> createState() => _InAppCameraScreenState();
@@ -138,7 +143,7 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.45),
+                          color: Colors.black.withValues(alpha:0.45),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -151,35 +156,30 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
                   ),
                 ),
 
-                // Label instruksi
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.info_outline_rounded,
-                          color: Color(0xFF4EA771), size: 18),
-                      SizedBox(width: 8),
-                      Expanded(
+                const Spacer(),
+
+                if (widget.hint != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha:0.45),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                         child: Text(
-                          'Arahkan kamera ke wajah nasabah sebagai bukti kehadiran',
-                          style: TextStyle(
+                          widget.hint!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 12,
                             color: Colors.white,
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-
-                const Spacer(),
 
                 // Tombol capture
                 Padding(
@@ -193,7 +193,7 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
                         height: _isCapturing ? 64 : 72,
                         decoration: BoxDecoration(
                           color: _isCapturing
-                              ? const Color(0xFF4EA771).withOpacity(0.6)
+                              ? const Color(0xFF4EA771).withValues(alpha:0.6)
                               : Colors.white,
                           shape: BoxShape.circle,
                           border: Border.all(
@@ -202,7 +202,7 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF4EA771).withOpacity(0.35),
+                              color: const Color(0xFF4EA771).withValues(alpha:0.35),
                               blurRadius: 20,
                               spreadRadius: 4,
                             )
@@ -234,10 +234,19 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
   }
 
   Widget _buildCameraPreview() {
-    return Center(
-      child: AspectRatio(
-        aspectRatio: _controller!.value.aspectRatio,
-        child: CameraPreview(_controller!),
+    final previewSize = _controller!.value.previewSize;
+    if (previewSize == null) return const SizedBox.shrink();
+
+    // Sensor kamera Android berorientasi landscape (width > height).
+    // Swap width↔height agar FittedBox bisa scale dengan benar di portrait.
+    return SizedBox.expand(
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width: previewSize.height,
+          height: previewSize.width,
+          child: CameraPreview(_controller!),
+        ),
       ),
     );
   }

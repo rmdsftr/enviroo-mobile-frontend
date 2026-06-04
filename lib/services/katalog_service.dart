@@ -1,137 +1,60 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import 'api_client.dart';
 
 class KatalogService {
-  /// Ambil data katalog sampah berdasarkan bankID
-  static Future<Map<String, dynamic>> getKatalogSampah(String bankId, String token) async {
+  static Future<Map<String, dynamic>> getKatalogSampah(String bankId) async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.getKatalogSampahUrl}/$bankId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      final Map<String, dynamic> body = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': body['data'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': body['error'] ?? 'Gagal mengambil katalog sampah',
-        };
-      }
+      final response = await ApiClient.get(Uri.parse('${ApiConfig.getKatalogSampahUrl}/$bankId'));
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      return {'success': false, 'message': body['error'] ?? 'Gagal mengambil katalog sampah'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
     }
   }
 
-  /// Ambil data kategori sampah
-  static Future<Map<String, dynamic>> getKategori(String token) async {
+  static Future<Map<String, dynamic>> getKategori() async {
     try {
-      final response = await http.get(
-        Uri.parse(ApiConfig.getKategoriUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      final Map<String, dynamic> body = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': body['data'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': body['error'] ?? 'Gagal mengambil kategori sampah',
-        };
-      }
+      final response = await ApiClient.get(Uri.parse(ApiConfig.getKategoriUrl));
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      return {'success': false, 'message': body['error'] ?? 'Gagal mengambil kategori sampah'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
     }
   }
 
-  /// Ambil data katalog sembako berdasarkan bankID
-  static Future<Map<String, dynamic>> getKatalogSembako(String bankId, String token) async {
+  static Future<Map<String, dynamic>> getKatalogSembako(String bankId) async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.getKatalogSembakoUrl}/$bankId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      final Map<String, dynamic> body = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': body['data'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': body['error'] ?? 'Gagal mengambil katalog sembako',
-        };
-      }
+      final response = await ApiClient.get(Uri.parse('${ApiConfig.getKatalogSembakoUrl}/$bankId'));
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      return {'success': false, 'message': body['error'] ?? 'Gagal mengambil katalog sembako'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
     }
   }
 
-  /// Ambil riwayat harga sampah berdasarkan sampahID
-  static Future<Map<String, dynamic>> getKatalogHistory(String sampahId, String token) async {
+  static Future<Map<String, dynamic>> getDetailSampah(String sampahId) async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.getKatalogHistoryUrl}/$sampahId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      final Map<String, dynamic> body = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': body['data'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': body['error'] ?? 'Gagal mengambil riwayat harga sampah',
-        };
-      }
+      final response = await ApiClient.get(Uri.parse('${ApiConfig.getDetailSampahUrl}/$sampahId'));
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      return {'success': false, 'message': body['error'] ?? 'Gagal mengambil detail sampah'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getKatalogHistory(String sampahId) async {
+    try {
+      final response = await ApiClient.get(Uri.parse('${ApiConfig.getKatalogHistoryUrl}/$sampahId'));
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      return {'success': false, 'message': body['error'] ?? 'Gagal mengambil riwayat harga sampah'};
+    } catch (e) {
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
     }
   }
 }

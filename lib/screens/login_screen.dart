@@ -1,4 +1,6 @@
 import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/widgets/custom_snackbar.dart';
+import 'package:enviroo/providers/notifikasi_provider.dart';
 import 'package:enviroo/screens/admin_bsi/home_bsi_screen.dart';
 import 'package:enviroo/screens/admin_bsu/home_bsu_screen.dart';
 import 'package:enviroo/screens/admin_bsm/home_bsm_screen.dart';
@@ -6,6 +8,7 @@ import 'package:enviroo/screens/nasabah/home_screen.dart';
 import 'package:enviroo/screens/lupapassword_screen.dart';
 import 'package:enviroo/screens/aktivasi_akun_screen.dart';
 import 'package:enviroo/screens/role_options_screen.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -74,9 +77,7 @@ class _LoginScreenState extends State<LoginScreen>
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email dan password tidak boleh kosong')),
-      );
+      showCustomSnackBar(context, 'Email dan password tidak boleh kosong');
       return;
     }
 
@@ -91,26 +92,19 @@ class _LoginScreenState extends State<LoginScreen>
 
     if (cekResult['success'] != true) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(cekResult['message'] ?? 'Verifikasi gagal'),
-          backgroundColor: const Color(0xFFB61E20),
-        ),
-      );
+      showCustomSnackBar(context, cekResult['message'] ?? 'Verifikasi gagal');
       return;
     }
 
     final List<String> roles = List<String>.from(cekResult['roles'] ?? []);
     final bool multipleRoles = cekResult['multiple_roles'] == true;
 
+    // Simpan available roles agar fitur switch akun bisa bekerja
+    authProvider.setAvailableRoles(roles);
+
     if (roles.isEmpty) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tidak ada role yang tersedia untuk akun ini'),
-          backgroundColor: Color(0xFFB61E20),
-        ),
-      );
+      showCustomSnackBar(context, 'Tidak ada role yang tersedia untuk akun ini');
       return;
     }
 
@@ -140,16 +134,31 @@ class _LoginScreenState extends State<LoginScreen>
     if (success) {
       _navigateToHome(authProvider.role);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.errorMessage ?? 'Login gagal'),
-          backgroundColor: const Color(0xFFB61E20),
-        ),
-      );
+      showCustomSnackBar(context, authProvider.errorMessage ?? 'Login gagal');
     }
   }
 
   void _navigateToHome(String role) {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final notifProvider = Provider.of<NotifikasiProvider>(context, listen: false);
+
+    // Fetch daftar notifikasi
+    notifProvider.fetchNotifikasi(
+      userId: auth.userId,
+    );
+
+    // Daftarkan FCM token ke backend — ini yang selama ini HILANG!
+    FirebaseMessaging.instance.getToken().then((fcmToken) {
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        debugPrint('[Login] FCM token diperoleh, mendaftarkan ke backend...');
+        notifProvider.registerFcmToken(
+          fcmToken: fcmToken,
+        );
+      } else {
+        debugPrint('[Login] FCM token null/kosong, skip register.');
+      }
+    });
+
     Widget destination;
     if (role == 'nasabah') {
       destination = const HomeScreen();
@@ -437,7 +446,7 @@ class _LoginScreenState extends State<LoginScreen>
           foregroundColor: bgColor,
           disabledBackgroundColor: primaryColor.withOpacity(0.6),
           elevation: 8,
-          shadowColor: primaryColor.withOpacity(0.5),
+          shadowColor: primaryColor.withOpacity(0.25),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(50), // Border radius bulat
           ),

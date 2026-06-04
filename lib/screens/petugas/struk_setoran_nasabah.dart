@@ -1,10 +1,7 @@
-import 'dart:convert';
+import 'package:enviroo/screens/lihat_foto_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
-import 'package:enviroo/config/api_config.dart';
-import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/services/setoran_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 
 // ─── Models ──────────────────────────────────────────────────────────────────
@@ -15,8 +12,8 @@ class SetoranHeader {
   final String namaNasabah;
   final String transaksiTimestamp;
   final int totalItem;
-  final double totalPoin;       // backend: float64
   final String statusSetoran;
+  final String buktiViaManual;
 
   SetoranHeader({
     required this.setoranId,
@@ -24,16 +21,16 @@ class SetoranHeader {
     required this.namaNasabah,
     required this.transaksiTimestamp,
     required this.totalItem,
-    required this.totalPoin,
     required this.statusSetoran,
+    required this.buktiViaManual,
   });
 
   factory SetoranHeader.fromJson(Map<String, dynamic> json) {
     String timestamp = '-';
     if (json['transaksi_timestamp'] != null) {
       try {
-        timestamp = '${DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID')
-            .format(DateTime.parse(json['transaksi_timestamp']))} WIB';
+        timestamp = DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID')
+            .format(DateTime.parse(json['transaksi_timestamp']));
       } catch (_) {
         timestamp = json['transaksi_timestamp'].toString();
       }
@@ -44,43 +41,37 @@ class SetoranHeader {
       namaNasabah: json['nama_nasabah'] ?? '-',
       transaksiTimestamp: timestamp,
       totalItem: (json['total_item'] as num? ?? 0).toInt(),
-      totalPoin: (json['total_poin'] as num? ?? 0).toDouble(),
       statusSetoran: json['status_setoran'] ?? 'pending',
+      buktiViaManual: json['bukti_via_manual'] ?? '',
     );
   }
 }
 
 class SetoranItem {
   final String namaSampah;
-  final double qty;           // backend: float64
-  final double nilaiPoin;     // backend: float64
-  final double subtotalPoin;  // backend: float64
+  final double qty;
+  final String satuan;
 
   SetoranItem({
     required this.namaSampah,
     required this.qty,
-    required this.nilaiPoin,
-    required this.subtotalPoin,
+    required this.satuan,
   });
 
   factory SetoranItem.fromJson(Map<String, dynamic> json) {
     return SetoranItem(
-      namaSampah:   json['nama_sampah'] ?? '-',
-      qty:          (json['qty']           as num? ?? 0).toDouble(),
-      nilaiPoin:    (json['nilai_poin']    as num? ?? 0).toDouble(),
-      subtotalPoin: (json['subtotal_poin'] as num? ?? 0).toDouble(),
+      namaSampah: json['nama_sampah'] ?? '-',
+      qty:        (json['qty'] as num? ?? 0).toDouble(),
+      satuan:     json['satuan'] ?? '',
     );
   }
 
-  /// Format angka: hilangkan desimal jika bulat (1.0 → "1", 1.5 → "1,5")
   static String _fmt(double v) {
     if (v == v.truncateToDouble()) return v.toInt().toString();
     return v.toStringAsFixed(2).replaceAll('.', ',');
   }
 
-  String get qtyFmt          => _fmt(qty);
-  String get nilaiPoinFmt    => _fmt(nilaiPoin);
-  String get subtotalPoinFmt => _fmt(subtotalPoin);
+  String get qtyFmt => _fmt(qty);
 }
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
@@ -118,59 +109,22 @@ class _StrukSetoranNasabahScreenState extends State<StrukSetoranNasabahScreen> {
       _errorMsg = null;
     });
 
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final token = auth.currentUser?.accessToken ?? '';
-
-    try {
-      final uri = Uri.parse(
-          '${ApiConfig.detailSetoranNasabahUrl}/${widget.setoranId}');
-      final response = await http.get(uri, headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-      });
-
-      if (!mounted) return;
-
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) {
-        final data = body['data'] as Map<String, dynamic>;
-        setState(() {
-          _header = SetoranHeader.fromJson(
-              data['header'] as Map<String, dynamic>);
-          final rawItems = data['items'] as List? ?? [];
-          _items = rawItems.map((e) => SetoranItem.fromJson(e)).toList();
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _errorMsg = body['message'] ?? 'Gagal memuat detail setoran';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
+    final res = await SetoranService.getDetailSetoranNasabah(widget.setoranId);
+    if (!mounted) return;
+    if (res['success'] == true) {
+      final data = res['data'] as Map<String, dynamic>;
       setState(() {
-        _errorMsg = 'Terjadi kesalahan: $e';
+        _header = SetoranHeader.fromJson(data['header'] as Map<String, dynamic>);
+        final rawItems = data['items'] as List? ?? [];
+        _items = rawItems.map((e) => SetoranItem.fromJson(e)).toList();
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _errorMsg = res['message'] ?? 'Gagal memuat detail setoran';
         _isLoading = false;
       });
     }
-  }
-
-  // ─── Format helpers ───────────────────────────────────────────────────────
-
-  String _formatPoin(double value) {
-    if (value == value.truncateToDouble()) {
-      // Bilangan bulat — format dengan pemisah ribuan
-      final formatted = value.toInt().toString()
-          .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-      return '$formatted poin';
-    }
-    // Desimal
-    final intPart = value.toInt().toString()
-        .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-    final dec = (value - value.truncateToDouble()).toStringAsFixed(2).substring(1);
-    return '$intPart$dec poin';
   }
 
   // ─── Status helpers ───────────────────────────────────────────────────────
@@ -225,8 +179,15 @@ class _StrukSetoranNasabahScreenState extends State<StrukSetoranNasabahScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9F8),
-      body: SafeArea(
-        child: Column(
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bg_struk.webp'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
           children: [
             TopBarBack(title: 'Struk Setoran'),
             Expanded(
@@ -252,6 +213,7 @@ class _StrukSetoranNasabahScreenState extends State<StrukSetoranNasabahScreen> {
             ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -265,13 +227,6 @@ class _StrukSetoranNasabahScreenState extends State<StrukSetoranNasabahScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          )
-        ],
       ),
       child: Column(
         children: [
@@ -279,60 +234,57 @@ class _StrukSetoranNasabahScreenState extends State<StrukSetoranNasabahScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(22),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF013236), Color(0xFF025059)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(20),
                 topRight: Radius.circular(20),
+              ),
+              border: Border(
+                bottom: BorderSide(
+                  color: const Color(0xFF013236).withOpacity(0.04),
+                  width: 1,
+                ),
               ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Struk Setoran',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                // ── Top Header (Center) ─────────────────────────
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(13),
+                        decoration: BoxDecoration(
+                          color: statusBg,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(_statusIcon(h.statusSetoran), size: 30, color: statusColor),
                       ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: statusBg,
-                        borderRadius: BorderRadius.circular(20),
+                      const SizedBox(height: 14),
+                      Text(
+                        'Setoran ${_statusLabel(h.statusSetoran)}',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: statusColor,
+                        ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(_statusIcon(h.statusSetoran),
-                              size: 12, color: statusColor),
-                          const SizedBox(width: 4),
-                          Text(
-                            _statusLabel(h.statusSetoran),
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              color: statusColor,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 6),
+                      Text(
+                        'Setoran ID: ${h.setoranId}',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF013236).withOpacity(0.5),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 40),
                 _headerRow(Icons.person_rounded, 'Nasabah', h.namaNasabah),
                 const SizedBox(height: 10),
                 _headerRow(
@@ -367,8 +319,7 @@ class _StrukSetoranNasabahScreenState extends State<StrukSetoranNasabahScreen> {
                 _tableRow(
                   'Jenis Sampah',
                   'Qty',
-                  'Poin/unit',
-                  'Subtotal',
+                  'Satuan',
                   isHeader: true,
                 ),
                 const Divider(height: 1, color: Color(0xFFEEEEEE)),
@@ -381,8 +332,7 @@ class _StrukSetoranNasabahScreenState extends State<StrukSetoranNasabahScreen> {
                       _tableRow(
                         item.namaSampah,
                         item.qtyFmt,
-                        item.nilaiPoinFmt,
-                        item.subtotalPoinFmt,
+                        item.satuan,
                       ),
                       if (entry.key < _items.length - 1)
                         const Divider(
@@ -404,50 +354,65 @@ class _StrukSetoranNasabahScreenState extends State<StrukSetoranNasabahScreen> {
             child: Column(
               children: [
                 _summaryRow('Total Jenis Sampah', '${h.totalItem} jenis'),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0FFF4),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: const Color(0xFF4EA771).withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: const [
-                          Icon(Icons.stars_rounded,
-                              color: Color(0xFF4EA771), size: 18),
-                          SizedBox(width: 8),
-                          Text(
-                            'Total Poin',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF013236),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        _formatPoin(h.totalPoin),
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF4EA771),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
+
+          // ── Bukti Foto ───────────────────────────────────────────────────
+          if (h.buktiViaManual.isNotEmpty) ...[
+            _buildPerforated(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Bukti Foto Nasabah',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF013236),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LihatFotoScreen(
+                          photoUrl: h.buktiViaManual,
+                          nama: 'Bukti Foto Nasabah',
+                        ),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AspectRatio(
+                        aspectRatio: 4 / 3,
+                        child: Image.network(
+                          h.buktiViaManual,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (_, child, p) => p == null
+                              ? child
+                              : const Center(
+                                  child: CircularProgressIndicator(
+                                      color: Color(0xFF4EA771))),
+                          errorBuilder: (_, __, ___) => Container(
+                            color: const Color(0xFFF0F0F0),
+                            child: const Center(
+                              child: Icon(Icons.broken_image_rounded,
+                                  color: Colors.grey, size: 36),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -457,7 +422,7 @@ class _StrukSetoranNasabahScreenState extends State<StrukSetoranNasabahScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 14, color: Colors.white54),
+        Icon(icon, size: 14, color: const Color(0xFF013236).withOpacity(0.5)),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -465,10 +430,10 @@ class _StrukSetoranNasabahScreenState extends State<StrukSetoranNasabahScreen> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 10,
-                  color: Colors.white54,
+                  color: const Color(0xFF013236).withOpacity(0.5),
                 ),
               ),
               Text(
@@ -477,7 +442,7 @@ class _StrukSetoranNasabahScreenState extends State<StrukSetoranNasabahScreen> {
                   fontFamily: 'Poppins',
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  color: Color(0xFF013236),
                 ),
               ),
             ],
@@ -534,8 +499,7 @@ class _StrukSetoranNasabahScreenState extends State<StrukSetoranNasabahScreen> {
   Widget _tableRow(
     String col1,
     String col2,
-    String col3,
-    String col4, {
+    String col3, {
     bool isHeader = false,
   }) {
     final style = TextStyle(
@@ -551,14 +515,11 @@ class _StrukSetoranNasabahScreenState extends State<StrukSetoranNasabahScreen> {
         children: [
           Expanded(flex: 3, child: Text(col1, style: style)),
           SizedBox(
-              width: 36,
+              width: 44,
               child: Text(col2, style: style, textAlign: TextAlign.center)),
           SizedBox(
-              width: 56,
+              width: 60,
               child: Text(col3, style: style, textAlign: TextAlign.right)),
-          SizedBox(
-              width: 64,
-              child: Text(col4, style: style, textAlign: TextAlign.right)),
         ],
       ),
     );

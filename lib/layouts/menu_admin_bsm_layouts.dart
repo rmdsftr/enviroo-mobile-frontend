@@ -1,6 +1,5 @@
-import 'package:enviroo/screens/admin_bsu/harga_screen.dart';
-import 'package:enviroo/screens/admin_bsu/jadwal_screen.dart';
-import 'package:enviroo/screens/admin_bsu/riwayat_transaksi_bsu.dart';
+import 'package:enviroo/screens/admin_bsi/katalog_sembako_screen.dart';
+import 'package:enviroo/screens/bagi_hasil/riwayat_bagi_hasil_screen.dart';
 import 'package:enviroo/screens/penjualan_eksternal/riwayat_penjualan_screen.dart';
 import 'package:enviroo/screens/penarikan/penarikan_petugas_screen.dart';
 import 'package:enviroo/screens/petugas/penimbangan_screen.dart';
@@ -18,128 +17,105 @@ class _MenuAdminBSMState extends State<MenuAdminBSM> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 10, horizontal: 25),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 30),
       child: Column(
         children: [
-          Padding(
-              padding: EdgeInsets.only(left: 10),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Menu Admin BSM",
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              "Menu Petugas BSM",
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF013236),
               ),
             ),
           ),
-          SizedBox(height: 15),
+          const SizedBox(height: 15),
           LayoutBuilder(
-              builder: (context, constraints){
-                double itemWidth = (constraints.maxWidth - 30) / 4;
-
-                return Wrap(
-                  spacing: 10,
-                  runSpacing: 16,
-                  children: [
-                    SizedBox(
-                      width: itemWidth,
-                      child: _buildMenuItem(
-                        context: context,
-                        label: "Nasabah",
-                        icon: Icons.people_alt_rounded,
-                        color: Color(0xFF8BC34A),
-                        iconColor: Color(0xFF013236),
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => KelolaNasabahScreen()));
-                        },
-                      ),
+            builder: (context, constraints) {
+              double itemWidth = (constraints.maxWidth - 60) / 4;
+              return Wrap(
+                spacing: 20,
+                runSpacing: 16,
+                children: [
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildMenuItem(
+                      context: context,
+                      label: "Nasabah",
+                      icon: Icons.people_alt_rounded,
+                      color: const Color(0xFF9B51E0),
+                      iconColor: Colors.white,
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => KelolaNasabahScreen())),
                     ),
-                    SizedBox(
-                      width: itemWidth,
-                      child: _buildMenuItem(
-                        context: context,
-                        label: "Timbang",
-                        icon: Icons.document_scanner_rounded,
-                        color: Color(0xFFFAA324),
-                        iconColor: Color(0xFF013236),
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => PenimbanganScreen()));
-                        },
-                      ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildMenuItem(
+                      context: context,
+                      label: "Timbang",
+                      icon: Icons.document_scanner_rounded,
+                      color: const Color(0xFFFAA324),
+                      iconColor: Colors.white,
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => PenimbanganScreen())),
                     ),
-                    SizedBox(
-                      width: itemWidth,
-                      child: _buildMenuItem(
-                        context: context,
-                        label: "Harga",
-                        icon: Icons.price_change_rounded,
-                        color: Color(0xFF4EA771),
-                        iconColor: Color(0xFF013236),
-                        onTap: () {
-                          final authRole = Provider.of<AuthProvider>(context, listen: false).role;
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => PerubahanHargaScreen(role: authRole)));
-                        },
-                      ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildMenuItem(
+                      context: context,
+                      label: "Penjualan",
+                      icon: Icons.monetization_on_rounded,
+                      color: const Color(0xFF4EA771),
+                      iconColor: Colors.white,
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const RiwayatPenjualanScreen())),
                     ),
-                    SizedBox(
-                      width: itemWidth,
-                      child: _buildMenuItem(
-                        context: context,
-                        label: "Reward",
-                        icon: Icons.emoji_events,
-                        color: Color(0xFF06C0C9),
-                        iconColor: Color(0xFF013236),
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => RiwayatTransaksiBsuScreen()));
-                        },
-                      ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildMenuItem(
+                      context: context,
+                      label: "Penarikan",
+                      icon: Icons.account_balance_wallet_rounded,
+                      color: const Color(0xFFF2994A),
+                      iconColor: Colors.white,
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const PenarikanPetugasScreen())),
                     ),
-                    SizedBox(
-                      width: itemWidth,
-                      child: _buildMenuItem(
-                        context: context,
-                        label: "Jadwal",
-                        icon: Icons.calendar_month,
-                        color: Color(0xFF8BC34A),
-                        iconColor: Color(0xFF013236),
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => JadwalScreen()));
-                        },
-                      ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildMenuItem(
+                      context: context,
+                      label: "Sembako",
+                      icon: Icons.storefront_rounded,
+                      color: const Color(0xFF2D9CDB),
+                      iconColor: Colors.white,
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const KatalogSembakoScreen())),
                     ),
-                    SizedBox(
-                      width: itemWidth,
-                      child: _buildMenuItem(
-                        context: context,
-                        label: "Penjualan",
-                        icon: Icons.monetization_on,
-                        color: Color(0xFF8BC34A),
-                        iconColor: Color(0xFF013236),
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const RiwayatPenjualanScreen()));
-                        },
-                      ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildMenuItem(
+                      context: context,
+                      label: "Bagi Hasil",
+                      icon: Icons.account_balance_rounded,
+                      color: const Color(0xFF1ABC9C),
+                      iconColor: Colors.white,
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const RiwayatBagiHasilScreen())),
                     ),
-                    SizedBox(
-                      width: itemWidth,
-                      child: _buildMenuItem(
-                        context: context,
-                        label: "Penarikan",
-                        icon: Icons.account_balance_wallet_rounded,
-                        color: Color(0xFF9B51E0),
-                        iconColor: Color(0xFF013236),
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const PenarikanPetugasScreen()));
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              }
-          )
+                  ),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
@@ -153,41 +129,38 @@ class _MenuAdminBSMState extends State<MenuAdminBSM> {
     required Color iconColor,
     VoidCallback? onTap,
   }) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final menuWidth = (screenWidth - 60 - 36) / 4; 
-
     return GestureDetector(
       onTap: onTap,
-      child: SizedBox(
-        width: menuWidth,
-        child: Column(
-          children: [
-            Container(
+      child: Column(
+        children: [
+          AspectRatio(
+            aspectRatio: 1,
+            child: Container(
               decoration: BoxDecoration(
                 color: color,
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(22),
               ),
-              padding: EdgeInsets.all(15),
               child: Icon(
                 icon,
-                size: 35,
+                size: 37,
                 color: iconColor,
               ),
             ),
-            SizedBox(height: 7),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            )
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF013236),
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }

@@ -3,10 +3,35 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/redeem_models.dart';
+import '../../models/katalog_model.dart';
+import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/redeem_nasabah_provider.dart';
+import '../../providers/penarikan_nasabah_provider.dart';
+import '../../widgets/search.dart';
 import '../../widgets/topbar_back.dart';
+import 'preview_request_penarikan_screen.dart';
+
+// ── Thousands formatter for Rupiah ─────────────────────────────────────────────
+
+class _ThousandsFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digitsOnly = newValue.text.replaceAll('.', '');
+    if (digitsOnly.isEmpty) return newValue.copyWith(text: '');
+
+    final number = int.tryParse(digitsOnly);
+    if (number == null) return oldValue;
+
+    final formatted = NumberFormat('#,###', 'id_ID').format(number);
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
 
 class RequestPenarikanScreen extends StatefulWidget {
   const RequestPenarikanScreen({super.key});
@@ -20,16 +45,25 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
   static const Color primary = Color(0xFF4EA771);
   static const Color dark = Color(0xFF013236);
 
-  NilaiRewardBank? _selectedReward;
-  final TextEditingController _poinController = TextEditingController();
+  // 0=Uang, 1=Sembako
+  int _tabIndex = 0;
+
+  final TextEditingController _nominalController = TextEditingController();
+  final FocusNode _nominalFocus = FocusNode();
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
   final Map<String, double> _sembakoQty = {};
+  String? _inlineError;
+  bool _submitting = false;
 
   @override
   void initState() {
     super.initState();
+    _nominalController.addListener(_onNominalChanged);
+    _nominalFocus.addListener(() => setState(() {}));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
-      final prov = context.read<RedeemNasabahProvider>();
+      final prov = context.read<PenarikanNasabahProvider>();
       prov.bind(auth);
       prov.loadFormData();
     });
@@ -37,128 +71,195 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
 
   @override
   void dispose() {
-    _poinController.dispose();
+    _nominalController.removeListener(_onNominalChanged);
+    _nominalController.dispose();
+    _nominalFocus.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  String _formatNumber(num n) => NumberFormat.decimalPattern('id_ID').format(n);
-
-  double get _poinInput {
-    final raw = _poinController.text.replaceAll('.', '').replaceAll(',', '');
-    return double.tryParse(raw) ?? 0;
+  void _onNominalChanged() {
+    // Hanya validasi saldo melebihi (bukan "lebih dari 0") saat mengetik
+    setState(() {
+      final prov = context.read<PenarikanNasabahProvider>();
+      final saldo = _currentSaldo(prov);
+      final nominal = _parseNominal();
+      if (saldo != null && nominal > 0 && nominal > saldo.nominal) {
+        _inlineError = 'Nominal melebihi saldo tersedia';
+      } else {
+        _inlineError = null;
+      }
+    });
   }
 
-  double _totalPoinSembako(List<SembakoItem> items) {
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  NilaiRewardBank? _currentReward(PenarikanNasabahProvider prov) =>
+      _tabIndex == 0 ? prov.rewardUang : prov.rewardSembako;
+
+  SaldoReward? _currentSaldo(PenarikanNasabahProvider prov) =>
+      _tabIndex == 0 ? prov.saldo?.saldoUang : prov.saldo?.saldoSembako;
+
+  double _parseNominal() {
+    return double.tryParse(_nominalController.text.replaceAll('.', '')) ?? 0;
+  }
+
+  double _totalPoinSembako(List<KatalogSembakoModel> items) {
     double total = 0;
     _sembakoQty.forEach((id, qty) {
-      final item = items.firstWhere(
-        (s) => s.sembakoId == id,
-        orElse: () => SembakoItem(
-          sembakoId: id,
-          namaSembako: '',
-          photoUrl: '',
-          stok: 0,
-          schemaHarga: const [],
-        ),
-      );
-      total += item.poinHargaNasabah * qty;
+      final idx = items.indexWhere((s) => s.sembakoId == id);
+      if (idx >= 0) total += items[idx].nilaiPoin * qty;
     });
     return total;
   }
 
-  Future<void> _submit() async {
-    final prov = context.read<RedeemNasabahProvider>();
-    final reward = _selectedReward;
+  String? _validateNominal() {
+    final prov = context.read<PenarikanNasabahProvider>();
+    final saldo = _currentSaldo(prov);
+    final nominal = _parseNominal();
+    if (nominal <= 0) return 'Nominal harus lebih dari 0';
+    if (saldo != null && nominal > saldo.nominal) {
+      return 'Nominal melebihi saldo tersedia';
+    }
+    return null;
+  }
+
+  String? _validateSembako(List<KatalogSembakoModel> items) {
+    final prov = context.read<PenarikanNasabahProvider>();
+    final hasItem = _sembakoQty.values.any((q) => q > 0);
+    if (!hasItem) return 'Pilih minimal satu sembako';
+    final saldo = prov.saldo?.saldoSembako;
+    final total = _totalPoinSembako(items);
+    if (saldo != null && total > saldo.nominal) {
+      return 'Total poin melebihi saldo sembako';
+    }
+    return null;
+  }
+
+  String _fmtSaldo(SaldoReward? s) {
+    if (s == null) return '--';
+    final f = NumberFormat.decimalPattern('id_ID');
+    f.maximumFractionDigits = 4;
+    f.minimumFractionDigits = 0;
+    final lower = s.satuan.toLowerCase();
+    if (lower.contains('rupiah') || s.isUang) return 'Rp ${f.format(s.nominal)}';
+    return '${f.format(s.nominal)} ${s.satuan.isEmpty ? 'poin' : s.satuan}';
+  }
+
+  // ── Submit ────────────────────────────────────────────────────────────────
+
+  Future<void> _lanjutkan() async {
+    final prov = context.read<PenarikanNasabahProvider>();
+    final reward = _currentReward(prov);
+
     if (reward == null) {
-      _toast('Pilih jenis reward terlebih dahulu', error: true);
+      _showSnack('Jenis reward tidak tersedia', error: true);
       return;
     }
 
-    bool ok;
-    if (reward.isSembako) {
-      final items = _sembakoQty.entries
+    double? nominal;
+    List<Map<String, dynamic>> itemSembako = [];
+
+    if (_tabIndex == 1) {
+      final err = _validateSembako(prov.sembakoList);
+      if (err != null) {
+        setState(() => _inlineError = err);
+        return;
+      }
+      itemSembako = _sembakoQty.entries
           .where((e) => e.value > 0)
           .map((e) => {'sembako_id': e.key, 'qty': e.value})
           .toList();
-      if (items.isEmpty) {
-        _toast('Pilih minimal satu sembako', error: true);
-        return;
-      }
-      final totalPoin = _totalPoinSembako(prov.sembakoList);
-      if (prov.saldo != null && totalPoin > prov.saldo!.saldoPoin) {
-        _toast('Total poin sembako melebihi saldo Anda', error: true);
-        return;
-      }
-      ok = await prov.submitRequest(
-        rewardId: reward.rewardId,
-        poinRedeem: totalPoin,
-        redeemSembakoItem: items,
-      );
     } else {
-      final poin = _poinInput;
-      if (poin <= 0) {
-        _toast('Masukkan jumlah poin yang valid', error: true);
+      final err = _validateNominal();
+      if (err != null) {
+        setState(() => _inlineError = err);
         return;
       }
-      if (prov.saldo != null && poin > prov.saldo!.saldoPoin) {
-        _toast('Poin melebihi saldo Anda', error: true);
-        return;
-      }
-      ok = await prov.submitRequest(
-        rewardId: reward.rewardId,
-        poinRedeem: poin,
-      );
+      nominal = _parseNominal();
     }
+
+    setState(() => _submitting = true);
+
+    final formData = PenarikanFormData(
+      rewardId: reward.rewardId,
+      namaReward: reward.namaReward,
+      nominalPenarikan: nominal,
+      itemSembako: itemSembako,
+    );
+
+    setState(() => _submitting = false);
 
     if (!mounted) return;
-    if (ok) {
-      _toast('Pengajuan penarikan berhasil dikirim');
-      Navigator.pop(context, true);
-    } else {
-      _toast(prov.error ?? 'Gagal mengirim pengajuan', error: true);
-    }
-  }
-
-  void _toast(String message, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text(message),
-        backgroundColor: error ? Colors.redAccent : primary,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PreviewRequestPenarikanScreen(formData: formData),
       ),
     );
   }
 
+  void _showSnack(String msg, {bool error = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      content: Text(msg, style: const TextStyle(fontFamily: 'Poppins')),
+      backgroundColor: error ? Colors.redAccent : primary,
+    ));
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF6F8FA),
       body: SafeArea(
-        child: Consumer<RedeemNasabahProvider>(
-          builder: (context, prov, _) {
+        child: Consumer<PenarikanNasabahProvider>(
+          builder: (_, prov, __) {
+            final loading = prov.loadingSaldo ||
+                prov.loadingRewards ||
+                prov.loadingSembako;
             return Stack(
               children: [
                 Column(
                   children: [
                     const TopBarBack(title: 'Ajukan Penarikan'),
+                    _buildTabs(prov),
                     Expanded(
-                      child: prov.loadingForm
+                      child: loading
                           ? const Center(
-                              child: CircularProgressIndicator(color: primary))
+                              child: CircularProgressIndicator(
+                                  color: primary))
                           : SingleChildScrollView(
-                              padding:
-                                  const EdgeInsets.fromLTRB(20, 0, 20, 110),
+                              padding: const EdgeInsets.fromLTRB(
+                                  20, 16, 20, 24),
                               child: _buildContent(prov),
                             ),
                     ),
+                    // ── Bottom bar button ────────────────────────────────
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 16,
+                            offset: const Offset(0, -4),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                      child: _buildCTA(prov),
+                    ),
                   ],
                 ),
-                Positioned(
-                  left: 20,
-                  right: 20,
-                  bottom: 24,
-                  child: _buildSubmitButton(prov),
-                ),
+                if (_submitting)
+                  Container(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    child: const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                  ),
               ],
             );
           },
@@ -167,378 +268,298 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
     );
   }
 
-  Widget _buildContent(RedeemNasabahProvider prov) {
+  // ── Tab bar ───────────────────────────────────────────────────────────────
+
+  Widget _buildTabs(PenarikanNasabahProvider prov) {
+    final tabs = ['Uang', 'Sembako'];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(50),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: List.generate(2, (i) {
+            final selected = _tabIndex == i;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    _tabIndex = i;
+                    _nominalController.clear();
+                    _sembakoQty.clear();
+                    _inlineError = null;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? const Color(0xFF94DF0C)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: Center(
+                    child: Text(
+                      tabs[i],
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 13,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: selected
+                            ? dark
+                            : dark.withValues(alpha: 0.45),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  // ── Content ───────────────────────────────────────────────────────────────
+
+  Widget _buildContent(PenarikanNasabahProvider prov) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSaldoCard(prov.saldo),
+        _buildSaldoCard(prov),
         const SizedBox(height: 20),
-        const _SectionLabel('Jenis Reward'),
-        const SizedBox(height: 8),
-        _buildRewardSelector(prov.nilaiRewards),
-        const SizedBox(height: 20),
-        if (_selectedReward != null) _buildDynamicForm(prov),
+        if (_tabIndex == 1)
+          _buildSembakoForm(prov)
+        else
+          _buildNominalForm(prov),
       ],
     );
   }
 
-  Widget _buildSaldoCard(SaldoNasabah? saldo) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            dark.withOpacity(0.95),
-            const Color(0xFF2D5A1D).withOpacity(0.9),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.account_balance_wallet_rounded,
-                color: Colors.white, size: 22),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Saldo Poin Anda',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.85),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  saldo == null
-                      ? '— poin'
-                      : '${_formatNumber(saldo.saldoPoin)} poin',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-                if (saldo != null && saldo.namaNasabah.isNotEmpty)
-                  Text(
-                    saldo.namaNasabah,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: Colors.white.withOpacity(0.7),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildSaldoCard(PenarikanNasabahProvider prov) {
+    final saldo = _currentSaldo(prov);
+    final saldoText = _fmtSaldo(saldo);
+    final tabLabels = ['Uang', 'Sembako'];
 
-  Widget _buildRewardSelector(List<NilaiRewardBank> rewards) {
-    if (rewards.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF5F5),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.red.withOpacity(0.3)),
-        ),
-        child: const Text(
-          'Bank belum menyediakan jenis reward.',
-          style: TextStyle(fontFamily: 'Poppins', fontSize: 12),
-        ),
-      );
+    double? estimasiSisa;
+    if (saldo != null) {
+      if (_tabIndex < 1) {
+        final nominal = _parseNominal();
+        estimasiSisa = saldo.nominal - nominal;
+      } else {
+        final total = _totalPoinSembako(prov.sembakoList);
+        estimasiSisa = saldo.nominal - total;
+      }
     }
-    return Column(
-      children: rewards.map((r) {
-        final selected = _selectedReward?.rewardId == r.rewardId;
-        final deskripsi = r.reward?.deskripsi;
-        return GestureDetector(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            setState(() {
-              _selectedReward = r;
-              _poinController.clear();
-              _sembakoQty.clear();
-            });
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: selected ? primary.withOpacity(0.06) : Colors.white,
-              border: Border.all(
-                color: selected ? primary : Colors.black.withOpacity(0.1),
-                width: selected ? 1.5 : 1,
-              ),
-              borderRadius: BorderRadius.circular(18),
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(25),
+      child: Container(
+        color: const Color(0xFF013236),
+        child: Stack(
+          children: [
+            // ── Decorative bubbles ────────────────────────────────────────────
+            Positioned(
+              right: -30,
+              top: -30,
+              child: _Bubble(size: 100, opacity: 0.05),
             ),
-            child: Row(
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? primary.withOpacity(0.15)
-                        : Colors.black.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    _iconForReward(r.namaReward),
-                    size: 22,
-                    color: selected ? primary : dark.withOpacity(0.5),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            Positioned(
+              right: 30,
+              bottom: -35,
+              child: _Bubble(size: 80, opacity: 0.05),
+            ),
+            // ── Content ───────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
+                      const Icon(Icons.account_balance_wallet_rounded,
+                          color: Colors.white54, size: 16),
+                      const SizedBox(width: 8),
                       Text(
-                        r.namaReward.isEmpty ? 'Reward' : _capitalize(r.namaReward),
-                        style: TextStyle(
+                        'Saldo ${tabLabels[_tabIndex]} Tersedia',
+                        style: const TextStyle(
                           fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          color: selected ? primary : dark,
+                          fontSize: 11,
+                          color: Colors.white54,
                         ),
                       ),
-                      if (deskripsi != null && deskripsi.isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          deskripsi,
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 12,
-                            color: Colors.black.withOpacity(0.5),
-                          ),
-                        ),
-                      ] else ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          _defaultDeskripsi(r.namaReward),
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 12,
-                            color: Colors.black.withOpacity(0.4),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
-                ),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: selected ? primary : Colors.transparent,
-                    border: Border.all(
-                      color: selected ? primary : Colors.black.withOpacity(0.2),
-                      width: 2,
+                  const SizedBox(height: 6),
+                  Text(
+                    saldoText,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: -0.5,
                     ),
                   ),
-                  child: selected
-                      ? const Icon(Icons.check_rounded,
-                          size: 14, color: Colors.white)
-                      : null,
-                ),
-              ],
+                  if (estimasiSisa != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.info_outline_rounded,
+                              size: 14, color: Colors.white60),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Estimasi sisa: ${_fmtSaldoVal(estimasiSisa, saldo!.satuan)}',
+                            style: const TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 11,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ),
-        );
-      }).toList(),
+          ],
+        ),
+      ),
     );
   }
 
-  String _defaultDeskripsi(String namaReward) {
-    final n = namaReward.toLowerCase();
-    if (n.contains('uang')) return 'Tukarkan poin menjadi uang tunai';
-    if (n.contains('emas')) return 'Tukarkan poin menjadi emas (gram)';
-    if (n.contains('sembako')) return 'Tukarkan poin menjadi sembako pilihan';
-    return 'Tukarkan poin dengan reward ini';
+
+  String _fmtSaldoVal(double val, String satuan) {
+    final f = NumberFormat.decimalPattern('id_ID');
+    f.maximumFractionDigits = 4;
+    f.minimumFractionDigits = 0;
+    final lower = satuan.toLowerCase();
+    if (lower.contains('rupiah')) return 'Rp ${f.format(val)}';
+    return '${f.format(val)} ${satuan.isEmpty ? 'poin' : satuan}';
   }
 
-  IconData _iconForReward(String name) {
-    final n = name.toLowerCase();
-    if (n.contains('uang')) return Icons.payments_rounded;
-    if (n.contains('emas')) return Icons.diamond_rounded;
-    if (n.contains('sembako')) return Icons.shopping_basket_rounded;
-    return Icons.card_giftcard_rounded;
-  }
+  // ── Nominal form ──────────────────────────────────────────────────────────
 
-  String _capitalize(String s) =>
-      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}';
-
-  Widget _buildDynamicForm(RedeemNasabahProvider prov) {
-    final reward = _selectedReward!;
-    if (reward.isSembako) {
-      return _buildSembakoForm(prov);
-    }
-    return _buildPoinForm(reward);
-  }
-
-  Widget _buildPoinForm(NilaiRewardBank reward) {
-    final poin = _poinInput;
-    final konversi = reward.convertPoin(poin);
-
-    // Format nilai estimasi — Rp di kiri untuk uang tunai
-    final String estimasiValue;
-    if (reward.isUang) {
-      estimasiValue = 'Rp ${_formatNumber(konversi.round())}';
-    } else if (reward.isEmas) {
-      estimasiValue = '${konversi.toStringAsFixed(4)} ${reward.satuan}';
-    } else {
-      estimasiValue = '${konversi.toStringAsFixed(2)} ${reward.satuan}';
-    }
-
-    // Format rate konversi
-    final String rateText;
-    if (reward.isUang) {
-      rateText = '${_formatNumber(reward.nilaiPoin)} pts = Rp ${_formatNumber(reward.nilaiKonversi.round())}';
-    } else {
-      rateText = '${_formatNumber(reward.nilaiPoin)} pts = ${reward.nilaiKonversi} ${reward.satuan}';
-    }
-
+  Widget _buildNominalForm(PenarikanNasabahProvider prov) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionLabel('Jumlah Poin'),
+        const _SectionLabel('Nominal Penarikan'),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border.all(color: Colors.black.withOpacity(0.15)),
+            border: Border.all(
+              color: _inlineError != null
+                  ? Colors.red
+                  : (_nominalFocus.hasFocus
+                      ? primary
+                      : Colors.black.withValues(alpha: 0.15)),
+              width: 1.5,
+            ),
             borderRadius: BorderRadius.circular(50),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 18),
           child: Row(
             children: [
-              const Icon(Icons.bolt_rounded, color: primary, size: 20),
-              const SizedBox(width: 10),
+              const Text(
+                'Rp',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w600,
+                  color: primary,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: TextFormField(
-                  controller: _poinController,
+                  controller: _nominalController,
+                  focusNode: _nominalFocus,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: (_) => setState(() {}),
+                  inputFormatters: [_ThousandsFormatter()],
                   style: const TextStyle(
                     fontFamily: 'Poppins',
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
                   ),
                   decoration: const InputDecoration(
-                    hintText: 'Masukkan jumlah poin',
+                    hintText: '0',
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
               ),
-              const Text(
-                'pts',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: primary,
-                ),
-              ),
             ],
           ),
         ),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFFBF0),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: primary.withOpacity(0.25)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Rate konversi ─────────────────────────────────
-              Row(
-                children: [
-                  const Icon(Icons.swap_horiz_rounded, color: primary, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Nilai tukar: $rateText',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: Colors.black.withOpacity(0.55),
-                    ),
-                  ),
-                ],
+        if (_inlineError != null) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: Text(
+              _inlineError!,
+              style: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 11,
+                color: Colors.red,
               ),
-              const SizedBox(height: 10),
-              const Divider(height: 1, color: Color(0xFFD4EDD9)),
-              const SizedBox(height: 10),
-              // ── Estimasi ────────────────────────────────────
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: primary,
-                      borderRadius: BorderRadius.circular(50),
-                    ),
-                    child: const Text(
-                      'Estimasi',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    estimasiValue,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
-                      color: dark,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-        ),
+        ] else ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: Text(
+              'Masukkan nominal dalam Rupiah',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 11,
+                color: Colors.black.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
 
-  Widget _buildSembakoForm(RedeemNasabahProvider prov) {
-    final items = prov.sembakoList;
-    final total = _totalPoinSembako(items);
+  // ── Sembako form ─────────────────────────────────────────────────────────
+
+  Widget _buildSembakoForm(PenarikanNasabahProvider prov) {
+    final allItems = prov.sembakoList;
+    final total = _totalPoinSembako(allItems);
+    final saldo = prov.saldo?.saldoSembako;
+    final exceeded = saldo != null && total > saldo.nominal;
+
+    final items = allItems.where((item) {
+      if (_searchQuery.isEmpty) return true;
+      return item.namaSembako.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -547,33 +568,65 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
             const _SectionLabel('Pilih Sembako'),
             const Spacer(),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: primary.withOpacity(0.12),
+                color: exceeded
+                    ? Colors.red.withValues(alpha: 0.1)
+                    : primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(50),
               ),
               child: Text(
-                'Total ${_formatNumber(total)} pts',
-                style: const TextStyle(
+                'Total ${NumberFormat.decimalPattern('id_ID').format(total)} poin',
+                style: TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: primary,
+                  color: exceeded ? Colors.red : primary,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
+        CustomSearchBar(
+          controller: _searchController,
+          hintText: 'Cari nama sembako...',
+          searchQuery: _searchQuery,
+          onChanged: (val) {
+            setState(() {
+              _searchQuery = val;
+            });
+          },
+          onClear: () {
+            setState(() {
+              _searchQuery = '';
+              _searchController.clear();
+            });
+          },
+        ),
+        const SizedBox(height: 16),
+        if (_inlineError != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              _inlineError!,
+              style: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 11,
+                color: Colors.red,
+              ),
+            ),
+          ),
         if (items.isEmpty)
           Container(
-            padding: const EdgeInsets.all(14),
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: const Color(0xFFFFFBF1),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                  color: const Color(0xFFFAA324).withOpacity(0.3)),
+                  color: const Color(0xFFFAA324).withValues(alpha: 0.3)),
             ),
             child: const Text(
               'Belum ada sembako tersedia.',
@@ -581,213 +634,58 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
             ),
           )
         else
-          ...items.map((item) => _buildSembakoTile(item)),
+          _SembakoExpandableList(
+            items: items,
+            sembakoQty: _sembakoQty,
+            onChanged: (id, qty) {
+              setState(() {
+                if (qty <= 0) {
+                  _sembakoQty.remove(id);
+                } else {
+                  _sembakoQty[id] = qty;
+                }
+                _inlineError = null;
+              });
+            },
+          ),
       ],
     );
   }
 
-  Widget _buildSembakoTile(SembakoItem item) {
-    final qty = _sembakoQty[item.sembakoId] ?? 0;
-    final isSelected = qty > 0;
-    final harga = item.poinHargaNasabah;
+  // ── CTA Button ────────────────────────────────────────────────────────────
+
+  Widget _buildCTA(PenarikanNasabahProvider prov) {
+    final loading = prov.loadingSaldo ||
+        prov.loadingRewards ||
+        prov.loadingSembako;
+    final disabled = loading || _submitting;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: isSelected ? primary.withOpacity(0.06) : Colors.white,
-        border: Border.all(
-          color: isSelected
-              ? primary.withOpacity(0.4)
-              : Colors.black.withOpacity(0.1),
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: SizedBox(
-              width: 48,
-              height: 48,
-              child: item.photoUrl.isEmpty
-                  ? Container(
-                      color: primary.withOpacity(0.18),
-                      child: const Icon(Icons.shopping_basket_rounded,
-                          color: primary, size: 22),
-                    )
-                  : Image.network(
-                      item.photoUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: primary.withOpacity(0.18),
-                        child: const Icon(Icons.shopping_basket_rounded,
-                            color: primary, size: 22),
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.namaSembako,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: dark,
-                  ),
-                ),
-                Text(
-                  '${_formatNumber(harga)} pts • Stok ${_formatNumber(item.stok)}',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    color: Colors.black.withOpacity(0.55),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (isSelected) ...[
-            _qtyButton(
-              icon: Icons.remove_rounded,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                setState(() {
-                  if (qty > 1) {
-                    _sembakoQty[item.sembakoId] = qty - 1;
-                  } else {
-                    _sembakoQty.remove(item.sembakoId);
-                  }
-                });
-              },
-              filled: false,
-            ),
-            SizedBox(
-              width: 32,
-              child: Center(
-                child: Text(
-                  '${qty.toInt()}',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    color: dark,
-                  ),
-                ),
-              ),
-            ),
-            _qtyButton(
-              icon: Icons.add_rounded,
-              onTap: () {
-                if (qty + 1 > item.stok) {
-                  _toast('Stok tidak mencukupi', error: true);
-                  return;
-                }
-                HapticFeedback.selectionClick();
-                setState(() => _sembakoQty[item.sembakoId] = qty + 1);
-              },
-              filled: true,
-            ),
-          ] else
-            GestureDetector(
-              onTap: () {
-                if (item.stok < 1) {
-                  _toast('Stok habis', error: true);
-                  return;
-                }
-                HapticFeedback.selectionClick();
-                setState(() => _sembakoQty[item.sembakoId] = 1);
-              },
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                decoration: BoxDecoration(
-                  color: primary.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(50),
-                ),
-                child: const Text(
-                  'Pilih',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: primary,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _qtyButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    required bool filled,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 26,
-        height: 26,
-        decoration: BoxDecoration(
-          color: filled ? primary : Colors.white,
-          border: Border.all(
-            color: filled ? primary : Colors.black.withOpacity(0.15),
-          ),
-          borderRadius: BorderRadius.circular(50),
-        ),
-        child: Icon(
-          icon,
-          size: 16,
-          color: filled ? Colors.white : Colors.black.withOpacity(0.6),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSubmitButton(RedeemNasabahProvider prov) {
-    final disabled = prov.submitting || prov.loadingForm;
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(50),
         color: disabled ? Colors.grey.shade400 : dark,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.18),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(50),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: disabled ? null : _submit,
+          onTap: disabled ? null : _lanjutkan,
           borderRadius: BorderRadius.circular(50),
-          child: Container(
+          child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Center(
-              child: prov.submitting
+              child: _submitting
                   ? const SizedBox(
                       width: 22,
-                      height: 22,
+                      height: 18,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.5,
-                      ),
+                          color: Colors.white, strokeWidth: 2.5),
                     )
                   : const Text(
-                      'Kirim Pengajuan',
+                      'Lanjutkan',
                       style: TextStyle(
                         fontFamily: 'Poppins',
                         color: Colors.white,
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -799,22 +697,347 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
   }
 }
 
+// ── Bubble Decorative Widget ──────────────────────────────────────────────
+
+class _Bubble extends StatelessWidget {
+  final double size;
+  final double opacity;
+
+  const _Bubble({required this.size, required this.opacity});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withOpacity(opacity),
+      ),
+    );
+  }
+}
+
+// ── Expandable Sembako List ───────────────────────────────────────────────────
+
+class _SembakoExpandableList extends StatefulWidget {
+  final List<KatalogSembakoModel> items;
+  final Map<String, double> sembakoQty;
+  final void Function(String id, double qty) onChanged;
+
+  const _SembakoExpandableList({
+    required this.items,
+    required this.sembakoQty,
+    required this.onChanged,
+  });
+
+  @override
+  State<_SembakoExpandableList> createState() =>
+      _SembakoExpandableListState();
+}
+
+class _SembakoExpandableListState extends State<_SembakoExpandableList> {
+  String? _expandedId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: widget.items.map((item) {
+        return _SembakoTile(
+          item: item,
+          qty: widget.sembakoQty[item.sembakoId] ?? 0,
+          isExpanded: _expandedId == item.sembakoId,
+          onTap: () {
+            setState(() {
+              _expandedId =
+                  _expandedId == item.sembakoId ? null : item.sembakoId;
+            });
+          },
+          onQtyChanged: (qty) => widget.onChanged(item.sembakoId, qty),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _SembakoTile extends StatelessWidget {
+  final KatalogSembakoModel item;
+  final double qty;
+  final bool isExpanded;
+  final VoidCallback onTap;
+  final void Function(double qty) onQtyChanged;
+
+  const _SembakoTile({
+    required this.item,
+    required this.qty,
+    required this.isExpanded,
+    required this.onTap,
+    required this.onQtyChanged,
+  });
+
+  static const Color primary = Color(0xFF4EA771);
+  static const Color dark = Color(0xFF013236);
+
+  String _fmt(num n) => NumberFormat.decimalPattern('id_ID').format(n);
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = qty > 0;
+    final poin = item.nilaiPoin;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: selected
+            ? primary.withValues(alpha: 0.05)
+            : Colors.white,
+        border: Border.all(
+          color: selected
+              ? primary.withValues(alpha: 0.4)
+              : Colors.black.withValues(alpha: 0.1),
+        ),
+        borderRadius: BorderRadius.circular(25),
+      ),
+      child: Column(
+        children: [
+          // Header row (always visible)
+          InkWell(
+            onTap: onTap,
+            borderRadius: isExpanded
+                ? const BorderRadius.vertical(top: Radius.circular(16))
+                : BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(50),
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: item.photoUrl.isEmpty
+                          ? Container(
+                              color: primary.withValues(alpha: 0.15),
+                              child: const Icon(
+                                  Icons.shopping_basket_rounded,
+                                  color: primary,
+                                  size: 22),
+                            )
+                          : Image.network(
+                              item.photoUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: primary.withValues(alpha: 0.15),
+                                child: const Icon(
+                                    Icons.shopping_basket_rounded,
+                                    color: primary,
+                                    size: 22),
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.namaSembako,
+                          style: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: dark,
+                          ),
+                        ),
+                        Text(
+                          '${_fmt(poin)} poin',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 11,
+                            color: Colors.black.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (qty > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: Text(
+                        'x${qty.toInt()}',
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: primary,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    isExpanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    color: dark.withValues(alpha: 0.4),
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Expanded qty selector
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeInOut,
+            child: isExpanded
+                ? Container(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Divider(
+                            color: Colors.black.withValues(alpha: 0.08)),
+                        Row(
+                          children: [
+                            Text(
+                              'Subtotal: ${_fmt(poin * qty)} poin',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 12,
+                                color: Colors.black.withValues(alpha: 0.5),
+                              ),
+                            ),
+                            const Spacer(),
+                            _QtyButton(
+                              icon: Icons.remove_rounded,
+                              onTap: qty > 0
+                                  ? () {
+                                      HapticFeedback.selectionClick();
+                                      onQtyChanged(qty - 1);
+                                    }
+                                  : null,
+                            ),
+                            SizedBox(
+                              width: 36,
+                              child: Center(
+                                child: Text(
+                                  '${qty.toInt()}',
+                                  style: const TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                    color: dark,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            _QtyButton(
+                              icon: Icons.add_rounded,
+                              filled: true,
+                              onTap: qty < item.stok
+                                  ? () {
+                                      HapticFeedback.selectionClick();
+                                      onQtyChanged(qty + 1);
+                                    }
+                                  : null,
+                            ),
+                          ],
+                        ),
+                        if (qty >= item.stok)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              'Stok maksimum tercapai',
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 10,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QtyButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool filled;
+
+  const _QtyButton({
+    required this.icon,
+    this.onTap,
+    this.filled = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const primary = Color(0xFF4EA771);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 25,
+        height: 25,
+        decoration: BoxDecoration(
+          color: onTap == null
+              ? Colors.grey.shade200
+              : filled
+                  ? primary
+                  : Colors.white,
+          border: Border.all(
+            color: onTap == null
+                ? Colors.grey.shade300
+                : filled
+                    ? primary
+                    : Colors.black.withValues(alpha: 0.15),
+          ),
+          borderRadius: BorderRadius.circular(50),
+        ),
+        child: Icon(
+          icon,
+          size: 16,
+          color: onTap == null
+              ? Colors.grey
+              : filled
+                  ? Colors.white
+                  : Colors.black.withValues(alpha: 0.6),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Section label ─────────────────────────────────────────────────────────────
+
 class _SectionLabel extends StatelessWidget {
   final String text;
   const _SectionLabel(this.text);
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 6),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Colors.black.withOpacity(0.7),
-        ),
+    return Text(
+      text,
+      style: TextStyle(
+        fontFamily: 'Poppins',
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: Colors.black.withValues(alpha: 0.7),
       ),
     );
   }

@@ -2,7 +2,9 @@ import 'package:enviroo/screens/admin_bsi/home_bsi_screen.dart';
 import 'package:enviroo/screens/admin_bsu/home_bsu_screen.dart';
 import 'package:enviroo/screens/info_bank_sampah_screen.dart';
 import 'package:enviroo/screens/katalog_screen.dart';
+import 'package:enviroo/screens/nasabah/list_bagi_hasil_nasabah_screen.dart';
 import 'package:enviroo/screens/nasabah/riwayat_setoran_screen.dart';
+import 'package:enviroo/screens/nasabah/tabungan_sampah_screen.dart';
 import 'package:enviroo/screens/penarikan/penarikan_nasabah_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -87,9 +89,37 @@ class _MainMenuState extends State<MainMenu> {
                       width: itemWidth,
                       child: _buildMenuItem(
                         context: context,
+                        label: "Bagi Hasil",
+                        icon: Icons.volunteer_activism_rounded,
+                        color: const Color(0xFF1ABC9C), // Merah
+                        iconColor: Colors.white,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ListBagiHasilNasabahScreen()),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildMenuItem(
+                        context: context,
+                        label: "Tabungan Sampah",
+                        icon: Icons.savings_rounded,
+                        color: const Color(0xFF4EA771), // Hijau
+                        iconColor: Colors.white,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const TabunganSampahScreen()),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildMenuItem(
+                        context: context,
                         label: "Bank Sampah",
                         icon: Icons.location_on_rounded,
-                        color: const Color(0xFF1ABC9C), // Toska
+                        color: const Color(0xFFEB5757),
                         iconColor: Colors.white,
                         onTap: () => Navigator.push(
                           context,
@@ -124,13 +154,6 @@ class _MainMenuState extends State<MainMenu> {
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: BorderRadius.circular(22),
-                  boxShadow: [
-                    BoxShadow(
-                      color: color.withOpacity(0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
                 ),
                 child: Icon(
                   icon,

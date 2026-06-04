@@ -1,25 +1,29 @@
-import 'package:enviroo/providers/auth_provider.dart';
-import 'package:enviroo/screens/admin_bsi/scan_petugas_bsu_screen.dart';
+import 'package:enviroo/screens/admin_bsi/detail_pengangkutan_screen.dart';
+import 'package:enviroo/screens/admin_bsi/preview_setoran_bsu_screen.dart';
 import 'package:enviroo/services/pengangkutan_service.dart';
+import 'package:enviroo/widgets/custom_snackbar.dart';
+import 'package:enviroo/widgets/filter_chip_row.dart';
+import 'package:enviroo/widgets/search.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 
 // ─── Model ──────────────────────────────────────────────────────────────────
 
 class SampahPengangkutan {
   final String sampahId;
   final String namaSampah;
+  final String fotoSampah;
   final String satuan;
-  final double nilaiPoin;
+  final String namaReward;
   final double stok;
 
   SampahPengangkutan({
     required this.sampahId,
     required this.namaSampah,
+    required this.fotoSampah,
     required this.satuan,
-    required this.nilaiPoin,
+    required this.namaReward,
     required this.stok,
   });
 
@@ -27,8 +31,9 @@ class SampahPengangkutan {
     return SampahPengangkutan(
       sampahId: json['sampah_id'] ?? '',
       namaSampah: json['nama_sampah'] ?? '-',
+      fotoSampah: json['foto_sampah'] ?? '',
       satuan: json['satuan'] ?? '-',
-      nilaiPoin: (json['nilai_poin'] as num? ?? 0).toDouble(),
+      namaReward: json['nama_reward'] ?? '',
       stok: (json['stok'] as num? ?? 0).toDouble(),
     );
   }
@@ -63,30 +68,34 @@ class AngkutSetoranBsiScreen extends StatefulWidget {
 class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  String _selectedReward = 'Semua';
 
   final Map<int, TextEditingController> _inputControllers = {};
 
   List<SampahPengangkutan> _sampah = [];
   bool _isLoading = true;
+  bool _isPreviewLoading = false;
   String? _errorMsg;
 
-  List<SampahPengangkutan> get _filtered => _sampah
-      .where((s) =>
-          s.namaSampah.toLowerCase().contains(_searchQuery.toLowerCase()))
-      .toList();
+  List<SampahPengangkutan> get _filtered => _sampah.where((s) {
+        final matchSearch =
+            s.namaSampah.toLowerCase().contains(_searchQuery.toLowerCase());
+        final matchReward = _selectedReward == 'Semua' ||
+            s.namaReward.toLowerCase() == _selectedReward.toLowerCase();
+        return matchSearch && matchReward;
+      }).toList();
 
   TextEditingController _controllerAt(int index) =>
       _inputControllers.putIfAbsent(index, () => TextEditingController());
 
-  double get _totalPoin {
-    double total = 0;
+  int get _selectedCount {
+    int count = 0;
     for (int i = 0; i < _filtered.length; i++) {
       final ctrl = _inputControllers[i];
       if (ctrl == null) continue;
-      final val = double.tryParse(ctrl.text) ?? 0;
-      total += val * _filtered[i].nilaiPoin;
+      if ((double.tryParse(ctrl.text) ?? 0) > 0) count++;
     }
-    return total;
+    return count;
   }
 
   bool get _adaInput => _inputControllers.values
@@ -113,10 +122,7 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
       _errorMsg = null;
     });
 
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final token = auth.currentUser?.accessToken ?? '';
-
-    final res = await PengangkutanService.listSampah(widget.bsiId, widget.bsuId, token);
+    final res = await PengangkutanService.listSampah(widget.bsiId, widget.bsuId);
     if (!mounted) return;
 
     if (res['success'] == true) {
@@ -135,44 +141,9 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
     }
   }
 
-  void _showError(String msg) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Terjadi Kesalahan',
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-            color: Colors.red,
-          ),
-        ),
-        content: Text(msg,
-            style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: Colors.grey[700])),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Tutup',
-                style: TextStyle(
-                    color: Color(0xFF013236),
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
+  Future<void> _lanjutKePreview() async {
+    if (!_adaInput || _isPreviewLoading) return;
 
-  Future<void> _lanjutKeScan() async {
-    if (!_adaInput) return;
-
-    // Kumpulkan items
     final List<Map<String, dynamic>> items = [];
     final List<String> errorItems = [];
     for (int i = 0; i < _filtered.length; i++) {
@@ -190,40 +161,63 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
         items.add({
           'sampah_id': _filtered[i].sampahId,
           'qty': qty,
-          'nilai_poin': _filtered[i].nilaiPoin,
+          'satuan': _filtered[i].satuan,
         });
       }
     }
 
     if (errorItems.isNotEmpty) {
-      _showError('Gagal menyimpan karena input melebihi stok yang tersedia di BSU:\n\n- ${errorItems.join('\n- ')}');
+      showCustomSnackBar(context, 'Gagal menyimpan karena input melebihi stok yang tersedia di BSU:\n\n- ${errorItems.join('\n- ')}');
       return;
     }
 
     if (items.isEmpty) {
-      _showError('Setidaknya isi satu item sampah.');
+      showCustomSnackBar(context, 'Setidaknya isi satu item sampah.');
       return;
     }
 
+    setState(() => _isPreviewLoading = true);
     HapticFeedback.mediumImpact();
 
-    final hasil = await Navigator.push<bool>(
+    final res = await PengangkutanService.previewPengangkutan(
+      widget.pengangkutanId,
+      items,
+    );
+
+    if (!mounted) return;
+    setState(() => _isPreviewLoading = false);
+
+    if (res['success'] != true) {
+      showCustomSnackBar(context, res['message'] ?? 'Gagal memuat preview setoran');
+      return;
+    }
+
+    final previewData = PreviewPengangkutanData.fromJson(
+      res['data'] as Map<String, dynamic>,
+    );
+
+    final String? pengangkutanId = await Navigator.push<String>(
       context,
       MaterialPageRoute(
-        builder: (_) => ScanPetugasBsuScreen(
-          pengangkutanId: widget.pengangkutanId,
-          namaBsu: widget.namaBsu,
+        builder: (_) => PreviewSetoranBsuScreen(
+          data: previewData,
           items: items,
-          totalPoin: _totalPoin,
           adminBsuIdAwal: widget.adminBsuIdAwal,
         ),
       ),
     );
 
     if (!mounted) return;
-    // Jika sukses, tutup screen ini juga supaya kembali ke layar daftar
-    if (hasil == true) {
-      Navigator.pop(context, true);
+    if (pengangkutanId != null && pengangkutanId.isNotEmpty) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DetailPengangkutanScreen(
+            pengangkutanId: pengangkutanId,
+            namaBsu: widget.namaBsu,
+          ),
+        ),
+      );
     }
   }
 
@@ -249,7 +243,9 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
                             _buildBsuCard(),
                             const SizedBox(height: 20),
                             _buildSearchBar(),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 13),
+                            _buildFilterChips(),
+                            const SizedBox(height: 25),
                             _buildKatalogHeader(),
                             const SizedBox(height: 8),
                             if (_filtered.isEmpty)
@@ -272,8 +268,6 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
                                       controller: _controllerAt(i),
                                       onChanged: (_) => setState(() {}),
                                     )),
-                            const SizedBox(height: 12),
-                            _buildAkumulasiCard(),
                             const SizedBox(height: 24),
                           ],
                         ),
@@ -296,13 +290,6 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
         decoration: BoxDecoration(
           color: const Color(0xFF013236),
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF013236).withOpacity(0.3),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
         ),
         child: Row(
           children: [
@@ -310,12 +297,12 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: const Color(0xFF06C0C9).withOpacity(0.18),
-                borderRadius: BorderRadius.circular(13),
+                color: const Color(0xFF94DF0C).withOpacity(0.09),
+                borderRadius: BorderRadius.circular(15),
               ),
               child: const Icon(
                 Icons.local_shipping_rounded,
-                color: Color(0xFF06C0C9),
+                color: Color(0xFF94DF0C),
                 size: 24,
               ),
             ),
@@ -349,29 +336,6 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
                 ],
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF06C0C9).withOpacity(0.18),
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.recycling_rounded, size: 12, color: Color(0xFF06C0C9)),
-                  SizedBox(width: 5),
-                  Text(
-                    'Pengangkutan',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF06C0C9),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
@@ -380,65 +344,36 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
 
   // ── Search ─────────────────────────────────────────────────────────────────
   Widget _buildSearchBar() {
-    return Padding(
+    return CustomSearchBar(
+      controller: _searchController,
+      hintText: 'Cari jenis sampah...',
+      searchQuery: _searchQuery,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF013236).withOpacity(0.07),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: TextField(
-          controller: _searchController,
-          onChanged: (v) => setState(() {
-            _searchQuery = v;
-            _inputControllers.clear();
-          }),
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 13,
-            color: Color(0xFF013236),
-          ),
-          decoration: InputDecoration(
-            hintText: 'Cari jenis sampah...',
-            hintStyle: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              color: const Color(0xFF013236).withOpacity(0.3),
-            ),
-            prefixIcon: const Padding(
-              padding: EdgeInsets.only(left: 16, right: 10),
-              child: Icon(Icons.search_rounded,
-                  color: Color(0xFF4EA771), size: 20),
-            ),
-            prefixIconConstraints: const BoxConstraints(minWidth: 0),
-            suffixIcon: _searchQuery.isNotEmpty
-                ? GestureDetector(
-                    onTap: () => setState(() {
-                      _searchController.clear();
-                      _searchQuery = '';
-                      _inputControllers.clear();
-                    }),
-                    child: const Padding(
-                      padding: EdgeInsets.only(right: 14),
-                      child: Icon(Icons.cancel_rounded,
-                          size: 17, color: Color(0xFF4EA771)),
-                    ),
-                  )
-                : null,
-            suffixIconConstraints: const BoxConstraints(minWidth: 0),
-            border: InputBorder.none,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
-        ),
-      ),
+      fillColor: Colors.white,
+      onChanged: (v) => setState(() {
+        _searchQuery = v;
+        _inputControllers.clear();
+      }),
+      onClear: () => setState(() {
+        _searchController.clear();
+        _searchQuery = '';
+        _inputControllers.clear();
+      }),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return FilterChipRow<String>(
+      selectedValue: _selectedReward,
+      onSelected: (val) => setState(() {
+        _selectedReward = val;
+        _inputControllers.clear();
+      }),
+      items: const [
+        FilterChipItem(value: 'Semua', label: 'Semua'),
+        FilterChipItem(value: 'Uang', label: 'Uang'),
+        FilterChipItem(value: 'Sembako', label: 'Sembako'),
+      ],
     );
   }
 
@@ -478,114 +413,12 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
     );
   }
 
-  Widget _buildAkumulasiCard() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFF013236),
-              Color(0xFF025059),
-              Color(0xFF06C0C9),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF013236).withOpacity(0.4),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.18),
-                            borderRadius: BorderRadius.circular(9),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.15),
-                              width: 1,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.stars_rounded,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Total Poin Setoran',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          _formatRupiah(_totalPoin),
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w800,
-                            fontSize: 24,
-                            color: Colors.white,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 4),
-                          child: Text(
-                            'poin',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildBottomBar() {
     return Container(
       padding: EdgeInsets.fromLTRB(
           20, 14, 20, MediaQuery.of(context).padding.bottom + 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF013236).withOpacity(0.08),
@@ -595,37 +428,19 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
         ],
       ),
       child: AnimatedOpacity(
-        opacity: _adaInput ? 1.0 : 0.4,
+        opacity: (_adaInput || _isPreviewLoading) ? 1.0 : 0.4,
         duration: const Duration(milliseconds: 200),
         child: Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFF013236),
-                Color(0xFF025059),
-                Color(0xFF06C0C9),
-              ],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
+            color : Color(0xFF013236),
             borderRadius: BorderRadius.circular(30),
-            boxShadow: _adaInput
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF013236).withOpacity(0.35),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : [],
           ),
           child: ElevatedButton(
-            onPressed: _adaInput ? _lanjutKeScan : null,
+            onPressed: (_adaInput && !_isPreviewLoading) ? _lanjutKePreview : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.transparent,
               disabledBackgroundColor: Colors.transparent,
-              shadowColor: Colors.transparent,
               foregroundColor: Colors.white,
               disabledForegroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -633,22 +448,31 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
                 borderRadius: BorderRadius.circular(30),
               ),
             ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Simpan Setoran BSU',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    letterSpacing: 0.2,
+            child: _isPreviewLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Preview Setoran BSU',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Icon(Icons.arrow_forward_rounded, size: 18),
+                    ],
                   ),
-                ),
-                SizedBox(width: 8),
-                Icon(Icons.arrow_forward_rounded, size: 18),
-              ],
-            ),
           ),
         ),
       ),
@@ -695,16 +519,6 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
     );
   }
 
-  String _formatRupiah(double value) {
-    if (value == 0) return '0';
-    final intVal = value.truncate();
-    final dec = value - intVal;
-    String result = intVal
-        .toString()
-        .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-    if (dec > 0) result += dec.toStringAsFixed(2).substring(1);
-    return result;
-  }
 }
 
 // ─── Card Input — expandable ─────────────────────────────────────────────────
@@ -789,9 +603,9 @@ class _CardInputSampahState extends State<_CardInputSampah>
               color: _isExceedingStok
                   ? Colors.red.withOpacity(0.8)
                   : _hasValue
-                      ? const Color(0xFF06C0C9).withOpacity(0.6)
+                      ? const Color(0xFF4EA771).withOpacity(0.6)
                       : _expanded
-                          ? const Color(0xFF06C0C9).withOpacity(0.25)
+                          ? const Color(0xFF4EA771).withOpacity(0.25)
                           : Colors.transparent,
               width: 1,
             ),
@@ -812,16 +626,17 @@ class _CardInputSampahState extends State<_CardInputSampah>
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF06C0C9).withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                      child: const Icon(Icons.recycling_rounded,
-                          size: 20, color: Color(0xFF06C0C9)),
-                    ),
+                    widget.item.fotoSampah.isNotEmpty
+                        ? ClipOval(
+                            child: Image.network(
+                              widget.item.fotoSampah,
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _buildFallbackIcon(),
+                            ),
+                          )
+                        : _buildFallbackIcon(),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -836,24 +651,33 @@ class _CardInputSampahState extends State<_CardInputSampah>
                               color: Color(0xFF013236),
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${_fmt(widget.item.nilaiPoin)} Poin / ${widget.item.satuan}',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 11,
-                              color: const Color(0xFF013236).withOpacity(0.45),
-                            ),
-                          ),
                         ],
                       ),
                     ),
+                    if (widget.item.namaReward.isNotEmpty && !_hasValue)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4EA771).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          widget.item.namaReward,
+                          style: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF4EA771),
+                          ),
+                        ),
+                      ),
                     if (_hasValue && !_expanded)
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF06C0C9).withOpacity(0.13),
+                          color: const Color(0xFF4EA771).withValues(alpha: 0.13),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -862,11 +686,11 @@ class _CardInputSampahState extends State<_CardInputSampah>
                             fontFamily: 'Poppins',
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: _isExceedingStok ? Colors.red : const Color(0xFF06C0C9),
+                            color: _isExceedingStok ? Colors.red : const Color(0xFF4EA771),
                           ),
                         ),
-                      )
-                    else
+                      ),
+                    if (!_hasValue || _expanded)
                       AnimatedRotation(
                         turns: _expanded ? 0.5 : 0,
                         duration: const Duration(milliseconds: 220),
@@ -970,14 +794,14 @@ class _CardInputSampahState extends State<_CardInputSampah>
                                 decoration: BoxDecoration(
                                   color: _isExceedingStok
                                       ? Colors.red.withOpacity(0.05)
-                                      : const Color(0xFFE0F8FA),
+                                      : const Color(0xFF4EA771).withOpacity(0.05),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: _isExceedingStok
                                         ? Colors.red.withOpacity(0.6)
                                         : _focusNode.hasFocus
-                                            ? const Color(0xFF06C0C9)
-                                            : const Color(0xFF06C0C9)
+                                            ? const Color(0xFF4EA771)
+                                            : const Color(0xFF4EA771)
                                                 .withOpacity(0.2),
                                     width: 1.5,
                                   ),
@@ -1014,7 +838,7 @@ class _CardInputSampahState extends State<_CardInputSampah>
                                       fontFamily: 'Poppins',
                                       fontSize: 11,
                                       fontWeight: FontWeight.w500,
-                                      color: const Color(0xFF06C0C9)
+                                      color: const Color(0xFF4EA771)
                                           .withOpacity(0.7),
                                     ),
                                     border: InputBorder.none,
@@ -1046,48 +870,6 @@ class _CardInputSampahState extends State<_CardInputSampah>
                               ],
                             ),
                           ),
-                        if (_hasValue && !_isExceedingStok) ...[
-                          const SizedBox(height: 10),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 9),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF013236).withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.calculate_rounded,
-                                  size: 13,
-                                  color:
-                                      const Color(0xFF013236).withOpacity(0.4),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${widget.controller.text} ${widget.item.satuan}  ×  ${_fmt(widget.item.nilaiPoin)}',
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 11,
-                                    color: const Color(0xFF013236)
-                                        .withOpacity(0.5),
-                                  ),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  '${_fmt(_calcNilai())} Poin',
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12,
-                                    color: Color(0xFF013236),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),
@@ -1100,19 +882,16 @@ class _CardInputSampahState extends State<_CardInputSampah>
     );
   }
 
-  double _calcNilai() {
-    final val = double.tryParse(widget.controller.text) ?? 0;
-    return val * widget.item.nilaiPoin;
-  }
-
-  String _fmt(double value) {
-    final intPart = value.truncate();
-    final dec = value - intPart;
-    final formatted = intPart
-        .toString()
-        .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-    if (dec > 0) return '$formatted${dec.toStringAsFixed(2).substring(1)}';
-    return formatted;
+  Widget _buildFallbackIcon() {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: const Color(0xFF4EA771).withOpacity(0.12),
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(Icons.recycling_rounded, size: 20, color: Color(0xFF4EA771)),
+    );
   }
 
   String _fmtStok(double value) {

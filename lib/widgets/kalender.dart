@@ -6,6 +6,7 @@ class AppColors {
   static const dark = Color(0xFF013236);
   static const light = Color(0xFFFFFFFF);
   static const pale = Color(0xFFFFFFFF);
+  static const neon = Color(0xFF94DF0C);
 }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -23,6 +24,9 @@ class CalendarWidget extends StatefulWidget {
   /// Called when a day in the current month is tapped.
   final ValueChanged<DateTime>? onDaySelected;
 
+  /// Called when the user navigates to a different month.
+  final ValueChanged<DateTime>? onPageChanged;
+
   /// Colour of the small event-dot under day numbers. Defaults to [AppColors.primary].
   final Color? eventDotColor;
 
@@ -30,6 +34,7 @@ class CalendarWidget extends StatefulWidget {
     super.key,
     this.events = const {},
     this.onDaySelected,
+    this.onPageChanged,
     this.eventDotColor,
   });
 
@@ -79,6 +84,7 @@ class _CalendarWidgetState extends State<CalendarWidget>
       _current = DateTime(_current.year, _current.month - 1);
       _animCtrl.forward(from: 0);
     });
+    widget.onPageChanged?.call(_current);
   }
 
   void _nextMonth() {
@@ -86,6 +92,7 @@ class _CalendarWidgetState extends State<CalendarWidget>
       _current = DateTime(_current.year, _current.month + 1);
       _animCtrl.forward(from: 0);
     });
+    widget.onPageChanged?.call(_current);
   }
 
   int get _daysInMonth =>
@@ -174,10 +181,8 @@ class _CalendarWidgetState extends State<CalendarWidget>
                       opacity: _fadeAnim,
                       child: _buildGrid(),
                     ),
-                    const SizedBox(height: 16),
                     _buildEventBadge(),
                     const SizedBox(height: 20),
-                    _buildPaletteStrip(),
                   ],
                 ),
               ),
@@ -361,56 +366,51 @@ class _CalendarWidgetState extends State<CalendarWidget>
       transitionBuilder: (child, anim) =>
           FadeTransition(opacity: anim, child: child),
       child: hasEvent
-          ? _EventCard(
-        key: ValueKey(day),
-        month: _monthNames[_current.month - 1].substring(0, 3),
-        day: day!,
-        label: events.first,
-      )
+          ? Column(
+              key: ValueKey(day),
+              mainAxisSize: MainAxisSize.min,
+              children: events.asMap().entries.map((e) => Padding(
+                padding: EdgeInsets.only(bottom: e.key < events.length - 1 ? 6 : 0),
+                child: _EventBadge(label: e.value),
+              )).toList(),
+            )
           : SizedBox(
-        key: ValueKey('empty_$day'),
-        height: 44,
-        child: Center(
-          child: Text(
-            day != null &&
-                _selected!.month == _current.month
-                ? '${_monthNames[_current.month - 1]} $day — No events'
-                : 'Select a day',
-            style: TextStyle(
-              fontSize: 12,
-              fontStyle: FontStyle.italic,
-              color: AppColors.primary.withOpacity(0.5),
-              letterSpacing: 0.3,
+              key: ValueKey('empty_$day'),
+              height: 36,
+              child: Center(
+                child: Text(
+                  day != null && _selected!.month == _current.month
+                      ? 'Tidak ada jadwal'
+                      : 'Pilih tanggal',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                    color: AppColors.primary.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
 
   // ── Palette Strip ─────────────────────────────────────────────────────────
   Widget _buildPaletteStrip() {
-    const colors = [
-      AppColors.pale,
-      AppColors.light,
-      AppColors.primary,
-      AppColors.dark,
-    ];
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: colors.asMap().entries.map((e) {
-        final isActive = e.key == 2;
+      children: List.generate(3, (i) {
+        final isActive = i == 1;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           margin: const EdgeInsets.symmetric(horizontal: 3),
           width: isActive ? 20 : 8,
           height: 4,
           decoration: BoxDecoration(
-            color: e.value,
+            color: isActive ? const Color(0xFF94DF0C) : AppColors.dark,
             borderRadius: BorderRadius.circular(4),
           ),
         );
-      }).toList(),
+      }),
     );
   }
 }
@@ -458,13 +458,6 @@ class _DayTile extends StatelessWidget {
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
           color: Color(0xFF013236),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x554EA771),
-              blurRadius: 12,
-              offset: Offset(0, 4),
-            ),
-          ],
         ),
       );
     } else if (isSelected) {
@@ -472,13 +465,6 @@ class _DayTile extends StatelessWidget {
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
           color: Color(0xFF94DF0C),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x334EA771),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
         ),
       );
     }
@@ -513,90 +499,60 @@ class _DayTile extends StatelessWidget {
   }
 }
 
-// ─── Event Card ───────────────────────────────────────────────────────────────
-class _EventCard extends StatelessWidget {
-  final String month;
-  final int day;
+// ─── Event Badge ─────────────────────────────────────────────────────────────
+class _EventBadge extends StatelessWidget {
   final String label;
-
-  const _EventCard({
-    super.key,
-    required this.month,
-    required this.day,
-    required this.label,
-  });
+  const _EventBadge({required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: AppColors.pale,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Icon(
-            Icons.access_time_rounded,
-            color: AppColors.dark,
-            size: 18,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: const BoxDecoration(
-              color: AppColors.dark,
-              border: Border(
-                left: BorderSide(color: Color(0xFF94DF0C), width: 3),
+    // Label format: "Nama Jadwal  HH:mm – HH:mm"
+    final parts = label.split('  ');
+    final name = parts.first.trim();
+    final time = parts.length >= 2 ? parts.last.trim() : null;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF8E7),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Row(
+        children: [
+          if (time != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(8),
               ),
-              borderRadius: BorderRadius.only(
-                topRight: Radius.circular(12),
-                bottomRight: Radius.circular(12),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0x224EA771),
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
+              child: Text(
+                time,
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.dark,
                 ),
-              ],
+              ),
             ),
-            child: Row(
-              children: [
-                Text(
-                  '$month $day'.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF94DF0C),
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const Text(
-                  '  ·  ',
-                  style: TextStyle(
-                    color: Color(0x99013236),
-                    fontSize: 12,
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.light,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
+            const SizedBox(width: 10),
+          ],
+          Expanded(
+            child: Text(
+              name,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppColors.dark.withValues(alpha: 0.75),
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

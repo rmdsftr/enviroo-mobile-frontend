@@ -1,12 +1,12 @@
-import 'dart:convert';
-import 'package:enviroo/config/api_config.dart';
 import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/services/setoran_service.dart';
 import 'package:enviroo/screens/nasabah/detail_setoran_screen.dart';
 import 'package:enviroo/screens/setoran_screen.dart';
+import 'package:enviroo/services/penimbangan_service.dart';
 import 'package:enviroo/widgets/filter_chip_row.dart';
+import 'package:enviroo/widgets/filter_month_year.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -16,7 +16,6 @@ class RiwayatSetoranModel {
   final String namaPetugas;
   final DateTime transaksiTimestamp;
   final int totalItem;
-  final double totalPoin;
   final String statusSetoran;
 
   RiwayatSetoranModel({
@@ -24,7 +23,6 @@ class RiwayatSetoranModel {
     required this.namaPetugas,
     required this.transaksiTimestamp,
     required this.totalItem,
-    required this.totalPoin,
     required this.statusSetoran,
   });
 
@@ -35,7 +33,6 @@ class RiwayatSetoranModel {
       transaksiTimestamp:
           DateTime.tryParse(json['transaksi_timestamp'] ?? '') ?? DateTime.now(),
       totalItem: json['total_item'] ?? 0,
-      totalPoin: (json['total_poin'] as num?)?.toDouble() ?? 0.0,
       statusSetoran: json['status_setoran'] ?? '',
     );
   }
@@ -58,15 +55,17 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
   List<RiwayatSetoranModel> _list = [];
   bool _isLoading = true;
   String? _error;
-
-  // ── Saldo State ─────────────────────────────────────────────────────────────
-  double _saldoPoin = 0;
-  bool _isSaldoLoading = true;
+  bool _isSessionActive = false;
 
   // ── Filter & Search State ───────────────────────────────────────────────────
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String _filterStatus = 'semua';
+
+  DateTime _filterStart = DateTime(
+      DateTime.now().month - 2 <= 0 ? DateTime.now().year - 1 : DateTime.now().year,
+      DateTime.now().month - 2 <= 0 ? DateTime.now().month + 10 : DateTime.now().month - 2);
+  DateTime _filterEnd = DateTime(DateTime.now().year, DateTime.now().month);
 
   static const _filterItems = [
     FilterChipItem(value: 'semua', label: 'Semua'),
@@ -77,6 +76,17 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
   @override
   void initState() {
     super.initState();
+    // Default filter: 3 bulan terakhir
+    final now = DateTime.now();
+    int startMonth = now.month - 2;
+    int startYear = now.year;
+    if (startMonth <= 0) {
+      startMonth += 12;
+      startYear--;
+    }
+    _filterStart = DateTime(startYear, startMonth);
+    _filterEnd = DateTime(now.year, now.month);
+
     _fetchAll();
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text.toLowerCase());
@@ -90,7 +100,33 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
   }
 
   Future<void> _fetchAll() async {
-    await Future.wait([_fetchRiwayat(), _fetchSaldo()]);
+    await Future.wait([
+      _fetchRiwayat(),
+      _checkActiveSession(),
+    ]);
+  }
+
+  Future<void> _checkActiveSession() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final bankId = auth.nasabahProfile?.bankId ?? '';
+    if (bankId.isEmpty) return;
+
+    try {
+      final res = await PenimbanganService.checkActiveSession(bankId);
+      if (res['success'] == true) {
+        setState(() {
+          _isSessionActive = res['is_active'] == true;
+        });
+      } else {
+        setState(() {
+          _isSessionActive = false;
+        });
+      }
+    } catch (_) {
+      setState(() {
+        _isSessionActive = false;
+      });
+    }
   }
 
   // ── Fetch Riwayat ────────────────────────────────────────────────────────────
@@ -102,74 +138,32 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final nasabahId = auth.identityId ?? '';
-    final token = auth.currentUser?.accessToken ?? '';
 
-    try {
-      final res = await http.get(
-        Uri.parse('${ApiConfig.listSetoranNasabahUrl}/$nasabahId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      );
-      if (!mounted) return;
-      if (res.statusCode == 200) {
-        final body = jsonDecode(res.body);
-        final List data = body['data'] ?? [];
-        setState(() {
-          _list = data.map((e) => RiwayatSetoranModel.fromJson(e)).toList();
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _error = 'Gagal memuat riwayat setoran';
-          _isLoading = false;
-        });
-      }
-    } catch (_) {
-      if (!mounted) return;
+    final res = await SetoranService.getListSetoranNasabah(nasabahId);
+    if (!mounted) return;
+    if (res['success'] == true) {
+      final List data = (res['data'] as List?) ?? [];
       setState(() {
-        _error = 'Tidak dapat terhubung ke server';
+        _list = data.map((e) => RiwayatSetoranModel.fromJson(e)).toList();
         _isLoading = false;
       });
-    }
-  }
-
-  // ── Fetch Saldo ──────────────────────────────────────────────────────────────
-  Future<void> _fetchSaldo() async {
-    setState(() => _isSaldoLoading = true);
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final nasabahId = auth.identityId ?? '';
-    final token = auth.currentUser?.accessToken ?? '';
-
-    try {
-      final res = await http.get(
-        Uri.parse('${ApiConfig.getSaldoNasabahUrl}/$nasabahId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      );
-      if (!mounted) return;
-      if (res.statusCode == 200) {
-        final body = jsonDecode(res.body);
-        setState(() {
-          _saldoPoin =
-              (body['data']?['saldo_poin'] as num?)?.toDouble() ?? 0.0;
-          _isSaldoLoading = false;
-        });
-      } else {
-        setState(() => _isSaldoLoading = false);
-      }
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isSaldoLoading = false);
+    } else {
+      setState(() {
+        _error = res['message'] ?? 'Gagal memuat riwayat setoran';
+        _isLoading = false;
+      });
     }
   }
 
   // ── Filtered List ────────────────────────────────────────────────────────────
   List<RiwayatSetoranModel> get _filteredList {
     return _list.where((item) {
+      // Filter tanggal
+      final d = DateTime(item.transaksiTimestamp.year, item.transaksiTimestamp.month);
+      final start = DateTime(_filterStart.year, _filterStart.month);
+      final end = DateTime(_filterEnd.year, _filterEnd.month);
+      if (d.isBefore(start) || d.isAfter(end)) return false;
+
       if (_filterStatus == 'berhasil' && item.statusSetoran != 'berhasil') {
         return false;
       }
@@ -180,7 +174,7 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
         final namaMatch =
             item.namaPetugas.toLowerCase().contains(_searchQuery);
         final tanggalMatch = DateFormat('dd MMM yyyy', 'id_ID')
-            .format(item.transaksiTimestamp.toLocal())
+            .format(item.transaksiTimestamp)
             .toLowerCase()
             .contains(_searchQuery);
         if (!namaMatch && !tanggalMatch) return false;
@@ -189,22 +183,20 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
     }).toList();
   }
 
-  // ── Formatter ────────────────────────────────────────────────────────────────
-  String _formatPoin(double poin) {
-    final intPart = poin.truncate();
-    final dec = poin - intPart;
-    final formatted = NumberFormat('#,###', 'id_ID').format(intPart);
-    if (dec > 0) return '$formatted${dec.toStringAsFixed(2).substring(1)}';
-    return formatted;
-  }
-
   // ── Build ────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F5),
-      body: SafeArea(
-        child: Column(
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bg_struk.webp'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
           children: [
             TopBarBack(title: 'Setoran Sampah'),
             Expanded(
@@ -215,53 +207,77 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
                       : RefreshIndicator(
                           color: _accent,
                           onRefresh: _fetchAll,
-                          child: CustomScrollView(
-                            physics: const BouncingScrollPhysics(
-                              parent: AlwaysScrollableScrollPhysics(),
-                            ),
-                            slivers: [
-                              // 1. QR Button — paling atas, mencolok
-                              SliverToBoxAdapter(child: _buildQRButton()),
-                              // 2. Saldo Card — putih, di bawah QR
-                              SliverToBoxAdapter(child: _buildSaldoHeader()),
-                              // 3. Search bar
-                              SliverToBoxAdapter(child: _buildSearchBar()),
-                              // 4. Filter chips
-                              SliverToBoxAdapter(child: _buildFilterChips()),
-                              // 5. Section header
-                              SliverToBoxAdapter(child: _buildSectionHeader()),
-                              // 6. List / Empty
-                              if (_filteredList.isEmpty)
-                                SliverFillRemaining(
-                                  hasScrollBody: false,
-                                  child: _buildEmpty(),
-                                )
-                              else
-                                SliverPadding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                      20, 0, 20, 32),
-                                  sliver: SliverList(
-                                    delegate: SliverChildBuilderDelegate(
-                                      (ctx, i) =>
-                                          _buildCard(_filteredList[i]),
-                                      childCount: _filteredList.length,
-                                    ),
+                          child: SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // QR button (padding bawah lebih kecil jika tidak ada sesi)
+                                _buildQRButton(),
+                                // Summary stats dengan padding atas jika QR tidak muncul
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                                  child: _buildSummaryStats(),
+                                ),
+                                // White container untuk riwayat
+                                Container(
+                                  width: double.infinity,
+                                  constraints: BoxConstraints(
+                                    minHeight: MediaQuery.of(context).size.height,
+                                  ),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _buildSectionHeader(),
+                                      // Filter bulan
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(20, 5, 20, 15),
+                                        child: MonthYearFilterRow(
+                                          filterStart: _filterStart,
+                                          filterEnd: _filterEnd,
+                                          onChanged: (start, end) => setState(() {
+                                            _filterStart = start;
+                                            _filterEnd = end;
+                                          }),
+                                        ),
+                                      ),
+
+                                      _buildFilterChips(),
+                                      const SizedBox(height: 8),
+                                      // List / Empty
+                                      if (_filteredList.isEmpty)
+                                        _buildEmpty()
+                                      else
+                                        ListView.builder(
+                                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+                                          shrinkWrap: true,
+                                          physics: const NeverScrollableScrollPhysics(),
+                                          itemCount: _filteredList.length,
+                                          itemBuilder: (ctx, i) => _buildCard(_filteredList[i]),
+                                        ),
+                                    ],
                                   ),
                                 ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
             ),
           ],
         ),
       ),
+      ),
     );
   }
 
   // ── QR Button ─────────────────────────────────────────────────────────────────
   Widget _buildQRButton() {
+    if (!_isSessionActive) return _infoCard();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       child: GestureDetector(
         onTap: () => Navigator.push(
           context,
@@ -270,12 +286,8 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF013236), Color(0xFF025A62)],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
+            color : Color(0xFF013236),
+            borderRadius: BorderRadius.circular(25),
           ),
           child: Row(
             children: [
@@ -283,7 +295,7 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: _lime.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Icon(Icons.qr_code_rounded, color: _lime, size: 26),
               ),
@@ -312,7 +324,6 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios_rounded, color: _lime, size: 15),
             ],
           ),
         ),
@@ -320,116 +331,6 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
     );
   }
 
-  // ── Saldo Header ──────────────────────────────────────────────────────────────
-  Widget _buildSaldoHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: _teal.withOpacity(0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: _accent.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.eco_rounded, color: _accent, size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Total Saldo Anda Saat Ini',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: _teal.withOpacity(0.55),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  _isSaldoLoading
-                      ? Container(
-                          height: 20,
-                          width: 90,
-                          decoration: BoxDecoration(
-                            color: _teal.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        )
-                      : Text(
-                          '${_formatPoin(_saldoPoin)} Poin',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w800,
-                            fontSize: 20,
-                            color: _accent,
-                          ),
-                        ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Search Bar ────────────────────────────────────────────────────────────────
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-      child: TextField(
-        controller: _searchController,
-        style: const TextStyle(
-            fontFamily: 'Poppins', fontSize: 13, color: _teal),
-        decoration: InputDecoration(
-          hintText: 'Cari nama petugas atau tanggal...',
-          hintStyle: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 12,
-            color: _teal.withOpacity(0.35),
-          ),
-          prefixIcon:
-              Icon(Icons.search_rounded, color: _accent, size: 22),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: Icon(Icons.close_rounded,
-                      size: 18, color: _teal.withOpacity(0.4)),
-                  onPressed: () => _searchController.clear(),
-                )
-              : null,
-          filled: true,
-          fillColor: Colors.white,
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(50),
-            borderSide:
-                BorderSide(color: _accent.withOpacity(0.4), width: 1.2),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(50),
-            borderSide: const BorderSide(color: _accent, width: 1.5),
-          ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-        ),
-      ),
-    );
-  }
 
   // ── Filter Chips ──────────────────────────────────────────────────────────────
   Widget _buildFilterChips() {
@@ -459,25 +360,6 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
               color: _teal,
             ),
           ),
-          const Spacer(),
-          if (_filteredList.isNotEmpty)
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: _accent.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                '${_filteredList.length} transaksi',
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: _accent,
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -487,7 +369,6 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
   Widget _buildCard(RiwayatSetoranModel item) {
     final bool isSuccess = item.statusSetoran == 'berhasil';
     final statusColor = isSuccess ? _accent : Colors.orange;
-    final statusLabel = isSuccess ? 'Berhasil' : item.statusSetoran;
     final statusIcon =
         isSuccess ? Icons.check_circle_rounded : Icons.schedule_rounded;
 
@@ -504,16 +385,12 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: statusColor.withOpacity(0.1)),
-            boxShadow: [
-              BoxShadow(
-                color: _teal.withOpacity(0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            color: Colors.white.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              width: 1,
+              color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+            ),
           ),
           child: Row(
             children: [
@@ -533,79 +410,45 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            DateFormat('dd MMM yyyy, HH:mm', 'id_ID')
-                                .format(item.transaksiTimestamp.toLocal()),
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                              color: _teal,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(statusIcon,
-                                  size: 9, color: statusColor),
-                              const SizedBox(width: 3),
-                              Text(
-                                statusLabel,
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: statusColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
                     Text(
-                      'Petugas: ${item.namaPetugas} · ${item.totalItem} item',
-                      style: TextStyle(
+                      DateFormat('dd MMM yyyy, HH:mm', 'id_ID')
+                          .format(item.transaksiTimestamp),
+                      style: const TextStyle(
                         fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: _teal.withOpacity(0.5),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        color: _teal,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const Icon(Icons.eco_rounded,
-                            size: 13, color: _accent),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${_formatPoin(item.totalPoin)} poin',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: _accent,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 3),
+                    Text(
+                      item.setoranId,
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 10,
+                        color: _teal.withOpacity(0.4),
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 4),
-              Icon(Icons.chevron_right_rounded,
-                  color: _accent.withOpacity(0.6), size: 18),
+              // Item count badge (menggantikan arrow)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _accent.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${item.totalItem} item',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: _accent,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -738,6 +581,121 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Summary Stats ─────────────────────────────────────────────────────────────
+  Widget _buildSummaryStats() {
+    // Filter by date first
+    final listByDate = _list.where((item) {
+      final d = DateTime(item.transaksiTimestamp.year, item.transaksiTimestamp.month);
+      final start = DateTime(_filterStart.year, _filterStart.month);
+      final end = DateTime(_filterEnd.year, _filterEnd.month);
+      return !d.isBefore(start) && !d.isAfter(end);
+    }).toList();
+
+    final totalSetoran = listByDate.length;
+    final totalBerhasil = listByDate.where((s) => s.statusSetoran == 'berhasil').length;
+    final totalLainnya = listByDate.where((s) => s.statusSetoran != 'berhasil').length;
+
+    return Row(
+      children: [
+        Expanded(child: _statCard(
+          iconColor: _teal,
+          label: 'Total Setoran',
+          value: totalSetoran.toString(),
+        )),
+        const SizedBox(width: 10),
+        Expanded(child: _statCard(
+          iconColor: _accent,
+          label: 'Berhasil',
+          value: totalBerhasil.toString(),
+        )),
+        const SizedBox(width: 10),
+        Expanded(child: _statCard(
+          iconColor: Colors.orange,
+          label: 'Lainnya',
+          value: totalLainnya.toString(),
+        )),
+      ],
+    );
+  }
+
+  Widget _infoCard(){
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+          decoration: BoxDecoration(
+            color: _teal.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(
+              color: _teal.withOpacity(0.08),
+              width: 1,
+            )
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info, size: 16, color: _teal.withValues(alpha: 0.5)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Fitur untuk melakukan penyetoran baru akan muncul jika sesi penimbangan sudah dibuka petugas',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w500,
+                    fontSize: 11,
+                    color: _teal.withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+            ],
+          )
+      )
+    );
+  }
+
+  Widget _statCard({
+    required Color iconColor,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _teal.withOpacity(0.08),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: iconColor,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 10,
+              color: _teal.withOpacity(0.5),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

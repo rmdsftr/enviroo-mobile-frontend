@@ -1,19 +1,11 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import 'api_client.dart';
 
 class UserService {
-  static Future<Map<String, dynamic>?> getActiveUser(String userId, String token) async {
+  static Future<Map<String, dynamic>?> getActiveUser(String userId) async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.activeUserUrl}/$userId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
+      final response = await ApiClient.get(Uri.parse('${ApiConfig.activeUserUrl}/$userId'));
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
         return body['data'];

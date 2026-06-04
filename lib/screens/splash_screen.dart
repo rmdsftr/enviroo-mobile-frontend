@@ -1,4 +1,5 @@
 import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/providers/notifikasi_provider.dart';
 import 'package:enviroo/screens/admin_bsi/home_bsi_screen.dart';
 import 'package:enviroo/screens/admin_bsm/home_bsm_screen.dart';
 import 'package:enviroo/screens/admin_bsu/home_bsu_screen.dart';
@@ -101,6 +102,11 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _navigateToHome(String role) {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    Provider.of<NotifikasiProvider>(context, listen: false).fetchNotifikasi(
+      userId: auth.userId,
+    );
+
     Widget destination;
     if (role == 'nasabah') {
       destination = const HomeScreen();

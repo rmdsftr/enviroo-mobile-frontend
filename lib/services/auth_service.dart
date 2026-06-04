@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import 'api_client.dart';
 
 class AuthService {
   /// Step 1: Cek user di mobile — mengembalikan role yang tersedia.
@@ -154,8 +155,122 @@ class AuthService {
     }
   }
 
+  // ─── Forget Password ────────────────────────────────────────────────────────
+
+  /// Step 1: Kirim email OTP untuk reset password.
+  /// Response sukses: { success, message, aktivasi_id, expired_at }
+  static Future<Map<String, dynamic>> sendEmailForgetPassword(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.forgetPasswordSendEmailUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({'email': email}),
+      ).timeout(const Duration(seconds: 15));
+
+      final Map<String, dynamic> body = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': body['message'] ?? 'Email OTP berhasil dikirim',
+          'aktivasi_id': body['data']?['aktivasi_id'],
+          'expired_at': body['data']?['expired_at'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': body['error'] ?? 'Gagal mengirim email OTP',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Gagal terhubung ke server: ${e.toString()}',
+      };
+    }
+  }
+
+  /// Step 2: Verifikasi kode OTP reset password.
+  /// Response sukses: { success, message }
+  static Future<Map<String, dynamic>> verifikasiOtpForgetPassword(
+      String email, String otp) async {
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.forgetPasswordVerifikasiOtpUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({'email': email, 'otp': otp}),
+      ).timeout(const Duration(seconds: 10));
+
+      final Map<String, dynamic> body = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': body['message'] ?? 'Verifikasi OTP berhasil',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': body['error'] ?? 'Verifikasi OTP gagal',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Gagal terhubung ke server: ${e.toString()}',
+      };
+    }
+  }
+
+  /// Step 3: Reset password dengan OTP yang sudah diverifikasi.
+  /// Response sukses: { success, message }
+  static Future<Map<String, dynamic>> resetPassword(
+      String email, String otp, String passwordBaru, String konfirmasiPasswordBaru) async {
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.forgetPasswordResetPasswordUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email,
+          'otp': otp,
+          'password_baru': passwordBaru,
+          'konfirmasi_password_baru': konfirmasiPasswordBaru,
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      final Map<String, dynamic> body = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': body['message'] ?? 'Password berhasil diubah',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': body['error'] ?? 'Gagal mereset password',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Gagal terhubung ke server: ${e.toString()}',
+      };
+    }
+  }
+
+
   /// Change Password
-  static Future<Map<String, dynamic>> changePassword(String email, String passwordLama, String passwordBaru, String konfirmasiPasswordBaru, String token) async {
+  static Future<Map<String, dynamic>> changePassword(String passwordLama, String passwordBaru, String konfirmasiPasswordBaru, String token) async {
     try {
       final response = await http.post(
         Uri.parse(ApiConfig.changePasswordUrl),
@@ -165,7 +280,6 @@ class AuthService {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
-          'email': email,
           'password_lama': passwordLama,
           'password_baru': passwordBaru,
           'konfirmasi_password_baru': konfirmasiPasswordBaru,
@@ -291,6 +405,33 @@ class AuthService {
     }
   }
 
+  /// Switch ke role lain (nasabah ↔ admin) menggunakan token aktif.
+  /// Menggunakan ApiClient agar 401 → refresh → retry otomatis.
+  static Future<Map<String, dynamic>> switchRole(String targetRole) async {
+    try {
+      final response = await ApiClient.post(
+        Uri.parse(ApiConfig.switchRoleUrl),
+        body: jsonEncode({'target_role': targetRole}),
+      );
+
+      final Map<String, dynamic> body = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': body['data']};
+      } else {
+        return {
+          'success': false,
+          'message': body['error'] ?? 'Gagal pindah akun',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Gagal terhubung ke server: ${e.toString()}',
+      };
+    }
+  }
+
   /// Refresh access token
   static Future<Map<String, dynamic>> refreshToken(String refreshToken) async {
     try {
@@ -315,7 +456,7 @@ class AuthService {
         // Berdasarkan kode backend Anda, c.JSON(http.StatusOK, gin.H{"message": "Token berhasil diperbarui"})
         // Jadi kita ambil dari header 'set-cookie'
         String? setCookie = response.headers['set-cookie'];
-        
+
         return {
           'success': true,
           'message': body['message'],

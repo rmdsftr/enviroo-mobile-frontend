@@ -1,8 +1,13 @@
 import 'dart:io';
 
+import 'package:enviroo/models/petugas_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/providers/katalog_provider.dart';
 import 'package:enviroo/screens/admin_bsu/inapp_camera_screen.dart';
+import 'package:enviroo/services/nasabah_service.dart';
 import 'package:enviroo/services/pengangkutan_service.dart';
+import 'package:enviroo/widgets/custom_snackbar.dart';
+import 'package:enviroo/widgets/search.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,25 +18,23 @@ import 'package:provider/provider.dart';
 ///
 /// Alur:
 ///  1. Petugas BSI scan QR petugas BSU → ambil admin_bsu_id dari token QR.
-///  2. Jika scan tidak bekerja, petugas BSI dapat mengambil foto bukti
-///     pengangkutan. Foto akan dikirim sebagai bukti_foto pada multipart
-///     request input pengangkutan. Path foto wajib menyertakan
-///     [adminBsuIdAwal] (yaitu admin_bsu_id yang sudah tercatat sejak sesi
-///     mulai). Jika [adminBsuIdAwal] kosong, foto-only fallback tidak bisa
-///     dipakai dan QR scan menjadi wajib.
+///  2. Jika scan tidak bekerja, petugas BSI dapat mengambil foto bukti.
+///     Foto dikirim sebagai bukti_foto pada multipart request input
+///     pengangkutan. [adminBsuIdAwal] dipakai sebagai adminBsuId jika tersedia,
+///     atau kosong jika sesi dimulai dari sisi BSI.
 class ScanPetugasBsuScreen extends StatefulWidget {
   final String pengangkutanId;
   final String namaBsu;
+  final String bsuId;
   final List<Map<String, dynamic>> items;
-  final double totalPoin;
   final String adminBsuIdAwal;
 
   const ScanPetugasBsuScreen({
     super.key,
     required this.pengangkutanId,
     required this.namaBsu,
+    required this.bsuId,
     required this.items,
-    required this.totalPoin,
     this.adminBsuIdAwal = '',
   });
 
@@ -83,7 +86,7 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
     final adminBsuId = parts.length >= 2 ? parts[1] : '';
 
     if (adminBsuId.isEmpty) {
-      _showError('QR code tidak valid');
+      showCustomSnackBar(context, 'QR code tidak valid');
       _resumeScan();
       return;
     }
@@ -99,18 +102,38 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
 
   // ── Foto fallback ──────────────────────────────────────────────────────────
   Future<void> _ambilFotoBukti() async {
-    if (widget.adminBsuIdAwal.isEmpty) {
-      _showError(
-        'Foto bukti hanya bisa digunakan jika sesi pengangkutan dimulai dari sisi BSU. '
-        'Silakan scan QR petugas BSU terlebih dahulu.',
+    _scannerController.stop();
+
+    // Kalau adminBsuIdAwal sudah diketahui (BSU scan duluan), langsung foto.
+    // Kalau belum, tampilkan picker petugas BSU dulu baru foto.
+    String adminBsuId = widget.adminBsuIdAwal;
+
+    if (adminBsuId.isEmpty) {
+      final PetugasModel? picked = await showModalBottomSheet<PetugasModel>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _PetugasBsuPickerSheet(bsuId: widget.bsuId),
       );
-      return;
+
+      if (!mounted) return;
+
+      if (picked == null) {
+        // User tutup picker tanpa pilih — batalkan, kembali ke scan
+        _scannerController.start();
+        return;
+      }
+
+      adminBsuId = picked.adminId;
     }
 
-    _scannerController.stop();
     final File? foto = await Navigator.push<File?>(
       context,
-      MaterialPageRoute(builder: (_) => const InAppCameraScreen()),
+      MaterialPageRoute(
+        builder: (_) => const InAppCameraScreen(
+          hint: 'Ambil foto petugas BSU sebagai bukti kehadiran',
+        ),
+      ),
     );
 
     if (!mounted) return;
@@ -121,7 +144,7 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
     }
 
     setState(() => _isProcessing = true);
-    await _submit(widget.adminBsuIdAwal, foto);
+    await _submit(adminBsuId, foto);
   }
 
   // ── Submit ─────────────────────────────────────────────────────────────────
@@ -131,14 +154,12 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final adminBsiId = auth.identityId ?? '';
-    final token = auth.currentUser?.accessToken ?? '';
 
     final res = await PengangkutanService.inputSampah(
       widget.pengangkutanId,
       adminBsiId,
       adminBsuId,
       widget.items,
-      token,
       buktiFoto: bukti,
     );
 
@@ -146,194 +167,18 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
 
     if (res['success'] == true) {
       HapticFeedback.heavyImpact();
-      await _showSuccessDialog(
-        totalItem: (res['total_item'] ?? 0) as int,
-        totalPoin: (res['total_poin'] as num? ?? widget.totalPoin).toDouble(),
-      );
       if (!mounted) return;
+      Provider.of<KatalogProvider>(context, listen: false)
+          .silentRefresh(auth.bankId ?? '');
       Navigator.pop(context, true);
     } else {
       setState(() {
         _isSubmitting = false;
         _isProcessing = false;
       });
-      _showError(res['message'] ?? 'Gagal mengirim setoran pengangkutan');
+      showCustomSnackBar(context, res['message'] ?? 'Gagal mengirim setoran pengangkutan');
       _scannerController.start();
     }
-  }
-
-  // ── Dialogs ────────────────────────────────────────────────────────────────
-  Future<void> _showSuccessDialog({
-    required int totalItem,
-    required double totalPoin,
-  }) {
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.12),
-                blurRadius: 30,
-                offset: const Offset(0, 12),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4EA771).withOpacity(0.13),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check_circle_rounded,
-                  color: Color(0xFF4EA771),
-                  size: 42,
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Setoran BSU Tersimpan',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: Color(0xFF013236),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '$totalItem jenis sampah berhasil dicatat',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 18),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0FFF4),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: const Color(0xFF4EA771).withOpacity(0.3),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: const [
-                        Icon(Icons.stars_rounded,
-                            color: Color(0xFF4EA771), size: 18),
-                        SizedBox(width: 8),
-                        Text(
-                          'Total Poin',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF013236),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      '${_formatPoin(totalPoin)} poin',
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF4EA771),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF013236),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Selesai',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showError(String msg) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Terjadi Kesalahan',
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-            color: Colors.red,
-          ),
-        ),
-        content: Text(
-          msg,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 13,
-            color: Colors.grey[700],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Tutup',
-              style: TextStyle(
-                color: Color(0xFF013236),
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -411,7 +256,7 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${widget.items.length} item · ${_formatPoin(widget.totalPoin)} poin',
+                  '${widget.items.length} jenis sampah',
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 11,
@@ -626,15 +471,6 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
     );
   }
 
-  String _formatPoin(double value) {
-    final intPart = value.truncate();
-    final dec = value - intPart;
-    final formatted = intPart
-        .toString()
-        .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-    if (dec > 0) return '$formatted${dec.toStringAsFixed(2).substring(1)}';
-    return formatted;
-  }
 }
 
 // ─── Scan frame & painters ──────────────────────────────────────────────────
@@ -819,4 +655,221 @@ class _OverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
+// ─── Picker petugas BSU (bottom sheet) ────────────────────────────────────────
+
+class _PetugasBsuPickerSheet extends StatefulWidget {
+  final String bsuId;
+  const _PetugasBsuPickerSheet({required this.bsuId});
+
+  @override
+  State<_PetugasBsuPickerSheet> createState() => _PetugasBsuPickerSheetState();
+}
+
+class _PetugasBsuPickerSheetState extends State<_PetugasBsuPickerSheet> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+  List<PetugasModel> _list = [];
+  bool _isLoading = true;
+
+  List<PetugasModel> get _filtered => _list.where((p) {
+        final q = _query.toLowerCase();
+        return p.nama.toLowerCase().contains(q) ||
+            p.email.toLowerCase().contains(q);
+      }).toList();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetch() async {
+    final res = await NasabahService.getAdminByBankId(widget.bsuId);
+    if (!mounted) return;
+    if (res['success'] == true) {
+      final raw = res['data'] as List? ?? [];
+      setState(() {
+        _list = raw
+            .map((e) => PetugasModel.fromJson(e as Map<String, dynamic>))
+            .where((p) =>
+                p.statusAdmin.toLowerCase() == 'aktif' &&
+                p.role.toLowerCase() == 'petugas_bsu')
+            .toList();
+        _isLoading = false;
+      });
+    } else {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.75,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Pilih Petugas BSU',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: Color(0xFF013236),
+                        ),
+                      ),
+                      Text(
+                        'Pilih petugas yang hadir saat pengangkutan',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11.5,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF013236)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
+            child: CustomSearchBar(
+              controller: _searchCtrl,
+              hintText: 'Cari nama petugas...',
+              searchQuery: _query,
+              onChanged: (v) => setState(() => _query = v),
+              onClear: () {
+                _searchCtrl.clear();
+                setState(() => _query = '');
+              },
+            ),
+          ),
+          Flexible(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF06C0C9)))
+                : _filtered.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 32),
+                        child: Center(
+                          child: Text(
+                            'Petugas tidak ditemukan',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 13,
+                              color: Colors.grey[400],
+                            ),
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+                        itemCount: _filtered.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (_, i) {
+                          final p = _filtered[i];
+                          final initial = p.nama.isNotEmpty ? p.nama[0].toUpperCase() : '?';
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                            onTap: () => Navigator.pop(context, p),
+                            leading: p.photoUrl.isNotEmpty
+                                ? ClipOval(
+                                    child: Image.network(
+                                      p.photoUrl,
+                                      width: 44, height: 44,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => _avatar(initial),
+                                    ),
+                                  )
+                                : _avatar(initial),
+                            title: Text(
+                              p.nama,
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: Color(0xFF013236),
+                              ),
+                            ),
+                            subtitle: Text(
+                              p.email,
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                            trailing: const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 13,
+                              color: Color(0xFF06C0C9),
+                            ),
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _avatar(String initial) {
+    return Container(
+      width: 44, height: 44,
+      decoration: const BoxDecoration(
+        color: Color(0xFF06C0C9),
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: const TextStyle(
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
 }

@@ -1,38 +1,39 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import 'api_client.dart';
 
 class KontenService {
-  /// Ambil semua konten informasi berdasarkan bankID
-  static Future<Map<String, dynamic>> getAllKonten(String bankId, String token) async {
+  static Future<Map<String, dynamic>> getAllKonten(
+    String bankId, {
+    bool? published,
+    int page = 1,
+  }) async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.getKontenUrl}/$bankId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
+      final uri = Uri.parse('${ApiConfig.getKontenUrl}/$bankId').replace(
+        queryParameters: {
+          if (published != null) 'published': published.toString(),
+          'page': page.toString(),
         },
       );
-
-      final Map<String, dynamic> body = jsonDecode(response.body);
-
+      final response = await ApiClient.get(uri);
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': body['data'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': body['error'] ?? 'Gagal mengambil konten informasi',
-        };
+        return {'success': true, 'data': body['data'], 'pagination': body['pagination']};
       }
+      return {'success': false, 'message': body['error'] ?? 'Gagal mengambil konten informasi'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getKontenDetail(String kontenId) async {
+    try {
+      final response = await ApiClient.get(Uri.parse('${ApiConfig.getKontenDetailUrl}/$kontenId'));
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      return {'success': false, 'message': body['error'] ?? 'Gagal mengambil detail konten'};
+    } catch (e) {
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
     }
   }
 }

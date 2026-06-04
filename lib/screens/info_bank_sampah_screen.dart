@@ -1,11 +1,9 @@
 import 'package:enviroo/models/bank_sampah_model.dart';
-import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/services/bank_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:provider/provider.dart';
 
 class InfoBankSampahScreen extends StatefulWidget {
   @override
@@ -25,9 +23,7 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
   }
 
   Future<void> _fetchBankData() async {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final token = auth.currentUser?.accessToken ?? '';
-    final result = await BankService.getAllBankSampah(token);
+    final result = await BankService.getAllBankSampah();
     
     if (mounted) {
       setState(() {

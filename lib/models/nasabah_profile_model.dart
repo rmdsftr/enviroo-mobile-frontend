@@ -55,7 +55,7 @@ class NasabahProfileModel {
       namaBsi: json['nama_bsi'],
       bsuId: json['bsu_id'],
       namaBsu: json['nama_bsu'],
-      saldoPoin: json['saldo_poin'] ?? 0,
+      saldoPoin: (json['saldo_poin'] as num?)?.toInt() ?? 0,
     );
   }
 }

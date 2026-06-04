@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../models/jadwal_model.dart';
 import '../services/jadwal_service.dart';
 import '../providers/auth_provider.dart';
-import '../screens/admin_bsu/jadwal_screen.dart'; // import for JadwalRutin & JadwalCustom
+import '../screens/admin_bsu/jadwal_screen.dart';
 
 class JadwalProvider with ChangeNotifier {
   List<JadwalModel> _penimbanganList = [];
@@ -17,8 +17,7 @@ class JadwalProvider with ChangeNotifier {
   String get error => _error;
 
   Future<void> fetchJadwal(AuthProvider authProvider) async {
-    final token = authProvider.currentUser?.accessToken;
-    if (token == null || authProvider.bankId == null) {
+    if (authProvider.bankId == null) {
       _error = 'Anda belum login atau bank tidak ditemukan.';
       notifyListeners();
       return;
@@ -29,19 +28,22 @@ class JadwalProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await JadwalService.getJadwalByBankId(
-        authProvider.bankId!,
-        token,
-      );
-
-      if (response['success']) {
+      final response = await JadwalService.getJadwalByBankId(authProvider.bankId!);
+      if (response['success'] == true) {
         final Map<String, dynamic> data = response['data'];
-        
-        final List<dynamic> pNimbang = data['penimbangan'] ?? [];
-        final List<dynamic> pAngkut = data['pengangkutan'] ?? [];
+        _penimbanganList = (data['penimbangan'] as List? ?? [])
+            .map((json) => JadwalModel.fromJson(json))
+            .toList();
+        _pengangkutanList = (data['pengangkutan'] as List? ?? [])
+            .map((json) => JadwalModel.fromJson(json))
+            .toList();
 
-        _penimbanganList = pNimbang.map((json) => JadwalModel.fromJson(json)).toList();
-        _pengangkutanList = pAngkut.map((json) => JadwalModel.fromJson(json)).toList();
+        // BSU hanya perlu lihat jadwal pengangkutan yang menargetkan BSU mereka.
+        if (authProvider.role == 'petugas_bsu') {
+          _pengangkutanList = _pengangkutanList
+              .where((j) => j.targetBankId == authProvider.bankId)
+              .toList();
+        }
       } else {
         _error = response['message'] ?? 'Gagal memuat data jadwal';
       }
@@ -53,33 +55,17 @@ class JadwalProvider with ChangeNotifier {
     }
   }
 
-  // ── Helper Getters for Screen ──
-
-  List<JadwalRutin> get rutinPenimbangan {
-    final list = _penimbanganList.where((j) => j.isRutin).toList();
-    return _mapToRutin(list);
-  }
-
-  List<JadwalCustom> get customPenimbangan {
-    final list = _penimbanganList.where((j) => !j.isRutin).toList();
-    return _mapToCustom(list);
-  }
-
-  List<JadwalRutin> get rutinPengangkutan {
-    final list = _pengangkutanList.where((j) => j.isRutin).toList();
-    return _mapToRutin(list);
-  }
-
-  List<JadwalCustom> get customPengangkutan {
-    final list = _pengangkutanList.where((j) => !j.isRutin).toList();
-    return _mapToCustom(list);
-  }
+  List<JadwalRutin> get rutinPenimbangan => _mapToRutin(_penimbanganList.where((j) => j.isRutin).toList());
+  List<JadwalCustom> get customPenimbangan => _mapToCustom(_penimbanganList.where((j) => !j.isRutin).toList());
+  List<JadwalRutin> get rutinPengangkutan => _mapToRutin(_pengangkutanList.where((j) => j.isRutin).toList());
+  List<JadwalCustom> get customPengangkutan => _mapToCustom(_pengangkutanList.where((j) => !j.isRutin).toList());
 
   List<JadwalRutin> _mapToRutin(List<JadwalModel> models) {
-    // Kelompokkan berdasarkan waktu & minggu_ke agar tidak duplikat baris
     final map = <String, JadwalRutin>{};
     for (var m in models) {
-      final key = '${m.jamMulai}-${m.jamSelesai}-${m.mingguKe}';
+      // Sertakan targetBankId di key agar jadwal pengangkutan ke BSU berbeda
+      // tidak digabung menjadi satu baris.
+      final key = '${m.jamMulai}-${m.jamSelesai}-${m.mingguKe}-${m.targetBankId}';
       if (map.containsKey(key)) {
         if (!map[key]!.days.contains(m.dayIndex)) {
           map[key]!.days.add(m.dayIndex);
@@ -90,6 +76,7 @@ class JadwalProvider with ChangeNotifier {
           days: [m.dayIndex],
           weeks: m.mingguKe > 0 ? [m.mingguKe] : [],
           waktu: m.formattedWaktu,
+          targetBankName: m.targetBankName,
         );
       }
     }

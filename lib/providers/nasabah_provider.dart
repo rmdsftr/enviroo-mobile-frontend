@@ -12,32 +12,27 @@ class NasabahProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String get error => _error;
 
-  /// Fetch nasabah menggunakan bankId dari AuthProvider (digunakan untuk BSU sendiri)
   Future<void> fetchNasabahs(AuthProvider authProvider) async {
-    final token = authProvider.currentUser?.accessToken;
-    if (token == null || authProvider.bankId == null) {
+    if (authProvider.bankId == null) {
       _error = 'Anda belum login atau bank tidak ditemukan.';
       notifyListeners();
       return;
     }
-    await _fetchByBankId(authProvider.bankId!, token);
+    await _fetchByBankId(authProvider.bankId!);
   }
 
-  /// Fetch nasabah dengan bankId custom — digunakan oleh BSI untuk lihat
-  /// nasabah BSU tertentu yang berada di bawahnya.
-  Future<void> fetchNasabahsByBankId(String bankId, String token) async {
-    await _fetchByBankId(bankId, token);
+  Future<void> fetchNasabahsByBankId(String bankId) async {
+    await _fetchByBankId(bankId);
   }
 
-  Future<void> _fetchByBankId(String bankId, String token) async {
+  Future<void> _fetchByBankId(String bankId) async {
     _isLoading = true;
     _error = '';
     _nasabahs = [];
     notifyListeners();
 
     try {
-      final response = await NasabahService.getNasabahByBankId(bankId, token);
-
+      final response = await NasabahService.getNasabahByBankId(bankId);
       if (response['success'] == true) {
         final List<dynamic> data = response['data'] ?? [];
         _nasabahs = data.map((json) => NasabahModel.fromJson(json)).toList();
@@ -53,14 +48,7 @@ class NasabahProvider with ChangeNotifier {
   }
 
   int get totalSemua => _nasabahs.length;
-
-  int get totalAktif =>
-      _nasabahs.where((n) => n.statusNasabah.toLowerCase() == 'aktif').length;
-
-  int get totalNonaktif => _nasabahs
-      .where((n) => n.statusNasabah.toLowerCase() == 'nonaktif')
-      .length;
-
-  int get totalPending =>
-      _nasabahs.where((n) => n.statusNasabah.toLowerCase() == 'pending').length;
+  int get totalAktif => _nasabahs.where((n) => n.statusNasabah.toLowerCase() == 'aktif').length;
+  int get totalNonaktif => _nasabahs.where((n) => n.statusNasabah.toLowerCase() == 'nonaktif').length;
+  int get totalPending => _nasabahs.where((n) => n.statusNasabah.toLowerCase() == 'pending').length;
 }

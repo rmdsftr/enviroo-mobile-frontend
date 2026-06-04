@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:enviroo/widgets/success_bottom_sheet.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/dashboard_provider.dart';
+import '../../providers/katalog_provider.dart';
 import '../../providers/penjualan_provider.dart';
 import '../../widgets/topbar_back.dart';
 import '../admin_bsu/inapp_camera_screen.dart';
@@ -61,64 +64,28 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
     final ok = await prov.submitPenjualan(
       bankId: auth.bankId ?? '',
       adminId: auth.identityId ?? '',
-      token: auth.currentUser?.accessToken ?? '',
     );
 
     if (!mounted) return;
 
     if (ok) {
+      final katalog = context.read<KatalogProvider>();
+      final dashboard = context.read<DashboardProvider>();
       // Refresh riwayat lalu kembali ke Screen 1
-      await prov.fetchRiwayat(
-        auth.bankId ?? '',
-        auth.currentUser?.accessToken ?? '',
-      );
+      await prov.fetchRiwayat(auth.bankId ?? '');
+      katalog.silentRefresh(auth.bankId ?? '');
+      dashboard.requestSaldoRefresh();
       prov.resetForm();
 
       if (!mounted) return;
 
-      // Sukses dialog, lalu pop sampai screen riwayat (Screen 1)
-      await showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20)),
-          title: const Row(
-            children: [
-              Icon(Icons.check_circle_rounded,
-                  color: _C.green, size: 22),
-              SizedBox(width: 8),
-              Text('Berhasil',
-                  style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: _C.dark)),
-            ],
-          ),
-          content: const Text(
-            'Penjualan eksternal berhasil dicatat dan stok sampah sudah diperbarui.',
-            style: TextStyle(fontFamily: 'Poppins', fontSize: 13),
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _C.dark,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text('Tutup',
-                  style: TextStyle(fontFamily: 'Poppins')),
-            ),
-          ],
-        ),
+      await showSuccessBottomSheet(
+        context,
+        title: 'Berhasil!',
+        message: 'Penjualan eksternal berhasil dicatat dan stok sampah sudah diperbarui.',
+        buttonLabel: 'Selesai',
+        onDismiss: () => Navigator.of(context).popUntil((r) => r.isFirst),
       );
-
-      if (!mounted) return;
-      // Pop semua screen form sampai kembali ke RiwayatPenjualanScreen
-      Navigator.of(context).popUntil((r) => r.isFirst);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -137,8 +104,7 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
     final prov = context.watch<PenjualanProvider>();
     final fmt = NumberFormat('#,##0.##########', 'id_ID');
 
-    final totalPoinSampah = prov.itemsSampah.fold<double>(
-        0, (sum, e) => sum + (e.qty * e.hargaEksternal));
+    final totalHarga = prov.totalHarga;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -156,7 +122,7 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
                       crossAxisAlignment:
                           CrossAxisAlignment.start,
                       children: [
-                        const _StepIndicator(currentStep: 4),
+                        const _StepIndicator(currentStep: 3),
                         const SizedBox(height: 16),
                         const Text(
                           'Bukti Serah Terima',
@@ -290,16 +256,13 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
                                       '-'),
                               _kv('Jumlah Sampah',
                                   '${prov.itemsSampah.length} item'),
-                              if (prov.isSembako)
-                                _kv('Jumlah Sembako',
-                                    '${prov.itemsSembako.length} item'),
                               const Divider(height: 18),
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
-                                    'Estimasi Total Poin',
+                                    'Total Penjualan',
                                     style: TextStyle(
                                       fontFamily: 'Poppins',
                                       fontSize: 12.5,
@@ -307,65 +270,27 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
                                       color: _C.dark,
                                     ),
                                   ),
-                                  Text(
-                                    '${fmt.format(totalPoinSampah)} pts',
-                                    style: const TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: _C.dark,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (!prov.isSembako &&
-                                  prov.nilaiUntukRewardTerpilih != null) ...[
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 8),
-                                  child: Divider(color: _C.border, height: 1),
-                                ),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'Estimasi Total ${prov.selectedReward?.namaReward ?? ''}',
+                                  Builder(builder: (context) {
+                                    final satuan =
+                                        prov.selectedReward?.satuan ?? '';
+                                    final isRp = satuan.toLowerCase() ==
+                                            'rupiah' ||
+                                        satuan.toLowerCase() == 'rp';
+
+                                    return Text(
+                                      isRp
+                                          ? 'Rp ${fmt.format(totalHarga)}'
+                                          : '${fmt.format(totalHarga)} $satuan',
                                       style: const TextStyle(
                                         fontFamily: 'Poppins',
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: _C.dark,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: _C.green,
                                       ),
-                                    ),
-                                    Builder(builder: (context) {
-                                      final nilai =
-                                          prov.nilaiUntukRewardTerpilih!;
-                                      final totalResult = nilai.nilaiPoin > 0
-                                          ? (totalPoinSampah *
-                                                  nilai.nilaiKonversi) /
-                                              nilai.nilaiPoin
-                                          : 0.0;
-                                      final satuan =
-                                          prov.selectedReward?.satuan ?? '';
-                                      final isRp = satuan.toLowerCase() ==
-                                              'rupiah' ||
-                                          satuan.toLowerCase() == 'rp';
-
-                                      return Text(
-                                        isRp
-                                            ? 'Rp ${fmt.format(totalResult)}'
-                                            : '${fmt.format(totalResult)} $satuan',
-                                        style: const TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: _C.green,
-                                        ),
-                                      );
-                                    }),
-                                  ],
-                                ),
-                              ],
+                                    );
+                                  }),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -428,29 +353,6 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
       );
 }
 
-class _StepIndicator extends StatelessWidget {
-  final int currentStep;
-  const _StepIndicator({required this.currentStep});
-  @override
-  Widget build(BuildContext context) {
-    const total = 4;
-    return Row(
-      children: List.generate(total, (i) {
-        final isActive = i + 1 <= currentStep;
-        return Expanded(
-          child: Container(
-            margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
-            height: 5,
-            decoration: BoxDecoration(
-              color: isActive ? _C.green : _C.border,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-}
 
 class _BottomBar extends StatelessWidget {
   final bool enabled;
@@ -502,6 +404,31 @@ class _BottomBar extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _StepIndicator extends StatelessWidget {
+  final int currentStep;
+  const _StepIndicator({required this.currentStep});
+
+  @override
+  Widget build(BuildContext context) {
+    const total = 3;
+    return Row(
+      children: List.generate(total, (i) {
+        final isActive = i + 1 <= currentStep;
+        return Expanded(
+          child: Container(
+            margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
+            height: 5,
+            decoration: BoxDecoration(
+              color: isActive ? _C.green : _C.border,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        );
+      }),
     );
   }
 }

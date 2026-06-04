@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
+import 'package:enviroo/widgets/filter_month_year.dart';
 import 'package:enviroo/services/pengangkutan_service.dart';
 import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/providers/pengangkutan_provider.dart';
 import 'package:enviroo/screens/admin_bsu/QR_angkut_sampah_screen.dart';
 import 'package:enviroo/screens/admin_bsi/detail_pengangkutan_screen.dart';
+import 'package:enviroo/screens/admin_bsu/sesi_pengangkutan_screen.dart';
 
 // ─── Model (sama dengan BSI, reuse) ─────────────────────────────────────────
 
@@ -16,6 +19,7 @@ class PengangkutanBsuData {
   final String namaAdminBsu;
   final String status;
   final String tanggal;
+  final DateTime? rawDate;
 
   PengangkutanBsuData({
     required this.id,
@@ -24,18 +28,21 @@ class PengangkutanBsuData {
     required this.namaAdminBsu,
     required this.status,
     required this.tanggal,
+    this.rawDate,
   });
 
   factory PengangkutanBsuData.fromJson(Map<String, dynamic> json) {
     String tanggal = '-';
+    DateTime? rawDate;
     if (json['changed_at'] != null) {
       try {
-        tanggal = '${DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID').format(DateTime.parse(json['changed_at'].toString()))} WIB';
+        final parsed = DateTime.parse(json['changed_at'].toString());
+        rawDate = parsed;
+        tanggal = DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID').format(parsed);
       } catch (_) {
         tanggal = json['changed_at'].toString();
       }
     }
-    // nama_admin_bsu bisa null (nullable pointer di backend)
     final namaAdminBsu = json['nama_admin_bsu'] as String? ?? '-';
 
     return PengangkutanBsuData(
@@ -45,8 +52,34 @@ class PengangkutanBsuData {
       namaAdminBsu: namaAdminBsu,
       status: json['status_pengangkutan'] ?? '',
       tanggal: tanggal,
+      rawDate: rawDate,
     );
   }
+}
+
+// ─── Model sesi aktif (dari endpoint check-sesi-active) ──────────────────────
+class _SesiActiveData {
+  final bool isActive;
+  final String pengangkutanId;
+  final String bsiId;
+  final String namaBsi;
+  final String statusTerkini;
+
+  const _SesiActiveData({
+    required this.isActive,
+    required this.pengangkutanId,
+    required this.bsiId,
+    required this.namaBsi,
+    required this.statusTerkini,
+  });
+
+  factory _SesiActiveData.fromJson(Map<String, dynamic> j) => _SesiActiveData(
+        isActive: j['is_active'] as bool? ?? false,
+        pengangkutanId: j['pengangkutan_id'] as String? ?? '',
+        bsiId: j['bsi_id'] as String? ?? '',
+        namaBsi: j['nama_bsi'] as String? ?? '-',
+        statusTerkini: j['status_terkini'] as String? ?? '',
+      );
 }
 
 // ─── Screen ─────────────────────────────────────────────────────────────────
@@ -61,7 +94,14 @@ class PengangkutanBsuScreen extends StatefulWidget {
 class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
   bool _isLoading = true;
   List<PengangkutanBsuData> _riwayat = [];
-  List<PengangkutanBsuData> _aktif = [];
+  _SesiActiveData? _sesiAktif; // ← pakai model baru
+
+  PengangkutanProvider? _pengangkutanProvider;
+  int _lastRefreshToken = -1;
+
+  // ── Filter bulan-tahun (default 3 bulan terakhir) ─────────────────────────
+  DateTime _filterStart = DateTime(DateTime.now().year, DateTime.now().month - 2);
+  DateTime _filterEnd = DateTime(DateTime.now().year, DateTime.now().month);
 
   // Terminal statuses — tidak bisa diubah lagi
   static const _terminalStatuses = {'completed', 'canceled', 'rejected'};
@@ -69,44 +109,78 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+      _pengangkutanProvider = context.read<PengangkutanProvider>();
+      _lastRefreshToken = _pengangkutanProvider!.refreshToken;
+      _pengangkutanProvider!.addListener(_onPengangkutanRefresh);
+    });
+  }
+
+  @override
+  void dispose() {
+    _pengangkutanProvider?.removeListener(_onPengangkutanRefresh);
+    super.dispose();
+  }
+
+  void _onPengangkutanRefresh() {
+    if (!mounted || _pengangkutanProvider == null) return;
+    final token = _pengangkutanProvider!.refreshToken;
+    if (token != _lastRefreshToken) {
+      _lastRefreshToken = token;
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final bankId = auth.bankId ?? '';
-    final token = auth.currentUser?.accessToken ?? '';
 
-    if (bankId.isEmpty || token.isEmpty) {
+    if (bankId.isEmpty) {
       setState(() => _isLoading = false);
       return;
     }
 
-    final res = await PengangkutanService.getAllPengangkutan(bankId, token);
+    // ── Fetch sesi aktif dari endpoint baru ──────────────────────────────────
+    final sesiRes = await PengangkutanService.checkSesiActive(bankId);
+
+    // ── Fetch riwayat (get-all) ──────────────────────────────────────────────
+    final riwayatRes = await PengangkutanService.getAllPengangkutan(bankId);
+
     if (!mounted) return;
 
-    if (res['success'] == true) {
-      final List data = res['data'] ?? [];
-      final List<PengangkutanBsuData> aktif = [];
-      final List<PengangkutanBsuData> riwayat = [];
+    _SesiActiveData? sesiAktif;
+    if (sesiRes['success'] == true) {
+      final data = sesiRes['data'] as Map<String, dynamic>? ?? {};
+      final parsed = _SesiActiveData.fromJson(data);
+      if (parsed.isActive) sesiAktif = parsed;
+    }
+
+    final List<PengangkutanBsuData> riwayat = [];
+    if (riwayatRes['success'] == true) {
+      final List data = riwayatRes['data'] ?? [];
       for (final item in data) {
         final p = PengangkutanBsuData.fromJson(item);
-        if (_terminalStatuses.contains(p.status)) {
-          riwayat.add(p);
-        } else {
-          aktif.add(p);
-        }
+        if (_terminalStatuses.contains(p.status)) riwayat.add(p);
       }
-      setState(() {
-        _aktif = aktif;
-        _riwayat = riwayat;
-        _isLoading = false;
-      });
-    } else {
-      setState(() => _isLoading = false);
-      _snackBar(res['message'] ?? 'Gagal memuat data', isError: true);
     }
+
+    setState(() {
+      _sesiAktif = sesiAktif;
+      _riwayat = riwayat;
+      _isLoading = false;
+    });
+  }
+
+  List<PengangkutanBsuData> get _filteredRiwayat {
+    return _riwayat.where((s) {
+      if (s.rawDate == null) return true;
+      final d = DateTime(s.rawDate!.year, s.rawDate!.month);
+      final start = DateTime(_filterStart.year, _filterStart.month);
+      final end = DateTime(_filterEnd.year, _filterEnd.month);
+      return !d.isBefore(start) && !d.isAfter(end);
+    }).toList();
   }
 
   void _snackBar(String msg, {bool isError = false}) {
@@ -140,17 +214,13 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        // ── Info card ──
-                        _buildInfoCard(),
-                        const SizedBox(height: 20),
-
                         // ── Sesi aktif ──
-                        if (_aktif.isNotEmpty) ...[
-                          ..._aktif.map((s) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _buildAktifCard(s),
-                          )),
-                          const SizedBox(height: 16),
+                        if (_sesiAktif != null) ...[
+                          _buildAktifCard(_sesiAktif!),
+                          const SizedBox(height: 20),
+                        ] else ... [
+                          _infoCard(),
+                          const SizedBox(height: 20),
                         ],
 
                         // ── Riwayat ──
@@ -158,6 +228,15 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
                           fontFamily: 'Poppins', fontSize: 15,
                           fontWeight: FontWeight.w700, color: Color(0xFF013236),
                         )),
+                        const SizedBox(height: 12),
+                        MonthYearFilterRow(
+                          filterStart: _filterStart,
+                          filterEnd: _filterEnd,
+                          onChanged: (start, end) => setState(() {
+                            _filterStart = start;
+                            _filterEnd = end;
+                          }),
+                        ),
                         const SizedBox(height: 12),
                         _buildRiwayatList(),
                       ]),
@@ -169,164 +248,165 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
     );
   }
 
-  // ── Info card tentang request pengangkutan ───────────────────────────────
-  Widget _buildInfoCard() {
+  // ── Card sesi aktif ─────────────────────────────────────────────────────
+  Widget _buildAktifCard(_SesiActiveData sesi) {
+    final statusColor = _statusColor(sesi.statusTerkini);
+    final statusLabel = _statusLabel(sesi.statusTerkini);
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF013236), Color(0xFF025059)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF013236).withOpacity(0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+        color: const Color(0xFF013236),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header row ────────────────────────────────────────────────
+          Row(
+            children: [
+              const Text(
+                'Pengangkutan Aktif',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              const Spacer(),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+          Divider(color: Colors.white.withOpacity(0.1), height: 1),
+          const SizedBox(height: 16),
+
+          // ── Info rows ─────────────────────────────────────────────────
+          _infoDetailRowDark(
+            Icons.info_outline_rounded,
+            'Status Terkini',
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                statusLabel,
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: statusColor,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _infoDetailRowDark(
+            Icons.business_rounded,
+            'BSI',
+            Text(
+              sesi.namaBsi,
+              style: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _infoDetailRowDark(
+            Icons.tag_rounded,
+            'ID Pengangkutan',
+            Text(
+              sesi.pengangkutanId,
+              style: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── Tombol lihat detail ────────────────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SesiPengangkutanScreen(
+                      pengangkutanId: sesi.pengangkutanId,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.open_in_new_rounded, size: 16),
+              label: const Text(
+                'Lihat Detail Pengangkutan',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF013236),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(50),
+                ),
+              ),
+            ),
           ),
         ],
       ),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF94DF0C).withOpacity(0.18),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.info_outline_rounded, color: Color(0xFF94DF0C), size: 20),
-        ),
-        const SizedBox(width: 14),
-        const Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Pengajuan Pengangkutan', style: TextStyle(
-              fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w700,
-              color: Colors.white,
-            )),
-            SizedBox(height: 5),
-            Text(
-              'Jika ingin mengajukan pengangkutan sampah kepada BSI di luar jadwal, Anda bisa melakukan request pengangkutan di menu \'Jadwal\'.',
-              style: TextStyle(
-                fontFamily: 'Poppins', fontSize: 11.5, height: 1.55,
-                color: Colors.white70,
-              ),
-            ),
-          ]),
-        ),
-      ]),
     );
   }
 
-  // ── Card sesi aktif (read-only, BSU tidak bisa update status) ────────────
-  Widget _buildAktifCard(PengangkutanBsuData s) {
-    final statusColor = _statusColor(s.status);
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // Badge live
-      Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: statusColor.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 8, height: 8, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
-          const SizedBox(width: 6),
-          Text(_statusLabel(s.status), style: TextStyle(fontFamily: 'Poppins', fontSize: 11, fontWeight: FontWeight.w600, color: statusColor)),
-        ]),
-      ),
-      // Card body
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF013236), Color(0xFF025059)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+  Widget _infoDetailRowDark(IconData icon, String label, Widget valueWidget) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(8),
           ),
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [BoxShadow(color: const Color(0xFF013236).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
+          child: Icon(icon, size: 13, color: Colors.white70),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('Pengangkutan Aktif', style: TextStyle(
-              fontFamily: 'Poppins', fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white,
-            )),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(20)),
-              child: Text(_statusLabel(s.status).toUpperCase(), style: const TextStyle(
-                fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white,
-              )),
-            ),
-          ]),
-          const SizedBox(height: 16),
-          _infoRow(Icons.business_rounded, 'BSI: ${s.namaBsi}'),
-          const SizedBox(height: 8),
-          _infoRow(Icons.calendar_today_rounded, s.tanggal),
-          const SizedBox(height: 8),
-          _infoRow(Icons.person_rounded, 'Pengaju: ${s.namaAdminBsu}'),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(children: [
-              const Icon(Icons.lock_clock_outlined, size: 13, color: Colors.white54),
-              const SizedBox(width: 8),
-              const Expanded(child: Text(
-                'Status hanya dapat diperbarui oleh Admin BSI',
-                style: TextStyle(fontFamily: 'Poppins', fontSize: 11, color: Colors.white54),
-              )),
-            ]),
-          ),
-        ]),
-      ),
-      // Tombol QR Code — tampil saat status approved atau otw
-      if (s.status == 'approved' || s.status == 'otw') ...[
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const QRAngkutSampahScreen(),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 10,
+                  color: Colors.white60,
                 ),
-              );
-            },
-            icon: const Icon(Icons.qr_code_2_rounded, size: 18, color: Colors.white),
-            label: const Text(
-              'QR Code Penyetoran',
-              style: TextStyle(
-                color: Colors.white,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
               ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF06C0C9),
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              padding: const EdgeInsets.symmetric(vertical: 13),
-            ),
+              const SizedBox(height: 2),
+              valueWidget,
+            ],
           ),
         ),
       ],
-    ]);
+    );
   }
-
-  Widget _infoRow(IconData icon, String text) => Row(children: [
-    Icon(icon, size: 14, color: Colors.white70),
-    const SizedBox(width: 8),
-    Expanded(child: Text(text, style: const TextStyle(fontFamily: 'Poppins', fontSize: 12, color: Colors.white70))),
-  ]);
 
   // ── Riwayat (terminal statuses) ──────────────────────────────────────────
   Widget _buildRiwayatList() {
@@ -345,12 +425,28 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
       );
     }
 
+    final filtered = _filteredRiwayat;
+    if (filtered.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 36),
+          child: Column(children: [
+            Icon(Icons.search_off_rounded, size: 44, color: Colors.grey[300]),
+            const SizedBox(height: 10),
+            Text('Tidak ada riwayat di rentang waktu ini', style: TextStyle(
+              fontFamily: 'Poppins', fontSize: 13, color: Colors.grey[400],
+            )),
+          ]),
+        ),
+      );
+    }
+
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: _riwayat.length,
+      itemCount: filtered.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => _buildRiwayatTile(_riwayat[i]),
+      itemBuilder: (_, i) => _buildRiwayatTile(filtered[i]),
     );
   }
 
@@ -375,9 +471,12 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+          color: Colors.white.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            width: 1,
+            color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+          ),
         ),
         child: Row(children: [
         Container(
@@ -387,11 +486,11 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
         ),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(s.namaBsi, style: const TextStyle(
+          Text(s.tanggal, style: const TextStyle(
             fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF013236),
           )),
           const SizedBox(height: 3),
-          Text(s.tanggal, style: TextStyle(fontFamily: 'Poppins', fontSize: 11.5, color: Colors.grey[500])),
+          Text(s.id, style: TextStyle(fontFamily: 'Poppins', fontSize: 11.5, color: Colors.grey[500])),
         ])),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -402,6 +501,78 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
         ),
       ]),
     ));
+  }
+
+  Widget _infoCard() {
+    const teal = Color(0xFF013236);
+
+    Widget infoItem(String text) => Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: teal.withValues(alpha: 0.4),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 11,
+                    height: 1.55,
+                    color: teal.withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: teal.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: teal.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.info_outline_rounded,
+                  size: 14, color: teal.withValues(alpha: 0.5)),
+              const SizedBox(width: 7),
+              Text(
+                'Informasi',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                  color: teal.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          infoItem(
+              'Fitur penyetoran baru akan muncul jika sesi pengangkutan sudah dibuka oleh petugas BSI.'),
+          infoItem(
+              'Pengajuan penjemputan di luar jadwal rutin dapat diajukan melalui menu Jadwal.'),
+        ],
+      ),
+    );
   }
 
   // ── Status helpers ───────────────────────────────────────────────────────

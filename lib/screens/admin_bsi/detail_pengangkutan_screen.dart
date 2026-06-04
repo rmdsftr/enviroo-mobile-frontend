@@ -1,9 +1,8 @@
-import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/screens/admin_bsu/sesi_pengangkutan_screen.dart';
 import 'package:enviroo/services/pengangkutan_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
 // ─── Models ─────────────────────────────────────────────────────────────────
 
@@ -14,7 +13,6 @@ class _PengangkutanHeader {
   final String namaBsu;
   final String namaAdminBsi;
   final int totalItem;
-  final double totalPoin;
   final String statusSetoran;
   final String createdAt;
 
@@ -25,7 +23,6 @@ class _PengangkutanHeader {
     required this.namaBsu,
     required this.namaAdminBsi,
     required this.totalItem,
-    required this.totalPoin,
     required this.statusSetoran,
     required this.createdAt,
   });
@@ -35,7 +32,7 @@ class _PengangkutanHeader {
     if (json['created_at'] != null) {
       try {
         createdAt =
-            '${DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID').format(DateTime.parse(json['created_at'].toString()))} WIB';
+            DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID').format(DateTime.parse(json['created_at'].toString()));
       } catch (_) {
         createdAt = json['created_at'].toString();
       }
@@ -47,7 +44,6 @@ class _PengangkutanHeader {
       namaBsu: json['nama_bsu'] ?? '-',
       namaAdminBsi: json['nama_admin_bsi'] ?? '-',
       totalItem: (json['total_item'] ?? 0) as int,
-      totalPoin: (json['total_poin'] as num?)?.toDouble() ?? 0.0,
       statusSetoran: json['status_setoran'] ?? 'pending',
       createdAt: createdAt,
     );
@@ -58,15 +54,11 @@ class _PengangkutanItem {
   final String namaSampah;
   final String satuan;
   final double qty;
-  final double nilaiPoin;
-  final double subtotalPoin;
 
   _PengangkutanItem({
     required this.namaSampah,
     required this.satuan,
     required this.qty,
-    required this.nilaiPoin,
-    required this.subtotalPoin,
   });
 
   factory _PengangkutanItem.fromJson(Map<String, dynamic> json) {
@@ -74,8 +66,6 @@ class _PengangkutanItem {
       namaSampah: json['nama_sampah'] ?? '-',
       satuan: json['satuan'] ?? '-',
       qty: (json['qty'] as num?)?.toDouble() ?? 0.0,
-      nilaiPoin: (json['nilai_poin'] as num?)?.toDouble() ?? 0.0,
-      subtotalPoin: (json['subtotal_poin'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
@@ -115,11 +105,8 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
       _errorMsg = null;
     });
 
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final token = auth.currentUser?.accessToken ?? '';
-
     final res =
-        await PengangkutanService.detailSampah(widget.pengangkutanId, token);
+        await PengangkutanService.detailSampah(widget.pengangkutanId);
     if (!mounted) return;
 
     if (res['success'] == true) {
@@ -204,155 +191,272 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9F8),
-      body: SafeArea(
-        child: Column(
-          children: [
-            const TopBarBack(title: 'Detail Pengangkutan'),
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                          color: Color(0xFF06C0C9)))
-                  : _errorMsg != null
-                      ? _buildError()
-                      : RefreshIndicator(
-                          onRefresh: _fetch,
-                          color: const Color(0xFF06C0C9),
-                          child: SingleChildScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding:
-                                const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                            child: _buildStrukCard(),
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bg_struk.webp'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              const TopBarBack(title: 'Detail Pengangkutan'),
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                            color: Color(0xFF06C0C9)))
+                    : _errorMsg != null
+                        ? _buildError()
+                        : RefreshIndicator(
+                            onRefresh: _fetch,
+                            color: const Color(0xFF06C0C9),
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                              child: Column(
+                                children: [
+                                  _buildHeroCard(),
+                                  const SizedBox(height: 12),
+                                  _buildInfoCard(),
+                                  const SizedBox(height: 12),
+                                  _buildRincianCard(),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStrukCard() {
+  // ── Hero Card ────────────────────────────────────────────────────────────
+  Widget _buildHeroCard() {
     final h = _header!;
     final statusColor = _statusColor(h.statusSetoran);
     final statusBg = _statusBg(h.statusSetoran);
 
     return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Struk Pengangkutan',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF013236),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  h.pengangkutanId,
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: statusBg,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(_statusIcon(h.statusSetoran),
+                    size: 12, color: statusColor),
+                const SizedBox(width: 4),
+                Text(
+                  _statusLabel(h.statusSetoran),
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: statusColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Info Card ────────────────────────────────────────────────────────────
+  Widget _buildInfoCard() {
+    final h = _header!;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header gradient ─────────────────────────────────────────────
-          Container(
+          _infoRow(Icons.store_rounded, 'BSU', h.namaBsu),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Divider(height: 1, color: Color(0xFFF0F0F0)),
+          ),
+          _infoRow(Icons.account_balance_rounded, 'BSI', h.namaBsi),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Divider(height: 1, color: Color(0xFFF0F0F0)),
+          ),
+          _infoRow(Icons.badge_rounded, 'Petugas BSI', h.namaAdminBsi),
+          const SizedBox(height: 18),
+          SizedBox(
             width: double.infinity,
-            padding: const EdgeInsets.all(22),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF013236), Color(0xFF025059)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color:
-                                const Color(0xFF06C0C9).withOpacity(0.18),
-                            borderRadius: BorderRadius.circular(9),
-                          ),
-                          child: const Icon(
-                            Icons.local_shipping_rounded,
-                            color: Color(0xFF06C0C9),
-                            size: 16,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Struk Pengangkutan',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: statusBg,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(_statusIcon(h.statusSetoran),
-                              size: 12, color: statusColor),
-                          const SizedBox(width: 4),
-                          Text(
-                            _statusLabel(h.statusSetoran),
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              color: statusColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+            child: OutlinedButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SesiPengangkutanScreen(
+                    pengangkutanId: widget.pengangkutanId,
+                  ),
                 ),
-                const SizedBox(height: 18),
-                _headerRow(Icons.store_rounded, 'BSU', h.namaBsu),
-                const SizedBox(height: 10),
-                _headerRow(Icons.account_balance_rounded, 'BSI', h.namaBsi),
-                const SizedBox(height: 10),
-                _headerRow(
-                    Icons.badge_rounded, 'Petugas BSI', h.namaAdminBsi),
-                const SizedBox(height: 10),
-                _headerRow(
-                    Icons.access_time_rounded, 'Waktu', h.createdAt),
-                const SizedBox(height: 10),
-                _headerRow(Icons.confirmation_num_rounded, 'ID Sesi',
-                    h.pengangkutanId),
-              ],
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF013236),
+                side: const BorderSide(color: Color(0xFF013236), width: 1),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(50),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                textStyle: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              child: const Text('Riwayat sesi pengangkutan'),
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          // ── Perforated separator ────────────────────────────────────────
-          _buildPerforated(),
+  Widget _infoRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF06C0C9).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 15, color: const Color(0xFF06C0C9)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 10,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF013236),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-          // ── Items ───────────────────────────────────────────────────────
+  // ── Rincian Sampah Card ──────────────────────────────────────────────────
+  Widget _buildRincianCard() {
+    final h = _header!;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+            child: Row(
               children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF06C0C9).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.recycling_rounded,
+                      size: 15, color: Color(0xFF06C0C9)),
+                ),
+                const SizedBox(width: 10),
                 const Text(
                   'Rincian Sampah',
                   style: TextStyle(
@@ -362,14 +466,15 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
                     color: Color(0xFF013236),
                   ),
                 ),
-                const SizedBox(height: 10),
-                _tableRow(
-                  'Jenis Sampah',
-                  'Qty',
-                  'Poin/unit',
-                  'Subtotal',
-                  isHeader: true,
-                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+            child: Column(
+              children: [
+                _tableRow('Jenis Sampah', 'Qty', isHeader: true),
                 const Divider(height: 1, color: Color(0xFFEEEEEE)),
                 const SizedBox(height: 4),
                 if (_items.isEmpty)
@@ -394,8 +499,6 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
                         _tableRow(
                           item.namaSampah,
                           '${_fmt(item.qty)} ${item.satuan}',
-                          _fmt(item.nilaiPoin),
-                          _fmt(item.subtotalPoin),
                         ),
                         if (entry.key < _items.length - 1)
                           const Divider(
@@ -406,147 +509,19 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
               ],
             ),
           ),
-
-          // ── Perforated separator ────────────────────────────────────────
-          _buildPerforated(),
-
-          // ── Total ───────────────────────────────────────────────────────
+          const Divider(height: 1, color: Color(0xFFF0F0F0)),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
-            child: Column(
-              children: [
-                _summaryRow('Total Jenis Sampah', '${h.totalItem} jenis'),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE6FAFB),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: const Color(0xFF06C0C9).withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: const [
-                          Icon(Icons.stars_rounded,
-                              color: Color(0xFF06C0C9), size: 18),
-                          SizedBox(width: 8),
-                          Text(
-                            'Total Poin',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF013236),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        '${_fmt(h.totalPoin)} poin',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF06C0C9),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+            child: _summaryRow('Total Jenis Sampah', '${h.totalItem} jenis'),
           ),
         ],
       ),
     );
   }
 
-  Widget _headerRow(IconData icon, String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 14, color: Colors.white54),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  color: Colors.white54,
-                ),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPerforated() {
-    return Row(
-      children: [
-        _halfCircle(isLeft: true),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (_, c) => Flex(
-              direction: Axis.horizontal,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(
-                (c.maxWidth / 10).floor(),
-                (i) => SizedBox(
-                  width: 5,
-                  height: 1,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(color: Colors.grey[300]),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        _halfCircle(isLeft: false),
-      ],
-    );
-  }
-
-  Widget _halfCircle({required bool isLeft}) {
-    return Container(
-      width: 16,
-      height: 32,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7F9F8),
-        borderRadius: BorderRadius.only(
-          topRight: isLeft ? const Radius.circular(16) : Radius.zero,
-          bottomRight: isLeft ? const Radius.circular(16) : Radius.zero,
-          topLeft: isLeft ? Radius.zero : const Radius.circular(16),
-          bottomLeft: isLeft ? Radius.zero : const Radius.circular(16),
-        ),
-      ),
-    );
-  }
-
   Widget _tableRow(
     String col1,
-    String col2,
-    String col3,
-    String col4, {
+    String col2, {
     bool isHeader = false,
   }) {
     final style = TextStyle(
@@ -562,16 +537,8 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
         children: [
           Expanded(flex: 3, child: Text(col1, style: style)),
           SizedBox(
-            width: 56,
-            child: Text(col2, style: style, textAlign: TextAlign.center),
-          ),
-          SizedBox(
-            width: 56,
-            child: Text(col3, style: style, textAlign: TextAlign.right),
-          ),
-          SizedBox(
-            width: 64,
-            child: Text(col4, style: style, textAlign: TextAlign.right),
+            width: 90,
+            child: Text(col2, style: style, textAlign: TextAlign.right),
           ),
         ],
       ),

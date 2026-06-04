@@ -27,9 +27,9 @@ class _ProfileCornerState extends State<ProfileCorner>{
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = Provider.of<AuthProvider>(context, listen: false);
-      if (auth.userId.isNotEmpty && auth.currentUser?.accessToken != null) {
+      if (auth.userId.isNotEmpty) {
         setState(() {
-          _userDataFuture = UserService.getActiveUser(auth.userId, auth.currentUser!.accessToken);
+          _userDataFuture = UserService.getActiveUser(auth.userId);
         });
       }
     });
@@ -51,8 +51,8 @@ class _ProfileCornerState extends State<ProfileCorner>{
         ),
         child: Consumer<AuthProvider>(
           builder: (context, auth, _) {
-            if (_userDataFuture == null && auth.userId.isNotEmpty && auth.currentUser?.accessToken != null) {
-              _userDataFuture = UserService.getActiveUser(auth.userId, auth.currentUser!.accessToken);
+            if (_userDataFuture == null && auth.userId.isNotEmpty) {
+              _userDataFuture = UserService.getActiveUser(auth.userId);
             }
             return FutureBuilder<Map<String, dynamic>?>(
               future: _userDataFuture,

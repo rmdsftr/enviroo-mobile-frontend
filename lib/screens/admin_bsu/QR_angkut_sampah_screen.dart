@@ -162,11 +162,11 @@ class _QRAngkutSampahScreenState extends State<QRAngkutSampahScreen> {
                           dataModuleShape: QrDataModuleShape.square,
                           color: Color(0xFF013236),
                         ),
-                        embeddedImage: const AssetImage(
-                            'assets/images/enviroo-logo-small.png'),
-                        embeddedImageStyle: const QrEmbeddedImageStyle(
-                          size: Size(50, 50),
-                        ),
+                        // embeddedImage: const AssetImage(
+                        //     'assets/images/enviroo-logo-small.png'),
+                        // embeddedImageStyle: const QrEmbeddedImageStyle(
+                        //   size: Size(50, 50),
+                        // ),
                       ),
 
                       // Selected items summary

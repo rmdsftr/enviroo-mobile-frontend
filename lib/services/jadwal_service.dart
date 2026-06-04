@@ -1,72 +1,29 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import 'api_client.dart';
 
 class JadwalService {
-  /// Ambil data jadwal berdasarkan bankID
-  static Future<Map<String, dynamic>> getJadwalByBankId(String bankId, String token) async {
+  static Future<Map<String, dynamic>> getJadwalByBankId(String bankId) async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.getJadwalUrl}/$bankId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      final Map<String, dynamic> body = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': body['data'], // Ini akan berisi { penimbangan: [], pengangkutan: [] }
-        };
-      } else {
-        return {
-          'success': false,
-          'message': body['error'] ?? 'Gagal mengambil data jadwal',
-        };
-      }
+      final response = await ApiClient.get(Uri.parse('${ApiConfig.getJadwalUrl}/$bankId'));
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      return {'success': false, 'message': body['error'] ?? 'Gagal mengambil data jadwal'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
     }
   }
 
-  /// Ambil data jadwal penimbangan untuk homepage nasabah
-  static Future<Map<String, dynamic>> getJadwalNasabah(String nasabahId, String token) async {
+  static Future<Map<String, dynamic>> getJadwalNasabah(String nasabahId) async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.getJadwalNasabahUrl}/$nasabahId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      final Map<String, dynamic> body = jsonDecode(response.body);
-
+      final response = await ApiClient.get(Uri.parse('${ApiConfig.getJadwalNasabahUrl}/$nasabahId'));
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'message': body['message'],
-          'data': body['data'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': body['error'] ?? 'Gagal mengambil jadwal',
-        };
+        return {'success': true, 'message': body['message'], 'data': body['data']};
       }
+      return {'success': false, 'message': body['error'] ?? 'Gagal mengambil jadwal'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
     }
   }
 }

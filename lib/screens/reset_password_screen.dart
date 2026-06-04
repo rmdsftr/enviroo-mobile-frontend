@@ -1,9 +1,13 @@
+import 'package:enviroo/services/auth_service.dart';
+import 'package:enviroo/widgets/success_bottom_sheet.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String email;
-  const ResetPasswordScreen({Key? key, required this.email}) : super(key: key);
+  final String otp;
+  const ResetPasswordScreen({Key? key, required this.email, required this.otp})
+      : super(key: key);
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -17,6 +21,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   bool _obscureConfirm = true;
   bool _isPasswordInvalid = false;
   bool _isConfirmInvalid = false;
+  bool _isLoading = false;
 
   // Password minimal 8 karakter, huruf besar, angka
   bool _isPasswordStrong(String password) {
@@ -48,87 +53,49 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     super.dispose();
   }
 
-  void _onSimpan() {
+  Future<void> _onSimpan() async {
     final password = _passwordController.text;
     final confirm = _confirmController.text;
 
-    if (!_isPasswordStrong(password) || password != confirm) return;
+    // Validasi client-side
+    if (!_isPasswordStrong(password)) {
+      setState(() => _isPasswordInvalid = true);
+      return;
+    }
+    if (password != confirm) {
+      setState(() => _isConfirmInvalid = true);
+      return;
+    }
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        backgroundColor: Color(0xFFFFFFFF),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Color(0xFF4EA771).withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.check_circle_outline_rounded,
-                  size: 40,
-                  color: Color(0xFF013236),
-                ),
-              ),
-              SizedBox(height: 16),
-              Text(
-                "Password Berhasil Diubah!",
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF013236),
-                ),
-              ),
-              SizedBox(height: 10),
-              Text(
-                "Password kamu telah berhasil direset. Silakan login kembali dengan password baru.",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  height: 1.6,
-                  color: Color(0xFF2D3748),
-                ),
-              ),
-              SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Kembali ke halaman login
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF4EA771),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    padding: EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: Text(
-                    "Kembali ke Login",
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFFFFFFF),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    setState(() => _isLoading = true);
+
+    final result = await AuthService.resetPassword(
+      widget.email,
+      widget.otp,
+      password,
+      confirm,
     );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result['success'] == true) {
+      await showSuccessBottomSheet(
+        context,
+        title: 'Password Berhasil Diubah!',
+        message: result['message'] ??
+            'Password kamu telah berhasil direset. Silakan login kembali dengan password baru.',
+        buttonLabel: 'Kembali ke Login',
+        onDismiss: () => Navigator.of(context).popUntil((route) => route.isFirst),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Gagal mereset password'),
+          backgroundColor: const Color(0xFFB61E20),
+        ),
+      );
+    }
   }
 
   Widget _buildPasswordField({
@@ -145,6 +112,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         TextField(
           controller: controller,
           obscureText: obscure,
+          enabled: !_isLoading,
           style: const TextStyle(
             fontFamily: 'Poppins',
             fontSize: 14,
@@ -153,17 +121,17 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           ),
           decoration: InputDecoration(
             contentPadding:
-            const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+                const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
             hintText: hint,
             hintStyle: TextStyle(
               fontFamily: 'Poppins',
               fontSize: 14,
-              color: Color(0xFF013236).withOpacity(0.35),
+              color: const Color(0xFF013236).withOpacity(0.35),
             ),
             filled: true,
             fillColor: isInvalid
-            ? Color(0xFFB61E20).withOpacity(0.1)
-            : Color(0xFF013236).withOpacity(0.1),
+                ? const Color(0xFFB61E20).withOpacity(0.1)
+                : const Color(0xFF013236).withOpacity(0.1),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(18),
               borderSide: BorderSide.none,
@@ -175,15 +143,17 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(18),
               borderSide: isInvalid
-                  ? BorderSide(color: Color(0xFFB61E20), width: 1.5)
-                  : BorderSide(color: Color(0xFF013236), width: 1.5),
+                  ? const BorderSide(color: Color(0xFFB61E20), width: 1.5)
+                  : const BorderSide(color: Color(0xFF013236), width: 1.5),
             ),
             suffixIcon: IconButton(
               icon: Icon(
-                obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                obscure
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 color: isInvalid
-                ? Color(0xFFB61E20)
-                : Color(0xFF013236),
+                    ? const Color(0xFFB61E20)
+                    : const Color(0xFF013236),
                 size: 20,
               ),
               onPressed: onToggle,
@@ -195,10 +165,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             padding: const EdgeInsets.only(top: 6, left: 8),
             child: Text(
               errorMsg,
-              style: TextStyle(
+              style: const TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 12,
-                color: Color(0xFFFFFFFF),
+                color: Color(0xFFB61E20),
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -209,31 +180,31 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFFFFFFF),
-      body: Container(
-        child: SafeArea(
+      backgroundColor: const Color(0xFFFFFFFF),
+      body: SafeArea(
+        child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TopBarBack(title: ""),
-              Padding(
+              const TopBarBack(title: ""),
+              const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 30),
                 child: Text(
                   "Reset Password",
                   style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF013236),
-                      fontSize: 20
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF013236),
+                    fontSize: 20,
                   ),
                 ),
               ),
-              SizedBox(height: 15),
+              const SizedBox(height: 15),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 30),
+                padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: Text(
                   "Buat password baru untuk akun ${widget.email}. Pastikan password mudah diingat namun sulit ditebak.",
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 13,
                     height: 1.5,
@@ -242,19 +213,20 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   textAlign: TextAlign.justify,
                 ),
               ),
-              SizedBox(height: 30),
+              const SizedBox(height: 30),
               // Syarat password
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 30),
+                padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
                       width: 1,
-                      color: Color(0xFF013236).withOpacity(0.25)
-                    )
+                      color: const Color(0xFF013236).withOpacity(0.25),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,10 +237,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           fontFamily: 'Poppins',
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF013236).withOpacity(0.5),
+                          color: const Color(0xFF013236).withOpacity(0.5),
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       _buildRequirement("Minimal 8 karakter"),
                       _buildRequirement("Mengandung huruf kapital (A-Z)"),
                       _buildRequirement("Mengandung angka (0-9)"),
@@ -276,9 +248,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   ),
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 25),
+                padding: const EdgeInsets.symmetric(horizontal: 25),
                 child: Column(
                   children: [
                     _buildPasswordField(
@@ -289,9 +261,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           setState(() => _obscurePassword = !_obscurePassword),
                       isInvalid: _isPasswordInvalid,
                       errorMsg:
-                      "Password minimal 8 karakter, huruf kapital & angka",
+                          "Password minimal 8 karakter, huruf kapital & angka",
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     _buildPasswordField(
                       controller: _confirmController,
                       hint: "Konfirmasi password baru",
@@ -304,39 +276,59 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 20), // Extra space to scroll if keyboard shows up
             ],
           ),
         ),
       ),
-      bottomNavigationBar: BottomAppBar(
-        color: Color(0xFFFFFFFF),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: ElevatedButton(
-            onPressed: _onSimpan,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF013236),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
+      bottomNavigationBar: Container(
+        color: const Color(0xFFFFFFFF),
+        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
+        child: SafeArea(
+          child: SizedBox(
+            height: 55,
+            width: double.infinity,
+            child: Container(
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-            ),
-            child: Text(
-              "Simpan Password Baru",
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFFFFFFFF),
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _onSimpan,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF013236),
+                  disabledBackgroundColor:
+                      const Color(0xFF013236).withOpacity(0.5),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              Color(0xFFFFFFFF)),
+                        ),
+                      )
+                    : const Text(
+                        "Simpan Password Baru",
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFFFFFFF),
+                        ),
+                      ),
               ),
             ),
           ),
@@ -350,14 +342,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       padding: const EdgeInsets.only(top: 2),
       child: Row(
         children: [
-          Icon(Icons.circle, size: 5, color: Color(0xFF013236).withOpacity(0.5)),
-          SizedBox(width: 6),
+          Icon(Icons.circle,
+              size: 5, color: const Color(0xFF013236).withOpacity(0.5)),
+          const SizedBox(width: 6),
           Text(
             text,
             style: TextStyle(
               fontFamily: 'Poppins',
               fontSize: 11,
-              color: Color(0xFF013236).withOpacity(0.5),
+              color: const Color(0xFF013236).withOpacity(0.5),
             ),
           ),
         ],

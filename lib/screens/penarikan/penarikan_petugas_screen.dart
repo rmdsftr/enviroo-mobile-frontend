@@ -1,37 +1,37 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/redeem_models.dart';
+import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/penarikan_petugas_provider.dart';
-import '../../widgets/redeem_card.dart';
+import '../../widgets/filter_chip_row.dart';
+import '../../widgets/filter_month_year.dart';
+import '../../widgets/navbar.dart';
 import '../../widgets/topbar_back.dart';
-import 'detail_konfirmasi_penarikan_screen.dart';
-import 'scan_penarikan_screen.dart';
+import 'detail_transaksi_penarikan_screen.dart';
 
 class PenarikanPetugasScreen extends StatefulWidget {
   const PenarikanPetugasScreen({super.key});
 
   @override
-  State<PenarikanPetugasScreen> createState() =>
-      _PenarikanPetugasScreenState();
+  State<PenarikanPetugasScreen> createState() => _PenarikanPetugasScreenState();
 }
 
 class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
   static const Color primary = Color(0xFF4EA771);
   static const Color dark = Color(0xFF013236);
 
-  String _filter = 'waiting'; // waiting | approved | history
+  int _tabIndex = 0;
+
+  static const _rewardOptions = ['Semua', 'Uang', 'Sembako'];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = context.read<AuthProvider>();
       final prov = context.read<PenarikanPetugasProvider>();
-      prov.bind(auth);
+      prov.bind(context.read<AuthProvider>());
       prov.loadList();
     });
   }
@@ -39,179 +39,313 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
+      backgroundColor: const Color(0xFFF5F7F5),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bg_struk.webp'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Consumer<PenarikanPetugasProvider>(
+            builder: (_, prov, __) {
+              final displayList = _tabIndex == 0 ? prov.pengajuanList : prov.selesaiList;
+
+              return Column(
+                children: [
+                  const TopBarBack(title: 'Penarikan Nasabah'),
+                  // Tab (glassmorphism)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: MainNavbar(
+                      selectedIndex: _tabIndex,
+                      onTabChanged: (i) => setState(() => _tabIndex = i),
+                      tabs: const ['Pengajuan', 'Selesai'],
+                      backgroundColor: Colors.white.withValues(alpha: 0.6),
+                      border: Border.all(
+                        color: const Color(0xFF013236).withValues(alpha: 0.1),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  // White container: filter + list
+                  Expanded(
+                    child: Container(
+                      color: Colors.white,
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 12),
+                          // Date filter
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: MonthYearFilterRow(
+                              filterStart: prov.filterStart,
+                              filterEnd: prov.filterEnd,
+                              onChanged: (s, e) => prov.setDateFilter(s, e),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Reward filter chips
+                          FilterChipRow<String>(
+                            items: _rewardOptions
+                                .map((v) => FilterChipItem<String>(value: v, label: v))
+                                .toList(),
+                            selectedValue: prov.rewardFilter,
+                            onSelected: prov.setRewardFilter,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                          ),
+                          const SizedBox(height: 12),
+                          // List
+                          Expanded(
+                            child: prov.loadingList
+                                ? const Center(child: CircularProgressIndicator(color: primary))
+                                : prov.errorList != null && _allEmpty(prov)
+                                    ? _ErrorState(
+                                        message: prov.errorList!,
+                                        onRetry: prov.loadList,
+                                      )
+                                    : displayList.isEmpty
+                                        ? _EmptyState(tabIndex: _tabIndex)
+                                        : RefreshIndicator(
+                                            color: primary,
+                                            onRefresh: prov.loadList,
+                                            child: ListView.builder(
+                                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                                              itemCount: displayList.length,
+                                              itemBuilder: (ctx, i) {
+                                                final item = displayList[i];
+                                                return _PenarikanPetugasCard(
+                                                  item: item,
+                                                  onTap: () async {
+                                                    await Navigator.push(
+                                                      ctx,
+                                                      MaterialPageRoute(
+                                                        builder: (_) => DetailTransaksiPenarikanScreen(
+                                                          penarikanId: item.penarikanId,
+                                                        ),
+                                                      ),
+                                                    );
+                                                    if (ctx.mounted) {
+                                                      ctx.read<PenarikanPetugasProvider>().loadList();
+                                                    }
+                                                  },
+                                                );
+                                              },
+                                            ),
+                                          ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _allEmpty(PenarikanPetugasProvider prov) =>
+      prov.pengajuanList.isEmpty && prov.selesaiList.isEmpty;
+}
+
+// ── Card ──────────────────────────────────────────────────────────────────────
+
+class _PenarikanPetugasCard extends StatelessWidget {
+  final PenarikanItem item;
+  final VoidCallback onTap;
+
+  const _PenarikanPetugasCard({required this.item, required this.onTap});
+
+  static const Color dark = Color(0xFF013236);
+
+  Color get _statusColor {
+    switch (item.status) {
+      case StatusPenarikan.pending:
+        return const Color(0xFFF59E0B);
+      case StatusPenarikan.berhasil:
+        return const Color(0xFF4EA771);
+      case StatusPenarikan.dibatalkan:
+        return const Color(0xFFEF4444);
+      case StatusPenarikan.kadaluarsa:
+        return const Color(0xFF9CA3AF);
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String get _statusLabel {
+    switch (item.status) {
+      case StatusPenarikan.pending:
+        return 'Menunggu';
+      case StatusPenarikan.berhasil:
+        return 'Berhasil';
+      case StatusPenarikan.dibatalkan:
+        return 'Dibatalkan';
+      case StatusPenarikan.kadaluarsa:
+        return 'Kadaluarsa';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  IconData get _rewardIcon {
+    final lower = item.namaReward.toLowerCase();
+    if (lower.contains('uang')) return Icons.payments_rounded;
+    return Icons.shopping_basket_rounded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dateStr = DateFormat('dd MMM yyyy, HH:mm', 'id_ID')
+        .format(item.createdAt);
+    final nasabah = item.namaNasabah?.isNotEmpty == true
+        ? item.namaNasabah!
+        : item.nasabahId ?? '-';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          width: 1,
+          color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(_rewardIcon, color: _statusColor, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        nasabah,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: dark,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.namaReward.isEmpty
+                            ? '-'
+                            : _capitalize(item.namaReward),
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11,
+                          color: Colors.black.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        dateStr,
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11,
+                          color: Colors.black.withValues(alpha: 0.4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: Text(
+                    _statusLabel,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: _statusColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}';
+}
+
+// ── Empty ─────────────────────────────────────────────────────────────────────
+
+class _EmptyState extends StatelessWidget {
+  final int tabIndex;
+  const _EmptyState({required this.tabIndex});
+
+  @override
+  Widget build(BuildContext context) {
+    const dark = Color(0xFF013236);
+    final label = tabIndex == 0
+        ? 'Belum ada pengajuan menunggu'
+        : 'Belum ada riwayat selesai';
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const TopBarBack(title: 'Penarikan Nasabah'),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: dark.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(50),
-                ),
-                child: Row(
-                  children: [
-                    _segment('waiting', 'Menunggu'),
-                    _segment('approved', 'Disetujui'),
-                    _segment('history', 'Riwayat'),
-                  ],
-                ),
+            Icon(Icons.inbox_rounded,
+                size: 64, color: dark.withValues(alpha: 0.12)),
+            const SizedBox(height: 14),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: dark.withValues(alpha: 0.4),
               ),
             ),
-            Expanded(child: _buildList()),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _segment(String value, String label) {
-    final selected = _filter == value;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          setState(() => _filter = value);
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? dark : Colors.transparent,
-            borderRadius: BorderRadius.circular(40),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : dark.withOpacity(0.75),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+// ── Error ─────────────────────────────────────────────────────────────────────
 
-  Widget _buildList() {
-    return Consumer<PenarikanPetugasProvider>(
-      builder: (context, prov, _) {
-        if (prov.loadingList && prov.list.isEmpty) {
-          return const Center(child: CircularProgressIndicator(color: primary));
-        }
-        if (prov.error != null && prov.list.isEmpty) {
-          return _buildError(prov.error!);
-        }
-        final filtered = _filter == 'waiting'
-            ? prov.waitingList
-            : _filter == 'approved'
-                ? prov.approvedList
-                : prov.historyList;
-        if (filtered.isEmpty) {
-          return _buildEmpty();
-        }
-        return RefreshIndicator(
-          color: primary,
-          onRefresh: prov.loadList,
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
-            itemCount: filtered.length,
-            itemBuilder: (context, i) {
-              final item = filtered[i];
-              return RedeemCard(
-                data: item,
-                hideId: _filter != 'history',
-                showNasabah: true,
-                onTap: () => _onTapCard(item),
-                trailing: item.status == RedeemStatus.waiting
-                    ? const Text(
-                        'Tap untuk respon',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: Color(0xFF4EA771),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      )
-                    : item.status == RedeemStatus.approved
-                        ? const Text(
-                            'Tap untuk scan',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 11,
-                              color: Color(0xFF1F6F3A),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          )
-                        : null,
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
+class _ErrorState extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _ErrorState({required this.message, required this.onRetry});
 
-  void _onTapCard(RedeemTransaksi item) {
-    if (item.status == RedeemStatus.waiting) {
-      _showWaitingActions(item);
-    } else if (item.status == RedeemStatus.approved) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const ScanPenarikanScreen()),
-      ).then((_) => context.read<PenarikanPetugasProvider>().loadList());
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              DetailKonfirmasiPenarikanScreen(transaksiId: item.transaksiId),
-        ),
-      ).then((_) => context.read<PenarikanPetugasProvider>().loadList());
-    }
-  }
-
-  void _showWaitingActions(RedeemTransaksi item) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _WaitingActionSheet(item: item),
-    ).then((_) => context.read<PenarikanPetugasProvider>().loadList());
-  }
-
-  Widget _buildEmpty() {
-    final label = _filter == 'waiting'
-        ? 'Belum ada pengajuan menunggu'
-        : _filter == 'approved'
-            ? 'Belum ada pengajuan disetujui'
-            : 'Belum ada riwayat';
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.inbox_rounded, size: 56, color: dark.withOpacity(0.25)),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 14,
-              color: dark.withOpacity(0.6),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildError(String message) {
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -229,258 +363,17 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
+                backgroundColor: const Color(0xFF4EA771),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(50)),
               ),
-              onPressed: () =>
-                  context.read<PenarikanPetugasProvider>().loadList(),
-              child: const Text('Coba lagi'),
+              onPressed: onRetry,
+              child: const Text('Coba lagi',
+                  style: TextStyle(fontFamily: 'Poppins')),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _WaitingActionSheet extends StatefulWidget {
-  final RedeemTransaksi item;
-  const _WaitingActionSheet({required this.item});
-
-  @override
-  State<_WaitingActionSheet> createState() => _WaitingActionSheetState();
-}
-
-class _WaitingActionSheetState extends State<_WaitingActionSheet> {
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
-
-  bool _busy = false;
-
-  String _formatNumber(num n) {
-    final format = NumberFormat.decimalPattern('id_ID');
-    format.maximumFractionDigits = 4;
-    format.minimumFractionDigits = 0;
-    return format.format(n);
-  }
-
-  Future<void> _act(String status, {String? catatan}) async {
-    setState(() => _busy = true);
-    final prov = context.read<PenarikanPetugasProvider>();
-    final ok = await prov.confirm(
-      transaksiId: widget.item.transaksiId,
-      statusTransaksi: status,
-      catatan: catatan,
-    );
-    if (!mounted) return;
-    setState(() => _busy = false);
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: ok ? primary : Colors.red,
-        content: Text(ok
-            ? (status == 'approved'
-                ? 'Pengajuan disetujui'
-                : 'Pengajuan ditolak')
-            : (prov.error ?? 'Gagal memproses')),
-      ),
-    );
-  }
-
-  Future<String?> _askCatatan({required String title}) async {
-    final ctrl = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(title,
-            style: const TextStyle(
-                fontFamily: 'Poppins', fontWeight: FontWeight.w700)),
-        content: TextField(
-          controller: ctrl,
-          maxLines: 3,
-          decoration: InputDecoration(
-            hintText: 'Catatan (opsional)',
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primary,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
-            child: const Text('Kirim'),
-          ),
-        ],
-      ),
-    );
-    return result;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final item = widget.item;
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            margin: const EdgeInsets.only(top: 10, bottom: 14),
-            width: 44,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Pengajuan Penarikan',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    color: Colors.black.withOpacity(0.55),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  '***',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                    color: dark,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                _row('Reward',
-                    item.reward?.namaReward.toUpperCase() ?? '-'),
-                _row('Nasabah', item.nasabahName ?? '-'),
-                _row('Poin', item.poin.toStringAsFixed(0)),
-                if (!item.isSembako)
-                  _row('Nominal', item.isEmas ? '${_formatNumber(item.nominal)} gram' : 'Rp ${_formatNumber(item.nominal)}'),
-                if (item.isSembako)
-                  _row('Item', '${item.details.length} item sembako'),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(50)),
-                        ),
-                        onPressed: _busy
-                            ? null
-                            : () async {
-                                final note =
-                                    await _askCatatan(title: 'Tolak Pengajuan');
-                                if (note == null) return;
-                                _act('rejected',
-                                    catatan: note.isEmpty ? null : note);
-                              },
-                        icon: const Icon(Icons.close_rounded, size: 18),
-                        label: const Text(
-                          'Tolak',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(50)),
-                        ),
-                        onPressed: _busy ? null : () => _act('approved'),
-                        icon: const Icon(Icons.check_rounded, size: 18),
-                        label: _busy
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : const Text(
-                                'Setujui',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _row(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: Colors.black.withOpacity(0.55),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: dark,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

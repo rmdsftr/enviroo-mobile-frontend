@@ -1,11 +1,8 @@
-import 'dart:convert';
-import 'package:enviroo/config/api_config.dart';
-import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/screens/lihat_foto_screen.dart';
+import 'package:enviroo/services/setoran_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
 // ── Models ───────────────────────────────────────────────────────────────────
 class _DetailHeader {
@@ -14,8 +11,8 @@ class _DetailHeader {
   final String namaNasabah;
   final DateTime transaksiTimestamp;
   final int totalItem;
-  final double totalPoin;
   final String statusSetoran;
+  final String buktiViaManual;
 
   _DetailHeader({
     required this.setoranId,
@@ -23,8 +20,8 @@ class _DetailHeader {
     required this.namaNasabah,
     required this.transaksiTimestamp,
     required this.totalItem,
-    required this.totalPoin,
     required this.statusSetoran,
+    required this.buktiViaManual,
   });
 
   factory _DetailHeader.fromJson(Map<String, dynamic> j) => _DetailHeader(
@@ -34,29 +31,26 @@ class _DetailHeader {
         transaksiTimestamp:
             DateTime.tryParse(j['transaksi_timestamp'] ?? '') ?? DateTime.now(),
         totalItem: j['total_item'] ?? 0,
-        totalPoin: (j['total_poin'] as num?)?.toDouble() ?? 0.0,
         statusSetoran: j['status_setoran'] ?? '',
+        buktiViaManual: j['bukti_via_manual'] ?? '',
       );
 }
 
 class _ItemSetoran {
   final String namaSampah;
-  final int qty;
-  final double nilaiPoin;
-  final double subtotalPoin;
+  final double qty;
+  final String satuan;
 
   _ItemSetoran({
     required this.namaSampah,
     required this.qty,
-    required this.nilaiPoin,
-    required this.subtotalPoin,
+    required this.satuan,
   });
 
   factory _ItemSetoran.fromJson(Map<String, dynamic> j) => _ItemSetoran(
         namaSampah: j['nama_sampah'] ?? '',
-        qty: j['qty'] ?? 0,
-        nilaiPoin: (j['nilai_poin'] as num?)?.toDouble() ?? 0.0,
-        subtotalPoin: (j['subtotal_poin'] as num?)?.toDouble() ?? 0.0,
+        qty: (j['qty'] as num?)?.toDouble() ?? 0.0,
+        satuan: j['satuan'] ?? '',
       );
 }
 
@@ -85,68 +79,53 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
   }
 
   Future<void> _fetchDetail() async {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final token = auth.currentUser?.accessToken ?? '';
-
-    try {
-      final res = await http.get(
-        Uri.parse('${ApiConfig.detailSetoranNasabahUrl}/${widget.setoranId}'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      );
-
-      if (!mounted) return;
-
-      if (res.statusCode == 200) {
-        final body = jsonDecode(res.body);
-        final data = body['data'];
-        setState(() {
-          _header = _DetailHeader.fromJson(data['header'] ?? {});
-          final List items = data['items'] ?? [];
-          _items = items.map((e) => _ItemSetoran.fromJson(e)).toList();
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _error = 'Gagal memuat detail setoran';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
+    final res = await SetoranService.getDetailSetoranNasabah(widget.setoranId);
+    if (!mounted) return;
+    if (res['success'] == true) {
+      final data = res['data'] as Map<String, dynamic>;
       setState(() {
-        _error = 'Tidak dapat terhubung ke server';
+        _header = _DetailHeader.fromJson(data['header'] ?? {});
+        final List items = data['items'] ?? [];
+        _items = items.map((e) => _ItemSetoran.fromJson(e)).toList();
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _error = res['message'] ?? 'Gagal memuat detail setoran';
         _isLoading = false;
       });
     }
   }
 
-  String _fmt(double poin) {
-    final intPart = poin.truncate();
-    final dec = poin - intPart;
-    final formatted = NumberFormat('#,###', 'id_ID').format(intPart);
-    if (dec > 0) return '$formatted${dec.toStringAsFixed(2).substring(1)}';
-    return formatted;
+  String _fmtQty(double v) {
+    if (v == v.truncateToDouble()) return v.toInt().toString();
+    return v.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F5),
-      body: SafeArea(
-        child: Column(
-          children: [
-            TopBarBack(title: 'Detail Setoran'),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: _accent))
-                  : _error != null
-                      ? _buildError()
-                      : _buildStruk(),
-            ),
-          ],
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bg_struk.webp'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              TopBarBack(title: 'Detail Setoran'),
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator(color: _accent))
+                    : _error != null
+                        ? _buildError()
+                        : _buildStruk(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -158,104 +137,134 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
     final statusColor = isSuccess ? _accent : Colors.orange;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
       child: Column(
         children: [
-          // ── Status Badge & Icon ──────────────────────────────────────────
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF013236), Color(0xFF025A62)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          // ── Hero status (di atas background gambar) ──────────────────────
+          Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isSuccess ? Icons.check_circle_rounded : Icons.info_rounded,
+                  color: statusColor,
+                  size: 36,
+                ),
               ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: _teal.withOpacity(0.3),
-                  blurRadius: 24,
-                  offset: const Offset(0, 10),
+              const SizedBox(height: 12),
+              Text(
+                isSuccess ? 'Setoran Berhasil' : h.statusSetoran.toUpperCase(),
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 17,
+                  color: statusColor,
                 ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isSuccess ? Icons.check_circle_rounded : Icons.info_rounded,
-                    color: statusColor,
-                    size: 36,
-                  ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                DateFormat('EEEE, dd MMMM yyyy · HH:mm', 'id_ID')
+                    .format(h.transaksiTimestamp),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 11,
+                  color: const Color(0xFF013236).withOpacity(0.5),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  isSuccess ? 'Setoran Berhasil' : h.statusSetoran.toUpperCase(),
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 17,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  DateFormat('EEEE, dd MMMM yyyy · HH:mm', 'id_ID')
-                      .format(h.transaksiTimestamp.toLocal()),
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    color: Colors.white.withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Total Poin highlight
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.eco_rounded, color: Color(0xFF94DF0C), size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${_fmt(h.totalPoin)} Poin',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w800,
-                          fontSize: 22,
-                          color: Color(0xFF94DF0C),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
 
-          const SizedBox(height: 16),
-
-          // ── Info Card ────────────────────────────────────────────────────
+          const SizedBox(height: 24),
           _buildInfoCard(h),
-
           const SizedBox(height: 16),
-
-          // ── Items Card ───────────────────────────────────────────────────
           _buildItemsCard(),
+          if (h.buktiViaManual.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildFotoCard(h.buktiViaManual),
+          ],
         ],
       ),
     );
   }
+
+  Widget _buildFotoCard(String url) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: _accent.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.camera_alt_rounded, size: 15, color: _accent),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Bukti Foto Nasabah',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: _teal,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => LihatFotoScreen(
+                  photoUrl: url,
+                  nama: 'Bukti Foto Nasabah',
+                ),
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: AspectRatio(
+                aspectRatio: 4 / 3,
+                child: Image.network(
+                  url,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (_, child, p) => p == null
+                      ? child
+                      : const Center(
+                          child: CircularProgressIndicator(color: _accent)),
+                  errorBuilder: (_, __, ___) => Container(
+                    color: const Color(0xFFF0F0F0),
+                    child: const Center(
+                      child: Icon(Icons.broken_image_rounded,
+                          color: Colors.grey, size: 36),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
 
   Widget _buildInfoCard(_DetailHeader h) {
     return Container(
@@ -264,13 +273,6 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: _teal.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,13 +341,6 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: _teal.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,9 +370,9 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
-              children: [
-                const Expanded(
-                  flex: 4,
+              children: const [
+                Expanded(
+                  flex: 5,
                   child: Text(
                     'Nama Sampah',
                     style: TextStyle(
@@ -388,28 +383,20 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(
-                  width: 36,
+                SizedBox(
+                  width: 44,
                   child: Text(
                     'Qty',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w600, color: _teal),
                   ),
                 ),
-                const SizedBox(
+                SizedBox(
                   width: 52,
                   child: Text(
-                    'Harga',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w600, color: _teal),
-                  ),
-                ),
-                SizedBox(
-                  width: 58,
-                  child: Text(
-                    'Subtotal',
+                    'Satuan',
                     textAlign: TextAlign.right,
-                    style: TextStyle(fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w600, color: _accent),
+                    style: TextStyle(fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w600, color: _teal),
                   ),
                 ),
               ],
@@ -430,7 +417,7 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    flex: 4,
+                    flex: 5,
                     child: Text(
                       item.namaSampah,
                       style: const TextStyle(
@@ -442,39 +429,26 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
                     ),
                   ),
                   SizedBox(
-                    width: 36,
+                    width: 44,
                     child: Text(
-                      '${item.qty}',
+                      _fmtQty(item.qty),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 11,
-                        color: _teal.withOpacity(0.6),
+                        color: _teal.withOpacity(0.7),
                       ),
                     ),
                   ),
                   SizedBox(
                     width: 52,
                     child: Text(
-                      _fmt(item.nilaiPoin),
-                      textAlign: TextAlign.center,
+                      item.satuan,
+                      textAlign: TextAlign.right,
                       style: TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 11,
-                        color: _teal.withOpacity(0.6),
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 58,
-                    child: Text(
-                      _fmt(item.subtotalPoin),
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: _accent,
+                        color: _teal.withOpacity(0.55),
                       ),
                     ),
                   ),
@@ -482,39 +456,6 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
               ),
             );
           }),
-          // Total row
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: _accent.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Total Poin Diperoleh',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: _teal,
-                    ),
-                  ),
-                ),
-                Text(
-                  '${_fmt(_header!.totalPoin)} poin',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: _accent,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

@@ -19,46 +19,47 @@ class InformasiSection extends StatelessWidget {
           );
         }
 
-        if (kontenList.isEmpty) {
-          return const SizedBox.shrink(); // Hide section if no content
-        }
+        if (kontenList.isEmpty) return const SizedBox.shrink();
 
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 30),
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 17),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header dengan "Lihat Semua"
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Informasi",
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => ListInformasiScreen()));
-                    },
-                    child: const Text(
-                      "Lihat Semua",
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 13),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Informasi",
                       style: TextStyle(
                         fontFamily: 'Poppins',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF013236),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-                ],
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => ListInformasiScreen()),
+                      ),
+                      child: const Text(
+                        "Lihat Semua",
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF013236),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 15),
-              // Horizontal scroll cards
               SizedBox(
-                height: 180,
+                height: 195,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
@@ -66,9 +67,12 @@ class InformasiSection extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final item = kontenList[index];
                     return GestureDetector(
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => InformasiScreen(konten: item)));
-                      },
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => InformasiScreen(kontenId: item.kontenId),
+                        ),
+                      ),
                       child: _buildInfoCard(item),
                     );
                   },
@@ -83,50 +87,63 @@ class InformasiSection extends StatelessWidget {
 
   Widget _buildInfoCard(KontenModel info) {
     return Container(
-      width: 140,
-      margin: const EdgeInsets.only(right: 15),
+      width: 150,
+      margin: const EdgeInsets.only(right: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF013236).withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image placeholder or Network Image
+          // Thumbnail
           ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             child: Container(
               height: 100,
               width: double.infinity,
-              color: const Color(0xFF94DF0C).withOpacity(0.15),
+              color: const Color(0xFF4EA771).withValues(alpha: 0.1),
               child: info.thumbnail.isNotEmpty
                   ? Image.network(
                       info.thumbnail,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildPlaceholderIcon(),
+                      errorBuilder: (_, __, ___) => _placeholder(),
                     )
-                  : _buildPlaceholderIcon(),
+                  : _placeholder(),
             ),
           ),
-          // Title
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Text(
-              info.judul,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF013236),
+          // Judul + Deskripsi
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    info.judul,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF013236),
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    info.deskripsi,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 10,
+                      color: const Color(0xFF013236).withValues(alpha: 0.45),
+                      height: 1.3,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -135,11 +152,13 @@ class InformasiSection extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceholderIcon() {
-    return Icon(
-      Icons.image_outlined,
-      size: 40,
-      color: const Color(0xFF94DF0C).withOpacity(0.4),
+  Widget _placeholder() {
+    return Center(
+      child: Icon(
+        Icons.image_outlined,
+        size: 36,
+        color: const Color(0xFF4EA771).withValues(alpha: 0.3),
+      ),
     );
   }
 }
