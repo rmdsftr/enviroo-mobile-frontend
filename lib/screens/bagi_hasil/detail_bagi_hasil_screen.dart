@@ -7,7 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/bagi_hasil_bank_provider.dart';
 import '../../widgets/topbar_back.dart';
 import '../bagi_hasil/detail_distribusi_sisa_screen.dart';
-import '../nasabah/struk_bagi_hasil_nasabah.dart';
+import 'struk_bagi_hasil_nasabah.dart';
 
 class _C {
   static const dark = Color(0xFF013236);
@@ -76,7 +76,7 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.wifi_off_rounded,
+              Icon(Icons.error_outline_rounded,
                   size: 40, color: _C.danger.withValues(alpha: 0.5)),
               const SizedBox(height: 12),
               Text(

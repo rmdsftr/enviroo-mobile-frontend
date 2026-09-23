@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
+import 'network_status.dart';
+
 class ApiClient {
   static String Function()? _getToken;
   static Future<bool> Function()? _onUnauthorized;
@@ -39,6 +41,8 @@ class ApiClient {
     Future<http.Response> Function(Map<String, String> headers) makeRequest,
   ) async {
     final response = await makeRequest(_headers());
+    // Response apa pun -- termasuk 4xx/5xx -- membuktikan server tercapai.
+    NetworkStatus.instance.reportSuccess();
 
     if (response.statusCode == 401 && _onUnauthorized != null) {
       final refreshed = await _onUnauthorized!();
@@ -78,6 +82,7 @@ class ApiClient {
     }
 
     var response = await kirim();
+    NetworkStatus.instance.reportSuccess();
 
     if (response.statusCode == 401 && _onUnauthorized != null) {
       final refreshed = await _onUnauthorized!();
@@ -121,4 +126,24 @@ class ApiClient {
     Duration timeout = const Duration(seconds: 15),
   }) =>
       _send((h) => _httpClient.delete(uri, headers: h).timeout(timeout));
+}
+
+/// Sukses untuk seluruh rentang **2xx**, bukan cuma 200.
+///
+/// Backend tidak selalu membalas 200 di jalur sukses. Contoh yang sempat bikin
+/// bug: `POST /penimbangan/batal` membalas **201** kalau row sesinya baru
+/// dibuat saat pembatalan (membatalkan sesi mendatang yang belum disentuh
+/// worker), dan 200 kalau row-nya sudah ada. Beberapa endpoint pengangkutan
+/// dan setoran juga membalas 201.
+///
+/// Sebelumnya tiap service mengecek `statusCode == 200` persis, jadi respons
+/// sukses ber-201 jatuh ke cabang error. Tambalannya dulu ad-hoc: sembilan
+/// tempat sempat diperbaiki satu per satu jadi `== 200 || == 201`. Ini
+/// memperbaiki akarnya, jadi endpoint baru yang membalas 2xx selain 200 tidak
+/// perlu ditambal lagi.
+///
+/// ⚠️ Jangan dipakai untuk cabang error yang memang memeriksa kode tertentu
+/// (mis. `== 404` atau `== 400`) — itu bukan jalur sukses.
+extension SuksesResponse on http.Response {
+  bool get sukses => statusCode >= 200 && statusCode < 300;
 }

@@ -3,6 +3,7 @@ import 'package:enviroo/models/petugas_model.dart';
 import 'package:enviroo/models/user_model.dart';
 import 'package:enviroo/core/network/api_client.dart';
 import 'package:enviroo/services/auth_service.dart';
+import 'package:enviroo/services/profil_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -28,6 +29,10 @@ class AuthProvider extends ChangeNotifier {
   bool _isRestoringSession = false;
   String? _errorMessage;
   List<String> _availableRoles = [];
+
+  // Kegagalan mengambil profil sesi. Dipisah dari _errorMessage yang dipakai
+  // alur login — kalau digabung, pesan login bisa tertimpa pesan profil.
+  String? _profileError;
 
   // Alasan sesi berakhir dari server (mis. SESSION_REVOKED saat akun dipakai
   // login di perangkat lain) — dipakai untuk pesan di layar login.
@@ -58,6 +63,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isLoggedIn => _currentUser != null;
   String? get errorMessage => _errorMessage;
+  String? get profileError => _profileError;
   List<String> get availableRoles => _availableRoles;
   String? get sessionEndedCode => _sessionEndedCode;
   String? get sessionEndedMessage => _sessionEndedMessage;
@@ -70,10 +76,6 @@ class AuthProvider extends ChangeNotifier {
       ? _nasabahProfile!.bankId
       : _petugasProfile?.bankId ?? _currentUser?.bankId;
   String? get identityId => _currentUser?.identityId;
-  String? get bsuName => _nasabahProfile?.namaBsu;
-
-  // New Profile Getter
-  int get saldoPoin => _nasabahProfile?.saldoPoin ?? 0;
   String get nomorRekening => _nasabahProfile?.nomorRekening ?? '-';
 
   // ─── Persistensi sesi ──────────────────────────────────────────────────────
@@ -236,6 +238,7 @@ class AuthProvider extends ChangeNotifier {
     if (result['success'] == true && result['data'] != null) {
       _nasabahProfile = null;
       _petugasProfile = null;
+      _profileError = null;
       _currentUser = UserModel.fromJson(result['data']);
 
       await _saveSession(_currentUser!);
@@ -264,34 +267,58 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Ambil data detail profil nasabah (termasuk saldo poin)
-  Future<void> fetchNasabahProfile() async {
-    if (_currentUser == null || _currentUser!.identityId == null) return;
+  /// Ambil profil sesi nasabah.
+  ///
+  /// Mengembalikan `false` kalau gagal, dan mengisi [profileError]. Pemanggil
+  /// bootstrap (`tryRestoreSession`, `login`, `switchRole`) sengaja TIDAK
+  /// memblokir atas kegagalan ini — jaringan goyang tidak boleh menahan user
+  /// masuk app, dan getter berjenjang ([bankId], [nama]) masih punya fallback
+  /// dari `_currentUser`. Yang penting: kegagalannya tercatat, bukan hilang.
+  ///
+  /// Hanya dipanggil dari dalam provider ini. Layar TIDAK perlu memanggilnya —
+  /// setiap jalan menuju beranda sudah melewati salah satu pemanggil di atas.
+  Future<bool> fetchNasabahProfile() async {
+    // Belum ada sesi — bukan kegagalan, memang tidak ada yang bisa diambil.
+    if (_currentUser == null || _currentUser!.identityId == null) return false;
 
-    final result = await AuthService.getProfilNasabah(
-      _currentUser!.identityId!,
-      _currentUser!.accessToken,
-    );
+    // Memanggil ProfilService langsung (bukan ProfilProvider) karena ini
+    // bootstrap sesi — AuthProvider tidak punya akses ke provider lain.
+    final result =
+        await ProfilService.getProfilNasabah(_currentUser!.identityId!);
 
     if (result['success'] == true && result['data'] != null) {
       _nasabahProfile = NasabahProfileModel.fromJson(result['data']);
+      _profileError = null;
       notifyListeners();
+      return true;
     }
+
+    _profileError =
+        result['message']?.toString() ?? 'Gagal mengambil profil nasabah';
+    notifyListeners();
+    return false;
   }
 
-  /// Ambil data detail profil petugas
-  Future<void> fetchPetugasProfile() async {
-    if (_currentUser == null || _currentUser!.identityId == null) return;
+  /// Ambil profil sesi petugas. Kontraknya sama persis dengan
+  /// [fetchNasabahProfile] — disamakan supaya tidak lahir asimetri perilaku
+  /// antara kedua peran.
+  Future<bool> fetchPetugasProfile() async {
+    if (_currentUser == null || _currentUser!.identityId == null) return false;
 
-    final result = await AuthService.getProfilPetugas(
-      _currentUser!.identityId!,
-      _currentUser!.accessToken,
-    );
+    final result =
+        await ProfilService.getProfilPetugas(_currentUser!.identityId!);
 
     if (result['success'] == true && result['data'] != null) {
       _petugasProfile = PetugasModel.fromJson(result['data']);
+      _profileError = null;
       notifyListeners();
+      return true;
     }
+
+    _profileError =
+        result['message']?.toString() ?? 'Gagal mengambil profil petugas';
+    notifyListeners();
+    return false;
   }
 
   void _initApiClient() {
@@ -323,6 +350,7 @@ class AuthProvider extends ChangeNotifier {
     _petugasProfile = null;
     _availableRoles = [];
     _errorMessage = null;
+    _profileError = null;
     _isLoading = false;
     notifyListeners();
   }
@@ -400,4 +428,50 @@ class AuthProvider extends ChangeNotifier {
     _sessionEndedCode = null;
     _sessionEndedMessage = null;
   }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Alur sekali-jalan: aktivasi, lupa password, ganti password
+  //
+  // Sengaja meneruskan hasil service apa adanya — TIDAK menyentuh _isLoading
+  // maupun _errorMessage. Tiga alasannya:
+  //
+  // 1. [_isLoading] menggerakkan UI login. Memakainya di sini membuat tombol
+  //    login ikut berubah keadaan saat user sedang mengaktivasi akun.
+  // 2. VerifikasiOtpScreen punya dua flag terpisah (verifikasi vs kirim ulang);
+  //    satu flag di provider tidak bisa melayani keduanya.
+  // 3. AktivasiAkunScreen mencocokkan TEKS pesan error untuk memutuskan maju ke
+  //    step 2. Pesan mentah harus sampai ke layar utuh — kalau ditelan jadi
+  //    _errorMessage, alur dua-langkahnya rusak tanpa gejala.
+  //
+  // Jangan diubah jadi stateful tanpa membaca ketiga poin itu dulu.
+  // ───────────────────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> aktivasiAkun(
+          String nik, String otp, String password) =>
+      AuthService.aktivasiAkun(nik, otp, password);
+
+  Future<Map<String, dynamic>> sendEmailForgetPassword(String email) =>
+      AuthService.sendEmailForgetPassword(email);
+
+  Future<Map<String, dynamic>> verifikasiOtpForgetPassword(
+          String email, String otp) =>
+      AuthService.verifikasiOtpForgetPassword(email, otp);
+
+  Future<Map<String, dynamic>> resetPassword(
+    String email,
+    String otp,
+    String passwordBaru,
+    String konfirmasiPasswordBaru,
+  ) =>
+      AuthService.resetPassword(
+          email, otp, passwordBaru, konfirmasiPasswordBaru);
+
+  /// Token diambil dari sesi yang sedang aktif — layar tidak perlu mengurusnya.
+  Future<Map<String, dynamic>> changePassword(
+    String passwordLama,
+    String passwordBaru,
+    String konfirmasiPassword,
+  ) =>
+      AuthService.changePassword(
+          passwordLama, passwordBaru, konfirmasiPassword);
 }

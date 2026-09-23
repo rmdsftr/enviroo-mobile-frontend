@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,8 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/penarikan_petugas_provider.dart';
+import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
-import '../admin_bsu/inapp_camera_screen.dart';
+import '../petugas/inapp_camera_screen.dart';
 import '../lihat_foto_screen.dart';
 
 /// Fallback petugas ketika QR nasabah tidak bisa dipindai — konfirmasi
@@ -95,15 +95,13 @@ class _PenyerahanInsentifManualScreenState
 
     setState(() => _submitting = true);
 
-    final bytes = await photo.readAsBytes();
-    final base64str = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-
-    if (!mounted) return;
+    // Berkasnya dikirim mentah sebagai multipart; tidak perlu lagi dibaca jadi
+    // byte lalu di-base64-kan seperti sebelum backend berubah.
     final prov = context.read<PenarikanPetugasProvider>();
     final ok = await prov.selesaikanManual(
       nasabahId: widget.nasabahId,
       penarikanId: widget.penarikanId,
-      buktiFoto: base64str,
+      buktiFoto: photo,
       catatan: catatan,
     );
 
@@ -114,16 +112,8 @@ class _PenyerahanInsentifManualScreenState
       HapticFeedback.mediumImpact();
       Navigator.pop(context, true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
-          content: Text(
-            prov.errorDetail ?? 'Gagal menyelesaikan penarikan',
-            style: const TextStyle(fontFamily: 'Poppins'),
-          ),
-        ),
-      );
+      showCustomSnackBar(
+          context, prov.errorDetail ?? 'Gagal menyelesaikan penarikan');
     }
   }
 

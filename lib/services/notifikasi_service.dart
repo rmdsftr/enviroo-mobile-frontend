@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:enviroo/core/config/api_config.dart';
 import '../models/notifikasi_model.dart';
 import 'package:enviroo/core/network/api_client.dart';
+import 'package:enviroo/core/network/api_failure.dart';
 
 class NotifikasiService {
   static Future<Map<String, dynamic>> registerFcmToken(String fcmToken) async {
@@ -12,10 +13,10 @@ class NotifikasiService {
         timeout: const Duration(seconds: 10),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true};
+      if (response.sukses) return {'success': true};
       return {'success': false, 'message': body['error'] ?? 'Gagal mendaftarkan FCM token'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -34,7 +35,7 @@ class NotifikasiService {
       );
       final response = await ApiClient.get(uri, timeout: const Duration(seconds: 10));
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         final list = (body['data'] as List? ?? [])
             .map((e) => NotifikasiModel.fromJson(e))
             .toList();
@@ -42,7 +43,7 @@ class NotifikasiService {
       }
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil notifikasi'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -53,10 +54,10 @@ class NotifikasiService {
         timeout: const Duration(seconds: 10),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true};
+      if (response.sukses) return {'success': true};
       return {'success': false, 'message': body['error'] ?? 'Gagal menandai notifikasi'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -67,10 +68,10 @@ class NotifikasiService {
         timeout: const Duration(seconds: 10),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true};
+      if (response.sukses) return {'success': true};
       return {'success': false, 'message': body['error'] ?? 'Gagal menandai semua notifikasi'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 }

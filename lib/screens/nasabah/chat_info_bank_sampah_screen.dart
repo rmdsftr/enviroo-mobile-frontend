@@ -2,7 +2,7 @@ import 'package:enviroo/models/jadwal_model.dart';
 import 'package:enviroo/models/notifikasi_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/notifikasi_provider.dart';
-import 'package:enviroo/services/jadwal_service.dart';
+import 'package:enviroo/providers/jadwal_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -406,7 +406,7 @@ class _JadwalPenimbanganSheetState extends State<_JadwalPenimbanganSheet> {
     String? lastError;
 
     for (final cursor in [DateTime(now.year, now.month), nextMonth]) {
-      final result = await JadwalService.getJadwalPenimbanganBsm(
+      final result = await context.read<JadwalProvider>().fetchPenimbanganBsm(
         widget.bankId,
         month: cursor.month,
         year: cursor.year,

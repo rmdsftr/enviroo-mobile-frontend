@@ -6,7 +6,7 @@ import '../../models/distribusi_sisa_model.dart';
 import '../../providers/distribusi_sisa_provider.dart';
 import '../../providers/penjualan_provider.dart' show FetchStatus;
 import '../../widgets/topbar_back.dart';
-import '../admin_bsu/struk_bagi_hasil_bsu_screen.dart';
+import 'struk_bagi_hasil_bsu_screen.dart';
 
 class _C {
   static const dark = Color(0xFF013236);
@@ -81,7 +81,7 @@ class _DetailDistribusiSisaScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.wifi_off_rounded,
+              Icon(Icons.error_outline_rounded,
                   size: 40, color: _C.danger.withValues(alpha: 0.5)),
               const SizedBox(height: 12),
               Text(

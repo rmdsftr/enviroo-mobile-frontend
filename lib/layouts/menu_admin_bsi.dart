@@ -1,9 +1,9 @@
-import 'package:enviroo/screens/admin_bsi/katalog_sembako_screen.dart';
-import 'package:enviroo/screens/admin_bsi/pengangkutan_bsi_screen.dart';
+import 'package:enviroo/screens/katalog/katalog_barang_screen.dart';
+import 'package:enviroo/screens/pengangkutan/pengangkutan_bsi_screen.dart';
 import 'package:enviroo/screens/bagi_hasil/riwayat_bagi_hasil_screen.dart';
 import 'package:enviroo/screens/penarikan/penarikan_petugas_screen.dart';
-import 'package:enviroo/screens/petugas/penimbangan_screen.dart';
-import 'package:enviroo/screens/penjualan_eksternal/riwayat_penjualan_screen.dart';
+import 'package:enviroo/screens/penimbangan/penimbangan_screen.dart';
+import 'package:enviroo/screens/penjualan/riwayat_penjualan_screen.dart';
 import 'package:flutter/material.dart';
 
 class MenuAdminBSI extends StatefulWidget {
@@ -107,7 +107,7 @@ class _MenuAdminBSIState extends State<MenuAdminBSI> {
                       color: const Color(0xFF4EA771),
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const KatalogSembakoScreen())),
+                          MaterialPageRoute(builder: (_) => const KatalogBarangScreen())),
                     ),
                   ),
                 ],

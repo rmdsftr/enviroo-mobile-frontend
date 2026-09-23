@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:enviroo/providers/auth_provider.dart';
-import 'package:enviroo/services/profil_service.dart';
+import 'package:enviroo/providers/profil_provider.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
@@ -72,7 +72,7 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
     }
 
     setState(() => _isSaving = true);
-    final result = await ProfilService.updateProfil(
+    final result = await context.read<ProfilProvider>().updateProfil(
       userId: widget.userId,
       nama: nama.isNotEmpty ? nama : null,
       noWhatsapp: wa.isNotEmpty ? wa : null,

@@ -222,9 +222,13 @@ class _MutasiScrollView extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       selectedValue: prov.rewardId,
                       onSelected: prov.setRewardFilter,
+                      // Label memakai jenis SALDO, bukan jenis insentif —
+                      // ini mutasi saldo, dan angkanya di bawah memang sudah
+                      // dirender sebagai "Rp…" dan "… poin". Nilai 1/2 tetap
+                      // id reward dari backend, jangan ikut diubah.
                       items: const [
-                        FilterChipItem(value: 1, label: 'Uang'),
-                        FilterChipItem(value: 2, label: 'Barang'),
+                        FilterChipItem(value: 1, label: 'Rupiah'),
+                        FilterChipItem(value: 2, label: 'Poin'),
                       ],
                     ),
                   ),

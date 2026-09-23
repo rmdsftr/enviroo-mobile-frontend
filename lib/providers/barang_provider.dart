@@ -1,22 +1,20 @@
 import 'package:enviroo/models/bsu_unit_model.dart';
 import 'package:enviroo/models/katalog_model.dart';
-import 'package:enviroo/services/nasabah_service.dart';
-import 'package:enviroo/services/sembako_service.dart';
+import 'package:enviroo/services/barang_service.dart';
 import 'package:flutter/material.dart';
 
-class SembakoProvider extends ChangeNotifier {
+class BarangProvider extends ChangeNotifier {
   // ── Catalog state ──────────────────────────────────────────────────────────
-  List<KatalogSembakoModel> _katalogBsi = [];
-  List<KatalogSembakoModel> _katalogBsu = [];
+  List<KatalogBarangModel> _katalogBsi = [];
+  List<KatalogBarangModel> _katalogBsu = [];
 
   // ── Pagination state (katalogBsi) ─────────────────────────────────────────
   int _katalogBsiPage = 1;
   int _katalogBsiTotalPages = 1;
-  List<BsuUnitModel> _bsuList = [];
   BsuUnitModel? _selectedBsu;
 
   // ── Detail state ──────────────────────────────────────────────────────────
-  DetailSembakoWithRiwayat? _currentDetail;
+  DetailBarangWithRiwayat? _currentDetail;
   bool _isDetailLoading = false;
 
   // ── Preview state ─────────────────────────────────────────────────────────
@@ -24,10 +22,10 @@ class SembakoProvider extends ChangeNotifier {
   bool _isPreviewLoading = false;
 
   // ── Input distribusi state ────────────────────────────────────────────────
-  final Map<String, int> _distribusiQty = {}; // sembakoId -> qty
+  final Map<String, int> _distribusiQty = {}; // produkId -> qty
 
   // ── List distribusi state ─────────────────────────────────────────────────
-  List<ListDistribusiSembakoModel> _listDistribusi = [];
+  List<ListDistribusiBarangModel> _listDistribusi = [];
   bool _isListDistribusiLoading = false;
 
   // ── Loading / error ───────────────────────────────────────────────────────
@@ -36,18 +34,17 @@ class SembakoProvider extends ChangeNotifier {
   String? _errorMessage;
 
   // ── Getters ───────────────────────────────────────────────────────────────
-  List<KatalogSembakoModel> get katalogBsi => _katalogBsi;
-  List<KatalogSembakoModel> get katalogBsu => _katalogBsu;
-  List<BsuUnitModel> get bsuList => _bsuList;
+  List<KatalogBarangModel> get katalogBsi => _katalogBsi;
+  List<KatalogBarangModel> get katalogBsu => _katalogBsu;
   BsuUnitModel? get selectedBsu => _selectedBsu;
 
-  DetailSembakoWithRiwayat? get currentDetail => _currentDetail;
+  DetailBarangWithRiwayat? get currentDetail => _currentDetail;
   bool get isDetailLoading => _isDetailLoading;
 
   List<PreviewDistribusiItemModel> get previewItems => _previewItems;
   bool get isPreviewLoading => _isPreviewLoading;
 
-  List<ListDistribusiSembakoModel> get listDistribusi => _listDistribusi;
+  List<ListDistribusiBarangModel> get listDistribusi => _listDistribusi;
   bool get isListDistribusiLoading => _isListDistribusiLoading;
 
   Map<String, int> get distribusiQty => Map.unmodifiable(_distribusiQty);
@@ -69,11 +66,11 @@ class SembakoProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    final result = await SembakoService.getSembakoBank(bankId, page: page);
+    final result = await BarangService.getBarangBank(bankId, page: page);
 
     if (result['success'] == true) {
       final List<dynamic> data = result['data'];
-      _katalogBsi = data.map((e) => KatalogSembakoModel.fromJson(e as Map<String, dynamic>)).toList();
+      _katalogBsi = data.map((e) => KatalogBarangModel.fromJson(e as Map<String, dynamic>)).toList();
       final pag = result['pagination'] as Map<String, dynamic>?;
       _katalogBsiTotalPages = (pag?['total_pages'] as num?)?.toInt() ?? 1;
       _katalogBsiPage = (pag?['page'] as num?)?.toInt() ?? page;
@@ -89,29 +86,16 @@ class SembakoProvider extends ChangeNotifier {
     _isBsuLoading = true;
     notifyListeners();
 
-    final result = await SembakoService.getSembakoBank(bsuId);
+    final result = await BarangService.getBarangBank(bsuId);
 
     if (result['success'] == true) {
       final List<dynamic> data = result['data'];
-      _katalogBsu = data.map((e) => KatalogSembakoModel.fromJson(e as Map<String, dynamic>)).toList();
+      _katalogBsu = data.map((e) => KatalogBarangModel.fromJson(e as Map<String, dynamic>)).toList();
     } else {
       _errorMessage = result['message'];
     }
 
     _isBsuLoading = false;
-    notifyListeners();
-  }
-
-  Future<void> fetchBsuList(String bsiId) async {
-    final result = await NasabahService.getBsuByBsiId(bsiId);
-
-    if (result['success'] == true) {
-      final List<dynamic> data = result['data'];
-      _bsuList = data.map((e) => BsuUnitModel.fromJson(e as Map<String, dynamic>)).toList();
-    } else {
-      _errorMessage = result['message'];
-    }
-
     notifyListeners();
   }
 
@@ -123,20 +107,20 @@ class SembakoProvider extends ChangeNotifier {
 
   // ── Detail methods ────────────────────────────────────────────────────────
 
-  Future<void> fetchDetailSembako(String sembakoId, KatalogSembakoModel item, String bankId) async {
+  Future<void> fetchDetailBarang(String produkId, KatalogBarangModel item, String bankId) async {
     _isDetailLoading = true;
     _currentDetail = null;
     notifyListeners();
 
-    final result = await SembakoService.getDetailSembako(sembakoId, bankId);
+    final result = await BarangService.getDetailBarang(produkId, bankId);
 
     if (result['success'] == true) {
       final data = result['data'] as Map<String, dynamic>;
       final riwayatJson = data['riwayat_distribusi'] as List<dynamic>? ?? [];
-      _currentDetail = DetailSembakoWithRiwayat(
-        sembako: item,
+      _currentDetail = DetailBarangWithRiwayat(
+        barang: item,
         riwayatDistribusi: riwayatJson
-            .map((e) => RiwayatDistribusiSembakoModel.fromJson(e as Map<String, dynamic>))
+            .map((e) => RiwayatDistribusiBarangModel.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
     } else {
@@ -147,8 +131,8 @@ class SembakoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setDetailDirect(KatalogSembakoModel item) {
-    _currentDetail = DetailSembakoWithRiwayat(sembako: item, riwayatDistribusi: []);
+  void setDetailDirect(KatalogBarangModel item) {
+    _currentDetail = DetailBarangWithRiwayat(barang: item, riwayatDistribusi: []);
     _isDetailLoading = false;
     notifyListeners();
   }
@@ -159,12 +143,12 @@ class SembakoProvider extends ChangeNotifier {
     _isListDistribusiLoading = true;
     notifyListeners();
 
-    final result = await SembakoService.getListDistribusi(bankId, startDate: startDate, endDate: endDate);
+    final result = await BarangService.getListDistribusi(bankId, startDate: startDate, endDate: endDate);
 
     if (result['success'] == true) {
       final List<dynamic> data = result['data'];
       _listDistribusi = data
-          .map((e) => ListDistribusiSembakoModel.fromJson(e as Map<String, dynamic>))
+          .map((e) => ListDistribusiBarangModel.fromJson(e as Map<String, dynamic>))
           .toList();
     } else {
       _errorMessage = result['message'];
@@ -176,16 +160,16 @@ class SembakoProvider extends ChangeNotifier {
 
   // ── Input distribusi methods ──────────────────────────────────────────────
 
-  void updateDistribusiQty(String sembakoId, int qty) {
+  void updateDistribusiQty(String produkId, int qty) {
     if (qty <= 0) {
-      _distribusiQty.remove(sembakoId);
+      _distribusiQty.remove(produkId);
     } else {
-      _distribusiQty[sembakoId] = qty;
+      _distribusiQty[produkId] = qty;
     }
     notifyListeners();
   }
 
-  int getDistribusiQty(String sembakoId) => _distribusiQty[sembakoId] ?? 0;
+  int getDistribusiQty(String produkId) => _distribusiQty[produkId] ?? 0;
 
   void clearDistribusiItems() {
     _distribusiQty.clear();
@@ -207,7 +191,7 @@ class SembakoProvider extends ChangeNotifier {
         .map((e) => {'produk_id': e.key, 'stok': e.value})
         .toList();
 
-    final result = await SembakoService.previewDistribusiBsu(
+    final result = await BarangService.previewDistribusiBsu(
       bsiId: bsiId,
       bsuId: bsuId,
       adminBsiId: adminBsiId,
@@ -238,55 +222,25 @@ class SembakoProvider extends ChangeNotifier {
     required String adminBsiId,
   }) async {
     final items = _previewItems
-        .map((e) => {'produk_id': e.sembakoId, 'stok': e.stokKirim})
+        .map((e) => {'produk_id': e.produkId, 'stok': e.stokKirim})
         .toList();
-    return SembakoService.generateQrDistribusi(
+    return BarangService.generateQrDistribusi(
       bsiId: bsiId,
       bsuId: bsuId,
       adminBsiId: adminBsiId,
       items: items,
     );
-  }
-
-  // ── Add distribusi ────────────────────────────────────────────────────────
-
-  Future<Map<String, dynamic>> addDistribusi({
-    required String bsiId,
-    required String bsuId,
-    required String adminBsiId,
-    required String adminBsuId,
-  }) async {
-    final items = _distribusiQty.entries
-        .map((e) => {'produk_id': e.key, 'stok': e.value})
-        .toList();
-
-    final result = await SembakoService.addDistribusiBsu(
-      bsiId: bsiId,
-      bsuId: bsuId,
-      adminBsiId: adminBsiId,
-      adminBsuId: adminBsuId,
-      items: items,
-    );
-
-    if (result['success'] == true) {
-      clearDistribusiItems();
-    } else {
-      _errorMessage = result['message'];
-      notifyListeners();
-    }
-
-    return result;
   }
 
   // ── Add distribusi from QR (BSU side) ────────────────────────────────────
 
   Future<Map<String, dynamic>> addDistribusiFromQr({
-    required String disbakoId,
+    required String disbaId,
     required String bsuId,
     required String adminBsuId,
   }) async {
-    final result = await SembakoService.addDistribusiBsuFromQr(
-      disbakoId: disbakoId,
+    final result = await BarangService.addDistribusiBsuFromQr(
+      disbaId: disbaId,
       bsuId: bsuId,
       adminBsuId: adminBsuId,
     );

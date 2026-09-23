@@ -12,7 +12,7 @@ class MutasiProvider extends ChangeNotifier {
   String? error;
   MutasiResponse? data;
 
-  int _rewardId = 1; // 1=Uang, 2=Sembako
+  int _rewardId = 1; // 1=Uang, 2=Barang
   late DateTime _filterStart;
   late DateTime _filterEnd;
 

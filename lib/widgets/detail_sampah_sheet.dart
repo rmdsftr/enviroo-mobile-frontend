@@ -1,5 +1,6 @@
 import 'package:enviroo/models/katalog_model.dart';
 import 'package:enviroo/providers/katalog_provider.dart';
+import 'package:enviroo/widgets/foto_thumbnail.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -176,29 +177,11 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
             child: Row(
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: const Color(0xFFF2F2F2),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: detail.photoUrl.isNotEmpty
-                      ? Image.network(
-                          detail.photoUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Icon(
-                            Icons.recycling_rounded,
-                            color: _C.accent.withOpacity(0.4),
-                            size: 22,
-                          ),
-                        )
-                      : Icon(
-                          Icons.recycling_rounded,
-                          color: _C.accent.withOpacity(0.4),
-                          size: 22,
-                        ),
+                FotoThumbnail(
+                  photoUrl: detail.photoUrl,
+                  nama: detail.namaSampah,
+                  fallbackIcon: Icons.recycling_rounded,
+                  accent: _C.accent,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -287,29 +270,6 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
       children: [
-        if (detail.syaratPemilahan.isNotEmpty) ...[
-          _sectionTitle('Syarat Pemilahan'),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: _C.accent.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _C.accent.withOpacity(0.15)),
-            ),
-            child: Text(
-              detail.syaratPemilahan,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12.5,
-                height: 1.6,
-                color: _C.dark.withOpacity(0.75),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-        ],
-
         _sectionTitle('Informasi'),
         const SizedBox(height: 8),
         Container(
@@ -335,6 +295,32 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
             ],
           ),
         ),
+
+        // Jaraknya ditaruh di ATAS blok ini, bukan di bawahnya seperti dulu.
+        // Kalau syarat pemilahannya kosong, blok ini hilang seluruhnya dan
+        // jarak menuju "Harga Saat Ini" tetap benar.
+        if (detail.syaratPemilahan.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          _sectionTitle('Syarat Pemilahan'),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _C.accent.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _C.accent.withOpacity(0.15)),
+            ),
+            child: Text(
+              detail.syaratPemilahan,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12.5,
+                height: 1.6,
+                color: _C.dark.withOpacity(0.75),
+              ),
+            ),
+          ),
+        ],
 
         const SizedBox(height: 20),
         _sectionTitle('Harga Saat Ini'),
@@ -407,7 +393,7 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
   // Riwayat perubahan harga cuma nyimpen angka mentah (schema_id, harga_lama,
   // harga_baru) tanpa satuan reward-nya. Satuan yang berlaku sekarang untuk
   // schema itu dipetakan dari harga_per_level biar "Rp"/"poin" tetap tampil.
-  String _satuanForSchema(int schemaId, List<HargaPerLevelModel> hargaPerLevel) {
+  String _satuanForSchema(String schemaId, List<HargaPerLevelModel> hargaPerLevel) {
     for (final h in hargaPerLevel) {
       if (h.schemaId == schemaId) return h.satuanReward;
     }

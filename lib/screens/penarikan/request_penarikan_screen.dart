@@ -7,7 +7,9 @@ import '../../models/katalog_model.dart';
 import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/penarikan_nasabah_provider.dart';
+import '../../providers/reward_provider.dart';
 import '../../widgets/search.dart';
+import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'deadline_penarikan_screen.dart';
 
@@ -45,14 +47,14 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
   static const Color primary = Color(0xFF4EA771);
   static const Color dark = Color(0xFF013236);
 
-  // 0=Uang, 1=Sembako
+  // 0=Uang, 1=Barang
   int _tabIndex = 0;
 
   final TextEditingController _nominalController = TextEditingController();
   final FocusNode _nominalFocus = FocusNode();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  final Map<String, double> _sembakoQty = {};
+  final Map<String, double> _barangQty = {};
   String? _inlineError;
   bool _submitting = false;
 
@@ -65,7 +67,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
       final auth = context.read<AuthProvider>();
       final prov = context.read<PenarikanNasabahProvider>();
       prov.bind(auth);
-      prov.loadFormData();
+      prov.loadFormData(context.read<RewardProvider>());
     });
   }
 
@@ -95,19 +97,19 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   NilaiRewardBank? _currentReward(PenarikanNasabahProvider prov) =>
-      _tabIndex == 0 ? prov.rewardUang : prov.rewardSembako;
+      _tabIndex == 0 ? prov.rewardUang : prov.rewardBarang;
 
   SaldoReward? _currentSaldo(PenarikanNasabahProvider prov) =>
-      _tabIndex == 0 ? prov.saldo?.saldoUang : prov.saldo?.saldoSembako;
+      _tabIndex == 0 ? prov.saldo?.saldoUang : prov.saldo?.saldoBarang;
 
   double _parseNominal() {
     return double.tryParse(_nominalController.text.replaceAll('.', '')) ?? 0;
   }
 
-  double _totalPoinSembako(List<KatalogSembakoModel> items) {
+  double _totalPoinBarang(List<KatalogBarangModel> items) {
     double total = 0;
-    _sembakoQty.forEach((id, qty) {
-      final idx = items.indexWhere((s) => s.sembakoId == id);
+    _barangQty.forEach((id, qty) {
+      final idx = items.indexWhere((s) => s.produkId == id);
       if (idx >= 0) total += items[idx].nilaiPoin * qty;
     });
     return total;
@@ -124,14 +126,14 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
     return null;
   }
 
-  String? _validateSembako(List<KatalogSembakoModel> items) {
+  String? _validateBarang(List<KatalogBarangModel> items) {
     final prov = context.read<PenarikanNasabahProvider>();
-    final hasItem = _sembakoQty.values.any((q) => q > 0);
+    final hasItem = _barangQty.values.any((q) => q > 0);
     if (!hasItem) return 'Pilih minimal satu barang';
-    final saldo = prov.saldo?.saldoSembako;
-    final total = _totalPoinSembako(items);
+    final saldo = prov.saldo?.saldoBarang;
+    final total = _totalPoinBarang(items);
     if (saldo != null && total > saldo.nominal) {
-      return 'Total poin melebihi saldo barang';
+      return 'Total poin melebihi saldo tersedia';
     }
     return null;
   }
@@ -158,15 +160,15 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
     }
 
     double? nominal;
-    List<Map<String, dynamic>> itemSembako = [];
+    List<Map<String, dynamic>> itemBarang = [];
 
     if (_tabIndex == 1) {
-      final err = _validateSembako(prov.sembakoList);
+      final err = _validateBarang(prov.barangList);
       if (err != null) {
         setState(() => _inlineError = err);
         return;
       }
-      itemSembako = _sembakoQty.entries
+      itemBarang = _barangQty.entries
           .where((e) => e.value > 0)
           .map((e) => {'produk_id': e.key, 'qty': e.value})
           .toList();
@@ -185,7 +187,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
       rewardId: reward.rewardId,
       namaReward: reward.namaReward,
       nominalPenarikan: nominal,
-      itemSembako: itemSembako,
+      itemBarang: itemBarang,
     );
 
     setState(() => _submitting = false);
@@ -200,11 +202,8 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
   }
 
   void _showSnack(String msg, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      content: Text(msg, style: const TextStyle(fontFamily: 'Poppins')),
-      backgroundColor: error ? Colors.redAccent : primary,
-    ));
+    showCustomSnackBar(context, msg,
+        type: error ? SnackBarType.error : SnackBarType.success);
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -218,7 +217,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
           builder: (_, prov, __) {
             final loading = prov.loadingSaldo ||
                 prov.loadingRewards ||
-                prov.loadingSembako;
+                prov.loadingBarang;
             return Stack(
               children: [
                 Column(
@@ -297,7 +296,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
                   setState(() {
                     _tabIndex = i;
                     _nominalController.clear();
-                    _sembakoQty.clear();
+                    _barangQty.clear();
                     _inlineError = null;
                   });
                 },
@@ -343,7 +342,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
         _buildSaldoCard(prov),
         const SizedBox(height: 20),
         if (_tabIndex == 1)
-          _buildSembakoForm(prov)
+          _buildBarangForm(prov)
         else
           _buildNominalForm(prov),
       ],
@@ -353,7 +352,11 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
   Widget _buildSaldoCard(PenarikanNasabahProvider prov) {
     final saldo = _currentSaldo(prov);
     final saldoText = _fmtSaldo(saldo);
-    final tabLabels = ['Uang', 'Barang'];
+    // Jenis SALDO, bukan jenis penarikan — kartu ini bicara soal saldo, dan
+    // field `satuan` dari backend memang memakai istilah rupiah/poin (lihat
+    // _fmtSaldo). Label tab di _buildTabs tetap 'Uang'/'Barang' karena di sana
+    // yang dipilih memang jenis penarikannya.
+    final tabLabels = ['Rupiah', 'Poin'];
 
     double? estimasiSisa;
     if (saldo != null) {
@@ -361,7 +364,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
         final nominal = _parseNominal();
         estimasiSisa = saldo.nominal - nominal;
       } else {
-        final total = _totalPoinSembako(prov.sembakoList);
+        final total = _totalPoinBarang(prov.barangList);
         estimasiSisa = saldo.nominal - total;
       }
     }
@@ -542,21 +545,64 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
             ),
           ),
         ],
+        const SizedBox(height: 12),
+        _buildPresetNominal(prov),
       ],
     );
   }
 
-  // ── Sembako form ─────────────────────────────────────────────────────────
+  // ── Pilihan nominal cepat ───────────────────────────────────────────────
+  //
+  // Pakai Wrap, bukan baris ber-scroll seperti FilterChipRow: cuma empat item,
+  // dan menyembunyikannya di balik scroll justru bikin tidak ketahuan. Di layar
+  // sempit chip-nya turun ke baris kedua, bukan terpotong.
 
-  Widget _buildSembakoForm(PenarikanNasabahProvider prov) {
-    final allItems = prov.sembakoList;
-    final total = _totalPoinSembako(allItems);
-    final saldo = prov.saldo?.saldoSembako;
+  static const _presetNominal = <double>[10000, 25000, 50000, 100000];
+
+  void _pilihPreset(double nominal) {
+    // Formatter hanya berlaku untuk ketikan user, tidak untuk set programatik —
+    // jadi angkanya diformat manual dengan pola yang sama.
+    final teks = NumberFormat('#,###', 'id_ID').format(nominal);
+    _nominalController.value = TextEditingValue(
+      text: teks,
+      selection: TextSelection.collapsed(offset: teks.length),
+    );
+    // Listener _onNominalChanged ikut jalan, jadi validasi saldo dan rebuild
+    // chip terpilih terjadi sendiri tanpa setState tambahan di sini.
+  }
+
+  Widget _buildPresetNominal(PenarikanNasabahProvider prov) {
+    final saldo = _currentSaldo(prov);
+    final nominalKini = _parseNominal();
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _presetNominal.map((v) {
+        // Nonaktif kalau melebihi saldo — lebih baik terlihat mentok daripada
+        // bisa ditekan lalu langsung dibalas pesan error.
+        final terjangkau = saldo != null && v <= saldo.nominal;
+        return _NominalChip(
+          label: 'Rp${NumberFormat('#,###', 'id_ID').format(v)}',
+          terpilih: nominalKini == v,
+          aktif: terjangkau,
+          onTap: () => _pilihPreset(v),
+        );
+      }).toList(),
+    );
+  }
+
+  // ── Barang form ─────────────────────────────────────────────────────────
+
+  Widget _buildBarangForm(PenarikanNasabahProvider prov) {
+    final allItems = prov.barangList;
+    final total = _totalPoinBarang(allItems);
+    final saldo = prov.saldo?.saldoBarang;
     final exceeded = saldo != null && total > saldo.nominal;
 
     final items = allItems.where((item) {
       if (_searchQuery.isEmpty) return true;
-      return item.namaSembako.toLowerCase().contains(_searchQuery.toLowerCase());
+      return item.namaBarang.toLowerCase().contains(_searchQuery.toLowerCase());
     }).toList();
 
     return Column(
@@ -633,15 +679,15 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
             ),
           )
         else
-          _SembakoExpandableList(
+          _BarangExpandableList(
             items: items,
-            sembakoQty: _sembakoQty,
+            barangQty: _barangQty,
             onChanged: (id, qty) {
               setState(() {
                 if (qty <= 0) {
-                  _sembakoQty.remove(id);
+                  _barangQty.remove(id);
                 } else {
-                  _sembakoQty[id] = qty;
+                  _barangQty[id] = qty;
                 }
                 _inlineError = null;
               });
@@ -656,7 +702,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
   Widget _buildCTA(PenarikanNasabahProvider prov) {
     final loading = prov.loadingSaldo ||
         prov.loadingRewards ||
-        prov.loadingSembako;
+        prov.loadingBarang;
     final disabled = loading || _submitting;
 
     return Container(
@@ -717,56 +763,56 @@ class _Bubble extends StatelessWidget {
   }
 }
 
-// ── Expandable Sembako List ───────────────────────────────────────────────────
+// ── Expandable Barang List ───────────────────────────────────────────────────
 
-class _SembakoExpandableList extends StatefulWidget {
-  final List<KatalogSembakoModel> items;
-  final Map<String, double> sembakoQty;
+class _BarangExpandableList extends StatefulWidget {
+  final List<KatalogBarangModel> items;
+  final Map<String, double> barangQty;
   final void Function(String id, double qty) onChanged;
 
-  const _SembakoExpandableList({
+  const _BarangExpandableList({
     required this.items,
-    required this.sembakoQty,
+    required this.barangQty,
     required this.onChanged,
   });
 
   @override
-  State<_SembakoExpandableList> createState() =>
-      _SembakoExpandableListState();
+  State<_BarangExpandableList> createState() =>
+      _BarangExpandableListState();
 }
 
-class _SembakoExpandableListState extends State<_SembakoExpandableList> {
+class _BarangExpandableListState extends State<_BarangExpandableList> {
   String? _expandedId;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: widget.items.map((item) {
-        return _SembakoTile(
+        return _BarangTile(
           item: item,
-          qty: widget.sembakoQty[item.sembakoId] ?? 0,
-          isExpanded: _expandedId == item.sembakoId,
+          qty: widget.barangQty[item.produkId] ?? 0,
+          isExpanded: _expandedId == item.produkId,
           onTap: () {
             setState(() {
               _expandedId =
-                  _expandedId == item.sembakoId ? null : item.sembakoId;
+                  _expandedId == item.produkId ? null : item.produkId;
             });
           },
-          onQtyChanged: (qty) => widget.onChanged(item.sembakoId, qty),
+          onQtyChanged: (qty) => widget.onChanged(item.produkId, qty),
         );
       }).toList(),
     );
   }
 }
 
-class _SembakoTile extends StatelessWidget {
-  final KatalogSembakoModel item;
+class _BarangTile extends StatelessWidget {
+  final KatalogBarangModel item;
   final double qty;
   final bool isExpanded;
   final VoidCallback onTap;
   final void Function(double qty) onQtyChanged;
 
-  const _SembakoTile({
+  const _BarangTile({
     required this.item,
     required this.qty,
     required this.isExpanded,
@@ -843,7 +889,7 @@ class _SembakoTile extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          item.namaSembako,
+                          item.namaBarang,
                           style: const TextStyle(
                             fontFamily: 'Poppins',
                             fontWeight: FontWeight.w600,
@@ -1023,6 +1069,87 @@ class _QtyButton extends StatelessWidget {
 }
 
 // ── Section label ─────────────────────────────────────────────────────────────
+
+/// Chip nominal cepat di form penarikan uang.
+///
+/// Gaya visualnya sengaja mengikuti `FilterChipRow` (radius 50, aksen hijau,
+/// ikon centang saat terpilih) supaya seragam dengan chip lain di aplikasi.
+/// Tidak memakai widget itu langsung karena butuh **keadaan nonaktif** — chip
+/// yang melebihi saldo harus terlihat mentok, bukan bisa ditekan lalu ditolak.
+class _NominalChip extends StatelessWidget {
+  static const _dark = Color(0xFF013236);
+  static const _primary = Color(0xFF4EA771);
+
+  final String label;
+  final bool terpilih;
+  final bool aktif;
+  final VoidCallback onTap;
+
+  const _NominalChip({
+    required this.label,
+    required this.terpilih,
+    required this.aktif,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color warnaTeks;
+    final Color warnaBorder;
+    final Color warnaLatar;
+
+    if (!aktif) {
+      warnaTeks = _dark.withValues(alpha: 0.25);
+      warnaBorder = const Color(0xFFEEEEEE);
+      warnaLatar = const Color(0xFFF7F7F7);
+    } else if (terpilih) {
+      warnaTeks = _primary;
+      warnaBorder = _primary;
+      warnaLatar = _primary.withValues(alpha: 0.075);
+    } else {
+      warnaTeks = _dark.withValues(alpha: 0.5);
+      warnaBorder = const Color(0xFFE5E5E5);
+      warnaLatar = Colors.white;
+    }
+
+    return GestureDetector(
+      onTap: aktif
+          ? () {
+              HapticFeedback.selectionClick();
+              onTap();
+            }
+          : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: warnaLatar,
+          borderRadius: BorderRadius.circular(50),
+          border: Border.all(color: warnaBorder, width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (terpilih && aktif) ...[
+              const Icon(Icons.check, size: 14, color: _primary),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: warnaTeks,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _SectionLabel extends StatelessWidget {
   final String text;

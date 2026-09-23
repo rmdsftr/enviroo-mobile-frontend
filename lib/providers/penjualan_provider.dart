@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../models/penjualan_model.dart';
 import '../services/penjualan_service.dart';
-import '../services/reward_service.dart';
 
 /// Status fetch generik
 enum FetchStatus { idle, loading, success, error }
@@ -12,7 +11,7 @@ enum FetchStatus { idle, loading, success, error }
 /// Provider yang menampung seluruh state untuk fitur Penjualan Eksternal.
 ///
 /// Bertindak sebagai "wadah lintas-screen" agar form yang terbagi ke
-/// beberapa halaman (Jenis Transaksi → Pilih Sampah → Barter Sembako →
+/// beberapa halaman (Jenis Transaksi → Pilih Sampah → Barter Barang →
 /// Bukti Foto) tetap konsisten datanya tanpa harus di-pass manual.
 class PenjualanProvider extends ChangeNotifier {
   // ── Riwayat ────────────────────────────────────────────────────────────────
@@ -231,30 +230,7 @@ class PenjualanProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── List Reward (Dropdown Screen 2) ─────────────────────────────────────────
-  FetchStatus _rewardStatus = FetchStatus.idle;
-  List<RewardModel> _rewards = [];
-  String? _rewardError;
-  FetchStatus get rewardStatus => _rewardStatus;
-  List<RewardModel> get rewards => _rewards;
-  String? get rewardError => _rewardError;
-
-  Future<void> fetchRewards() async {
-    _rewardStatus = FetchStatus.loading;
-    _rewardError = null;
-    notifyListeners();
-
-    final res = await RewardService.getAllReward();
-    if (res['success'] == true) {
-      final List data = res['data'] ?? [];
-      _rewards = data.map((e) => RewardModel.fromJson(e)).toList();
-      _rewardStatus = FetchStatus.success;
-    } else {
-      _rewardError = res['message'];
-      _rewardStatus = FetchStatus.error;
-    }
-    notifyListeners();
-  }
+  // Daftar jenis reward pindah ke RewardProvider — endpoint-nya /reward.
 
 
   // ── Preview Penjualan ─────────────────────────────────────────────────────

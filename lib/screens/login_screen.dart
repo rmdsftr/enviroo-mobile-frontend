@@ -1,9 +1,9 @@
 import 'package:enviroo/core/messaging/fcm_messaging.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
-import 'package:enviroo/screens/admin_bsi/home_bsi_screen.dart';
-import 'package:enviroo/screens/admin_bsu/home_bsu_screen.dart';
-import 'package:enviroo/screens/admin_bsm/home_bsm_screen.dart';
+import 'package:enviroo/screens/petugas/home_bsi_screen.dart';
+import 'package:enviroo/screens/petugas/home_bsu_screen.dart';
+import 'package:enviroo/screens/petugas/home_bsm_screen.dart';
 import 'package:enviroo/screens/nasabah/home_screen.dart';
 import 'package:enviroo/screens/lupapassword_screen.dart';
 import 'package:enviroo/screens/aktivasi_akun_screen.dart';

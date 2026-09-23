@@ -1,5 +1,7 @@
-import 'package:enviroo/services/auth_service.dart';
+import 'package:enviroo/providers/auth_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:enviroo/widgets/success_bottom_sheet.dart';
+import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 
@@ -69,12 +71,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     setState(() => _isLoading = true);
 
-    final result = await AuthService.resetPassword(
-      widget.email,
-      widget.otp,
-      password,
-      confirm,
-    );
+    final result = await context.read<AuthProvider>().resetPassword(
+          widget.email,
+          widget.otp,
+          password,
+          confirm,
+        );
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -89,12 +91,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         onDismiss: () => Navigator.of(context).popUntil((route) => route.isFirst),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Gagal mereset password'),
-          backgroundColor: const Color(0xFFB61E20),
-        ),
-      );
+      showCustomSnackBar(context, result['message'] ?? 'Gagal mereset password');
     }
   }
 

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:enviroo/screens/admin_bsi/list_bsu_screen.dart';
+import 'package:enviroo/screens/bsi_bsu/list_bsu_screen.dart';
 import 'package:enviroo/screens/kelola_nasabah_screen.dart';
 
 class StatistikBsiScreen extends StatefulWidget {

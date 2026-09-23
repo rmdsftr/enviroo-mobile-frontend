@@ -2,30 +2,15 @@ import 'dart:convert';
 import 'package:enviroo/core/config/api_config.dart';
 import '../models/penimbangan_model.dart';
 import 'package:enviroo/core/network/api_client.dart';
+import 'package:enviroo/core/network/api_failure.dart';
 
 class PenimbanganService {
-  static Future<Map<String, dynamic>> checkJadwalHariIni(String bankId) async {
-    try {
-      final response = await ApiClient.get(Uri.parse('${ApiConfig.checkPenimbanganUrl}/$bankId'));
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {
-        'success': true,
-        'status': body['status'],
-        'nama_jadwal_spesial': body['nama_jadwal_spesial'] ?? '',  // ← tambah ini
-      };
-      if (response.statusCode == 409) return {'success': true, 'status': body['status'] ?? 'active_session'};
-      return {'success': false, 'message': body['error'] ?? 'Gagal mengecek jadwal'};
-    } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
-    }
-  }
-
   /// Ambil daftar sesi penimbangan hari ini (buat bottom sheet "Kelola Sesi Penimbangan").
   static Future<Map<String, dynamic>> getSesiHariIni(String bankId) async {
     try {
       final response = await ApiClient.get(Uri.parse('${ApiConfig.checkPenimbanganUrl}/$bankId'));
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         final List rawList = body['data'] ?? [];
         final data = rawList
             .map((e) => SesiHariIniItem.fromJson(e as Map<String, dynamic>))
@@ -34,7 +19,7 @@ class PenimbanganService {
       }
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil sesi hari ini'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -42,39 +27,12 @@ class PenimbanganService {
     try {
       final response = await ApiClient.get(Uri.parse('${ApiConfig.checkActivePenimbanganUrl}/$bankId'));
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) {
-        final result = CheckActiveResult.fromJson(body);
-        return {
-          'success': true,
-          'is_active': result.isActive,
-          'penimbangan_id': result.detail?.penimbanganId ?? '',
-          'detail': result.detail,
-          'pending_sessions': result.pendingSessions,
-        };
+      if (response.sukses) {
+        return {'success': true, 'data': CheckActiveResult.fromJson(body)};
       }
       return {'success': false, 'message': body['error'] ?? 'Gagal mengecek jadwal'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
-    }
-  }
-
-  static Future<Map<String, dynamic>> addPenimbangan(
-    String bankId,
-    String adminId, {
-    bool forceDadakan = false,
-  }) async {
-    try {
-      final response = await ApiClient.post(
-        Uri.parse('${ApiConfig.addPenimbanganUrl}/$bankId/$adminId'),
-        body: jsonEncode({'force_dadakan': forceDadakan}),
-      );
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 201) {
-        return {'success': true, 'data': body['data'], 'message': body['message'] ?? 'Sesi penimbangan berhasil dimulai'};
-      }
-      return {'success': false, 'statusCode': response.statusCode, 'message': body['error'] ?? 'Gagal memulai penimbangan'};
-    } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -90,7 +48,7 @@ class PenimbanganService {
         body: jsonEncode({'alasan_pembatalan': alasan}),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         return {
           'success': true,
           'data': body['data'],
@@ -99,7 +57,7 @@ class PenimbanganService {
       }
       return {'success': false, 'message': body['error'] ?? 'Gagal membatalkan sesi penimbangan'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -120,7 +78,7 @@ class PenimbanganService {
         }),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         return {
           'success': true,
           'message': body['message'] ?? 'Jadwal penimbangan berhasil dibatalkan',
@@ -128,7 +86,7 @@ class PenimbanganService {
       }
       return {'success': false, 'message': body['error'] ?? 'Gagal membatalkan jadwal penimbangan'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -142,12 +100,28 @@ class PenimbanganService {
         body: jsonEncode({'status_penimbangan': status}),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         return {'success': true, 'data': body['data'], 'message': body['message'] ?? 'Status berhasil diperbarui'};
       }
       return {'success': false, 'message': body['error'] ?? 'Gagal memperbarui status'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
+    }
+  }
+
+  /// Daftar setoran dalam satu sesi penimbangan.
+  ///
+  /// Endpoint-nya `/penimbangan/list-setoran`, jadi rumahnya di sini meski yang
+  /// dikembalikan data setoran — satu prefix endpoint, satu service.
+  static Future<Map<String, dynamic>> getListSetoran(String penimbanganId) async {
+    try {
+      final res = await ApiClient.get(
+          Uri.parse('${ApiConfig.listSetoranPenimbanganUrl}/$penimbanganId'));
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (res.sukses) return {'success': true, 'data': body['data']};
+      return {'success': false, 'message': body['error'] ?? 'Gagal memuat data setoran'};
+    } catch (e) {
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -162,10 +136,10 @@ class PenimbanganService {
           : base;
       final response = await ApiClient.get(uri);
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      if (response.sukses) return {'success': true, 'data': body['data']};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil data penimbangan'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 }

@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../../models/bagi_hasil_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/topbar_back.dart';
-import '../nasabah/struk_bagi_hasil_nasabah.dart';
+import 'struk_bagi_hasil_nasabah.dart';
 import 'preview_distribusi_sisa_screen.dart';
 
 class _C {

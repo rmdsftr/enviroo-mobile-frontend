@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/penarikan_nasabah_provider.dart';
+import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'detail_penarikan_screen.dart';
 
@@ -51,7 +52,7 @@ class _PreviewRequestPenarikanScreenState
     final res = await prov.callPreview(
       rewardId: widget.formData.rewardId,
       nominalPenarikan: widget.formData.nominalPenarikan,
-      itemSembako: widget.formData.itemSembako,
+      itemBarang: widget.formData.itemBarang,
     );
 
     if (!mounted) return;
@@ -62,7 +63,7 @@ class _PreviewRequestPenarikanScreenState
           res['data'] as Map<String, dynamic>,
           rewardId: widget.formData.rewardId,
           nominalRequest: widget.formData.nominalPenarikan,
-          itemSembakoRequest: widget.formData.itemSembako,
+          itemBarangRequest: widget.formData.itemBarang,
         );
         _loadingPreview = false;
       });
@@ -87,7 +88,7 @@ class _PreviewRequestPenarikanScreenState
     final res = await prov.callAjukan(
       rewardId: preview.rewardId,
       nominalPenarikan: preview.nominalRequest,
-      itemSembako: preview.itemSembakoRequest,
+      itemBarang: preview.itemBarangRequest,
       deadlineKonfirmasi: widget.formData.batasKonfirmasi,
       catatan: widget.formData.catatanPetugas,
     );
@@ -99,6 +100,8 @@ class _PreviewRequestPenarikanScreenState
       HapticFeedback.lightImpact();
       final data = res['data'];
       final penarikanId = (data is Map ? data['penarikan_id'] : null) as String?;
+
+      _showSnack('Pengajuan penarikan saldo berhasil dilakukan');
 
       Navigator.pushAndRemoveUntil(
         context,
@@ -117,11 +120,8 @@ class _PreviewRequestPenarikanScreenState
   }
 
   void _showSnack(String msg, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      content: Text(msg, style: const TextStyle(fontFamily: 'Poppins')),
-      backgroundColor: error ? Colors.redAccent : primary,
-    ));
+    showCustomSnackBar(context, msg,
+        type: error ? SnackBarType.error : SnackBarType.success);
   }
 
   // ── Formatters ────────────────────────────────────────────────────────────
@@ -270,10 +270,10 @@ class _PreviewRequestPenarikanScreenState
           const SizedBox(height: 16),
           // Saldo info card
           _buildSaldoCard(p),
-          // Sembako breakdown
-          if (p.isSembako && p.itemSembako.isNotEmpty) ...[
+          // Barang breakdown
+          if (p.isBarang && p.itemBarang.isNotEmpty) ...[
             const SizedBox(height: 16),
-            _buildSembakoBreakdown(p),
+            _buildBarangBreakdown(p),
           ],
           // Catatan untuk petugas (kalau diisi)
           if (catatan != null && catatan.isNotEmpty) ...[
@@ -349,7 +349,7 @@ class _PreviewRequestPenarikanScreenState
     );
   }
 
-  Widget _buildSembakoBreakdown(PenarikanPreviewData p) {
+  Widget _buildBarangBreakdown(PenarikanPreviewData p) {
     final f = NumberFormat.decimalPattern('id_ID');
 
     return Container(
@@ -384,7 +384,7 @@ class _PreviewRequestPenarikanScreenState
           const SizedBox(height: 10),
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
           const SizedBox(height: 4),
-          for (int i = 0; i < p.itemSembako.length; i++) ...[
+          for (int i = 0; i < p.itemBarang.length; i++) ...[
             if (i > 0) const Divider(height: 1, color: Color(0xFFF0F0F0)),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -396,7 +396,7 @@ class _PreviewRequestPenarikanScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          p.itemSembako[i].namaSembako,
+                          p.itemBarang[i].namaBarang,
                           style: const TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 13,
@@ -406,7 +406,7 @@ class _PreviewRequestPenarikanScreenState
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          '${f.format(p.itemSembako[i].nilaiPoin)} poin',
+                          '${f.format(p.itemBarang[i].nilaiPoin)} poin',
                           style: TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 11.5,
@@ -420,7 +420,7 @@ class _PreviewRequestPenarikanScreenState
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '${f.format(p.itemSembako[i].qty)} item',
+                        '${f.format(p.itemBarang[i].qty)} item',
                         style: const TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 13,
@@ -430,7 +430,7 @@ class _PreviewRequestPenarikanScreenState
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${f.format(p.itemSembako[i].subtotalPoin)} poin',
+                        '${f.format(p.itemBarang[i].subtotalPoin)} poin',
                         style: TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 11.5,

@@ -9,6 +9,7 @@ import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/penarikan_petugas_provider.dart';
 import '../../widgets/penarikan_detail_widgets.dart';
+import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'deadline_penarikan_screen.dart';
 import 'scanner_penarikan_screen.dart';
@@ -49,7 +50,10 @@ class _DetailTransaksiPenarikanScreenState
 
   String _fmtDeadline(DateTime? dt) {
     if (dt == null) return '-';
-    final dateStr = DateFormat('d MMMM yyyy', 'id_ID').format(dt);
+    // Bulan disingkat ('Sep', bukan 'September'). Versi panjangnya membuat
+    // nilainya melipat ke baris kedua di kartu Estimasi Konfirmasi, sehingga
+    // barisnya terlihat sesak.
+    final dateStr = DateFormat('d MMM yyyy', 'id_ID').format(dt);
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
     return '$dateStr, $h.$m WIB';
@@ -83,7 +87,7 @@ class _DetailTransaksiPenarikanScreenState
     await showSuccessBottomSheet(
       context,
       title: 'Berhasil!',
-      message: 'Penarikan berhasil dikonfirmasi.',
+      message: 'Penyerahan insentif pada nasabah berhasil dilakukan',
       onDismiss: () => Navigator.pop(context),
     );
   }
@@ -98,16 +102,8 @@ class _DetailTransaksiPenarikanScreenState
     if (!mounted) return;
     context.read<PenarikanPetugasProvider>().loadDetail(penarikanId);
     if (result == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Color(0xFFEF4444),
-          content: Text(
-            'Pengajuan penarikan berhasil ditolak',
-            style: TextStyle(fontFamily: 'Poppins'),
-          ),
-        ),
-      );
+      showCustomSnackBar(context, 'Pengajuan penarikan berhasil ditolak',
+          type: SnackBarType.success);
     }
   }
 
@@ -121,16 +117,8 @@ class _DetailTransaksiPenarikanScreenState
     if (!mounted) return;
     context.read<PenarikanPetugasProvider>().loadDetail(penarikanId);
     if (result == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: primary,
-          content: Text(
-            'Pengajuan penarikan berhasil disetujui',
-            style: TextStyle(fontFamily: 'Poppins'),
-          ),
-        ),
-      );
+      showCustomSnackBar(context, 'Pengajuan penarikan berhasil disetujui',
+          type: SnackBarType.success);
     }
   }
 
@@ -195,7 +183,7 @@ class _DetailTransaksiPenarikanScreenState
                 _buildNasabahCard(d),
                 const SizedBox(height: 12),
                 _buildInfoSection(d),
-                if (d.isSembako && d.detailSembako.isNotEmpty) ...[
+                if (d.isBarang && d.detailBarang.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   _buildBarangCard(d),
                 ],
@@ -333,10 +321,10 @@ class _DetailTransaksiPenarikanScreenState
     );
   }
 
-  // ── Detail Barang (sembako) ──────────────────────────────────────────────
+  // ── Detail Barang (barang) ──────────────────────────────────────────────
 
   Widget _buildBarangCard(PenarikanDetail d) {
-    final items = d.detailSembako;
+    final items = d.detailBarang;
     return SectionCard(
       icon: Icons.shopping_basket_rounded,
       title: 'Detail Barang',

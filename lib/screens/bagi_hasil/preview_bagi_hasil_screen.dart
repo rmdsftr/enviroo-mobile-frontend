@@ -167,6 +167,12 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
       return;
     }
 
+    // Dipasang sebelum pindah layar, dan tetap terlihat di atas struk:
+    // showCustomSnackBar menyisipkan entry ke Overlay milik Navigator, bukan
+    // milik route ini, jadi tidak ikut hilang saat route-nya diganti.
+    showCustomSnackBar(context, 'Bagi hasil berhasil dilakukan',
+        type: SnackBarType.success);
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -220,7 +226,7 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.wifi_off_rounded,
+              Icon(Icons.error_outline_rounded,
                   size: 40, color: _C.danger.withValues(alpha: 0.5)),
               const SizedBox(height: 12),
               Text(

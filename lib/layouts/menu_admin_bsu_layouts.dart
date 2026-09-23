@@ -1,8 +1,8 @@
-import 'package:enviroo/screens/admin_bsi/katalog_sembako_screen.dart';
-import 'package:enviroo/screens/admin_bsu/list_bagi_hasil_bsu_screen.dart';
-import 'package:enviroo/screens/admin_bsu/pengangkutan_bsu_screen.dart';
-import 'package:enviroo/screens/admin_bsu/tabungan_sampah_bsu_screen.dart';
-import 'package:enviroo/screens/petugas/penimbangan_screen.dart';
+import 'package:enviroo/screens/katalog/katalog_barang_screen.dart';
+import 'package:enviroo/screens/bagi_hasil/list_bagi_hasil_bsu_screen.dart';
+import 'package:enviroo/screens/pengangkutan/pengangkutan_bsu_screen.dart';
+import 'package:enviroo/screens/bsi_bsu/tabungan_sampah_bsu_screen.dart';
+import 'package:enviroo/screens/penimbangan/penimbangan_screen.dart';
 import 'package:enviroo/screens/penarikan/penarikan_petugas_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -107,7 +107,7 @@ class _MenuAdminBSUState extends State<MenuAdminBSU> {
                       color: const Color(0xFF2D9CDB),
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const KatalogSembakoScreen())),
+                          MaterialPageRoute(builder: (_) => const KatalogBarangScreen())),
                     ),
                   ),
                 ],

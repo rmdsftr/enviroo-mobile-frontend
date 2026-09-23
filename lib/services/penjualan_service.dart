@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:enviroo/core/config/api_config.dart';
 import 'package:enviroo/core/network/api_client.dart';
+import 'package:enviroo/core/network/api_failure.dart';
 
 class PenjualanService {
   static Future<Map<String, dynamic>> getRiwayatEksternal(String bankId, {String? startDate, String? endDate}) async {
@@ -16,7 +17,7 @@ class PenjualanService {
           : base;
       final response = await ApiClient.get(uri);
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body['data'] ?? []};
+      if (response.sukses) return {'success': true, 'data': body['data'] ?? []};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil riwayat penjualan'};
     } catch (e) {
       return _connError(e);
@@ -27,7 +28,7 @@ class PenjualanService {
     try {
       final response = await ApiClient.get(Uri.parse('${ApiConfig.getDetailPenjualanEksternalUrl}/$penjualanId'));
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      if (response.sukses) return {'success': true, 'data': body['data']};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil detail penjualan'};
     } catch (e) {
       return _connError(e);
@@ -38,7 +39,7 @@ class PenjualanService {
     try {
       final response = await ApiClient.get(Uri.parse('${ApiConfig.getListMitraEksternalUrl}/$bankId'));
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      if (response.sukses) return {'success': true, 'data': body['data']};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil list mitra'};
     } catch (e) {
       return _connError(e);
@@ -59,7 +60,7 @@ class PenjualanService {
         return request;
       });
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body};
+      if (response.sukses) return {'success': true, 'data': body};
       return {'success': false, 'message': body['error'] ?? 'Gagal menghitung preview penjualan'};
     } catch (e) {
       return _connError(e);
@@ -94,7 +95,7 @@ class PenjualanService {
         return request;
       });
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.sukses) {
         return {'success': true, 'message': body['message'] ?? 'Penjualan berhasil dicatat', 'penjualan_id': body['penjualan_id'] ?? ''};
       }
       return {'success': false, 'message': body['error'] ?? 'Gagal menyimpan penjualan'};
@@ -105,6 +106,6 @@ class PenjualanService {
 
   static Map<String, dynamic> _connError(Object e) => {
         'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
+        'message': ApiFailure.from(e).pesan,
       };
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:enviroo/core/config/api_config.dart';
 import 'package:enviroo/core/network/api_client.dart';
+import 'package:enviroo/core/network/api_failure.dart';
 
 class MutasiService {
   static Future<Map<String, dynamic>> getMutasi({
@@ -19,11 +20,11 @@ class MutasiService {
       );
       final response = await ApiClient.get(uri);
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      if (response.sukses) return {'success': true, 'data': body['data']};
       if (response.statusCode == 404) return {'success': true, 'data': null};
       return {'success': false, 'message': body['error'] ?? body['message'] ?? 'Gagal memuat mutasi'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 }

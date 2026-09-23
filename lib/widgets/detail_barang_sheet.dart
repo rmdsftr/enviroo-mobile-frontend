@@ -1,5 +1,6 @@
 import 'package:enviroo/models/katalog_model.dart';
-import 'package:enviroo/providers/sembako_provider.dart';
+import 'package:enviroo/providers/barang_provider.dart';
+import 'package:enviroo/widgets/foto_thumbnail.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -10,16 +11,16 @@ class _C {
   static const red    = Color(0xFFE53935);
 }
 
-class DetailSembakoSheet extends StatefulWidget {
+class DetailBarangSheet extends StatefulWidget {
   final String role;
   final bool showRiwayat;
-  const DetailSembakoSheet({super.key, required this.role, this.showRiwayat = true});
+  const DetailBarangSheet({super.key, required this.role, this.showRiwayat = true});
 
   @override
-  State<DetailSembakoSheet> createState() => _DetailSembakoSheetState();
+  State<DetailBarangSheet> createState() => _DetailBarangSheetState();
 }
 
-class _DetailSembakoSheetState extends State<DetailSembakoSheet>
+class _DetailBarangSheetState extends State<DetailBarangSheet>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -58,8 +59,8 @@ class _DetailSembakoSheetState extends State<DetailSembakoSheet>
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Consumer<SembakoProvider>(
-        builder: (context, sembako, _) {
+      child: Consumer<BarangProvider>(
+        builder: (context, barang, _) {
           return Column(
             children: [
               Padding(
@@ -73,11 +74,11 @@ class _DetailSembakoSheetState extends State<DetailSembakoSheet>
                   ),
                 ),
               ),
-              if (sembako.isDetailLoading)
+              if (barang.isDetailLoading)
                 const Expanded(
                   child: Center(child: CircularProgressIndicator(color: _C.accent)),
                 )
-              else if (sembako.currentDetail == null)
+              else if (barang.currentDetail == null)
                 Expanded(
                   child: Center(
                     child: Text(
@@ -90,7 +91,7 @@ class _DetailSembakoSheetState extends State<DetailSembakoSheet>
                   ),
                 )
               else
-                _buildContent(sembako.currentDetail!),
+                _buildContent(barang.currentDetail!),
             ],
           );
         },
@@ -98,11 +99,11 @@ class _DetailSembakoSheetState extends State<DetailSembakoSheet>
     );
   }
 
-  Widget _buildContent(DetailSembakoWithRiwayat detail) {
+  Widget _buildContent(DetailBarangWithRiwayat detail) {
     return Expanded(
       child: Column(
         children: [
-          _buildHeader(detail.sembako),
+          _buildHeader(detail.barang),
 
           if (_hasTabs) ...[
             Container(
@@ -143,47 +144,29 @@ class _DetailSembakoSheetState extends State<DetailSembakoSheet>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildInfoTab(detail.sembako),
+                  _buildInfoTab(detail.barang),
                   _buildRiwayatTab(detail.riwayatDistribusi),
                 ],
               ),
             ),
           ] else ...[
-            Expanded(child: _buildInfoTab(detail.sembako)),
+            Expanded(child: _buildInfoTab(detail.barang)),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildHeader(KatalogSembakoModel item) {
+  Widget _buildHeader(KatalogBarangModel item) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: const Color(0xFFF2F2F2),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: item.photoUrl.isNotEmpty
-                ? Image.network(
-                    item.photoUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Icon(
-                      Icons.storefront_rounded,
-                      color: _C.accent.withValues(alpha: 0.4),
-                      size: 22,
-                    ),
-                  )
-                : Icon(
-                    Icons.storefront_rounded,
-                    color: _C.accent.withValues(alpha: 0.4),
-                    size: 22,
-                  ),
+          FotoThumbnail(
+            photoUrl: item.photoUrl,
+            nama: item.namaBarang,
+            fallbackIcon: Icons.storefront_rounded,
+            accent: _C.accent,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -191,7 +174,7 @@ class _DetailSembakoSheetState extends State<DetailSembakoSheet>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.namaSembako,
+                  item.namaBarang,
                   style: const TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 15,
@@ -202,7 +185,7 @@ class _DetailSembakoSheetState extends State<DetailSembakoSheet>
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'ID: ${item.sembakoId}',
+                  'ID: ${item.produkId}',
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 10,
@@ -217,7 +200,7 @@ class _DetailSembakoSheetState extends State<DetailSembakoSheet>
     );
   }
 
-  Widget _buildInfoTab(KatalogSembakoModel item) {
+  Widget _buildInfoTab(KatalogBarangModel item) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
@@ -229,9 +212,9 @@ class _DetailSembakoSheetState extends State<DetailSembakoSheet>
           ),
           child: Column(
             children: [
-              _infoRow('Nama Barang', item.namaSembako),
+              _infoRow('Nama Barang', item.namaBarang),
               Divider(height: 1, color: Colors.grey.shade200),
-              _infoRow('ID Barang', item.sembakoId),
+              _infoRow('ID Barang', item.produkId),
               Divider(height: 1, color: Colors.grey.shade200),
               _infoRow('Nilai Poin per Item', '${_formatDouble(item.nilaiPoin)} poin'),
               Divider(height: 1, color: Colors.grey.shade200),
@@ -243,7 +226,7 @@ class _DetailSembakoSheetState extends State<DetailSembakoSheet>
     );
   }
 
-  Widget _buildRiwayatTab(List<RiwayatDistribusiSembakoModel> riwayat) {
+  Widget _buildRiwayatTab(List<RiwayatDistribusiBarangModel> riwayat) {
     if (riwayat.isEmpty) {
       return Center(
         child: Column(

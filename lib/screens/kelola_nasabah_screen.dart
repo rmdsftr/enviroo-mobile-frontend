@@ -1,6 +1,7 @@
 import 'package:enviroo/models/bsu_unit_model.dart';
-import 'package:enviroo/screens/detail_profil_nasabah.dart';
-import 'package:enviroo/services/nasabah_service.dart';
+import 'package:enviroo/screens/petugas/detail_profil_nasabah.dart';
+import 'package:enviroo/providers/bank_provider.dart';
+import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
 import 'package:enviroo/widgets/dropdown_custom.dart';
 import 'package:enviroo/widgets/filter_chip_row.dart';
 import 'package:enviroo/widgets/search.dart';
@@ -57,13 +58,10 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
   }
 
   Future<void> _fetchBsuUnits(String bankId) async {
-    final res = await NasabahService.getBsuByBsiId(bankId);
-    if (mounted && res['success'] == true) {
-      setState(() {
-        _bsuUnits = (res['data'] as List? ?? [])
-            .map((j) => BsuUnitModel.fromJson(j))
-            .toList();
-      });
+    final prov = context.read<BankProvider>();
+    await prov.fetchBsuList(bankId);
+    if (mounted && prov.bsuStatus == FetchStatus.success) {
+      setState(() => _bsuUnits = prov.bsuList);
     }
   }
 

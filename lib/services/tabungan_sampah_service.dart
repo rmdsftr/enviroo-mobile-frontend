@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:enviroo/core/config/api_config.dart';
 import '../models/tabungan_sampah_model.dart';
 import 'package:enviroo/core/network/api_client.dart';
+import 'package:enviroo/core/network/api_failure.dart';
 
 class TabunganSampahService {
   static Future<Map<String, dynamic>> getBukuTabunganBsu(String bsuId, {String? startDate, String? endDate}) async {
@@ -15,10 +16,10 @@ class TabunganSampahService {
           : base;
       final res = await ApiClient.get(uri);
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      if (res.statusCode == 200) return {'success': true, 'data': BukuTabunganBsuResponse.fromJson(body)};
+      if (res.sukses) return {'success': true, 'data': BukuTabunganBsuResponse.fromJson(body)};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil data tabungan BSU'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -36,10 +37,10 @@ class TabunganSampahService {
       );
       final res = await ApiClient.get(uri);
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      if (res.statusCode == 200) return {'success': true, 'data': BukuTabunganResponse.fromJson(body)};
+      if (res.sukses) return {'success': true, 'data': BukuTabunganResponse.fromJson(body)};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil data tabungan'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 }

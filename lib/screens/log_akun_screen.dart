@@ -1,5 +1,6 @@
 import 'package:enviroo/providers/auth_provider.dart';
-import 'package:enviroo/services/profil_service.dart';
+import 'package:enviroo/providers/profil_provider.dart';
+import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -32,11 +33,12 @@ class _LogAkunScreenState extends State<LogAkunScreen> {
     final userId = auth.userId;
 
     setState(() { _isLoading = true; _error = ''; });
-    final result = await ProfilService.getLogAkun(userId);
+    final prov = context.read<ProfilProvider>();
+    await prov.fetchLogAkun(userId);
     if (!mounted) return;
 
-    if (result['success'] == true) {
-      final data = result['data'] as Map<String, dynamic>;
+    if (prov.logStatus == FetchStatus.success) {
+      final data = prov.log ?? <String, dynamic>{};
       setState(() {
         _akunNasabah = (data['akun_nasabah'] ?? []) as List<dynamic>;
         _akunAdmin   = (data['akun_admin']   ?? []) as List<dynamic>;
@@ -44,7 +46,7 @@ class _LogAkunScreenState extends State<LogAkunScreen> {
       });
     } else {
       setState(() {
-        _error     = result['message'] ?? 'Gagal memuat data';
+        _error     = prov.logError ?? 'Gagal memuat data';
         _isLoading = false;
       });
     }

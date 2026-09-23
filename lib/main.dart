@@ -2,11 +2,13 @@ import 'dart:io';
 
 import 'package:enviroo/core/messaging/fcm_messaging.dart';
 import 'package:enviroo/core/messaging/notif_payload.dart';
+import 'package:enviroo/core/messaging/notif_router.dart';
 import 'package:enviroo/core/network/http_overrides.dart';
+import 'package:enviroo/core/network/network_status.dart';
 import 'package:enviroo/core/theme/app_theme.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/katalog_provider.dart';
-import 'package:enviroo/providers/sembako_provider.dart';
+import 'package:enviroo/providers/barang_provider.dart';
 import 'package:enviroo/providers/konten_provider.dart';
 import 'package:enviroo/providers/nasabah_provider.dart';
 import 'package:enviroo/providers/jadwal_provider.dart';
@@ -15,13 +17,19 @@ import 'package:enviroo/providers/penjualan_provider.dart';
 import 'package:enviroo/providers/penarikan_petugas_provider.dart';
 import 'package:enviroo/providers/penarikan_nasabah_provider.dart';
 import 'package:enviroo/providers/bagi_hasil_provider.dart';
+import 'package:enviroo/providers/bank_provider.dart';
+import 'package:enviroo/providers/tabungan_sampah_provider.dart';
 import 'package:enviroo/providers/bagi_hasil_bank_provider.dart';
 import 'package:enviroo/providers/distribusi_sisa_provider.dart';
 import 'package:enviroo/providers/mutasi_provider.dart';
 import 'package:enviroo/providers/pengangkutan_provider.dart';
+import 'package:enviroo/providers/penimbangan_provider.dart';
+import 'package:enviroo/providers/setoran_provider.dart';
+import 'package:enviroo/providers/reward_provider.dart';
+import 'package:enviroo/providers/profil_provider.dart';
 import 'package:enviroo/providers/notifikasi_provider.dart';
+import 'package:enviroo/screens/no_connection_screen.dart';
 import 'package:enviroo/screens/splash_screen.dart';
-import 'package:enviroo/screens/admin_bsi/pengangkutan_bsi_screen.dart';
 import 'package:enviroo/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -31,8 +39,6 @@ import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Dipasang sebelum apa pun mengirim request agar seluruh jalur jaringan
-  // memakai allowlist sertifikat yang sama.
   HttpOverrides.global = EnvirooHttpOverrides();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await Firebase.initializeApp(
@@ -52,12 +58,8 @@ class EnvirooApp extends StatefulWidget {
 final _navigatorKey = GlobalKey<NavigatorState>();
 
 class _EnvirooAppState extends State<EnvirooApp> with WidgetsBindingObserver {
-  // Dibuat di sini agar bisa diakses langsung dari FCM/lifecycle callbacks
-  // tanpa perlu BuildContext — menghindari race condition saat akses provider
-  // dari luar widget tree.
   final _auth = AuthProvider();
   final _notif = NotifikasiProvider();
-  final _pengangkutan = PengangkutanProvider();
 
   late final FcmMessaging _fcm = FcmMessaging(
     auth: _auth,
@@ -69,9 +71,6 @@ class _EnvirooAppState extends State<EnvirooApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-
-    // Saat akun dinonaktifkan (403 ACCOUNT_INACTIVE): logout sudah dilakukan
-    // oleh AuthProvider; di sini cukup pop semua route ke SplashScreen.
     _auth.setForceLogoutCallback(() {
       _navigatorKey.currentState?.pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => SplashScreen()),
@@ -79,52 +78,74 @@ class _EnvirooAppState extends State<EnvirooApp> with WidgetsBindingObserver {
       );
     });
 
+    _net.addListener(_onNetworkStatusChanged);
+
     _fcm.start();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _net.removeListener(_onNetworkStatusChanged);
     _fcm.dispose();
     super.dispose();
   }
 
-  // App kembali ke foreground — proactive refresh token, FCM, notifikasi.
+  final _net = NetworkStatus.instance;
+  
+  Route<dynamic>? _noConnRoute;
+
+  void _onNetworkStatusChanged() {
+    final nav = _navigatorKey.currentState;
+    if (nav == null) return;
+
+    if (_net.offline) {
+      if (_noConnRoute != null) return;
+      final route = MaterialPageRoute<void>(
+        builder: (_) => const NoConnectionScreen(),
+      );
+      _noConnRoute = route;
+      
+      route.popped.whenComplete(() {
+        if (_noConnRoute == route) _noConnRoute = null;
+      });
+      
+      nav.push(route);
+      return;
+    }
+
+    final route = _noConnRoute;
+    if (route == null) return;
+    _noConnRoute = null;
+    if (route.isCurrent) {
+      nav.pop();
+    } else if (route.isActive) {
+      
+      nav.removeRoute(route);
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) _fcm.onAppResumed();
   }
 
-  /// Menentukan aksi untuk payload deep-link yang sudah didekode FcmMessaging.
-  ///
-  /// Sengaja tinggal di sini, bukan di `core/messaging/`, supaya `core/` tidak
-  /// perlu mengimpor screen — pemisahan "decode" (core) dari "act" (app).
-  void _routeDeepLink(NotifPayload payload, {required bool navigate}) {
-    if (payload.refType != 'pengajuan_pengangkutan') return;
-
-    _pengangkutan.setHighlight(payload.refId);
-
-    if (!navigate) return;
-    _navigatorKey.currentState?.push(
-      MaterialPageRoute(
-        builder: (_) => const PengangkutanBsiScreen(
-          initialTab: 1,
-          initialFilter: 'requested',
-        ),
-      ),
-    );
+  void _routeDeepLink(NotifPayload payload) {
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) return;
+    NotifRouter.open(navigator, refType: payload.refType, refId: payload.refId);
   }
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // Auth & notifikasi pakai .value karena instance dibuat di initState
         ChangeNotifierProvider.value(value: _auth),
         ChangeNotifierProvider.value(value: _notif),
-        // Provider biasa, bukan ChangeNotifier — FcmMessaging tidak menyimpan
-        // state yang perlu diobservasi UI.
+        
         Provider<FcmMessaging>.value(value: _fcm),
+        
+        ChangeNotifierProvider<NetworkStatus>.value(value: NetworkStatus.instance),
         ChangeNotifierProvider(create: (_) => KatalogProvider()),
         ChangeNotifierProvider(create: (_) => KontenProvider()),
         ChangeNotifierProvider(create: (_) => NasabahProvider()),
@@ -135,10 +156,16 @@ class _EnvirooAppState extends State<EnvirooApp> with WidgetsBindingObserver {
         ChangeNotifierProvider(create: (_) => PenarikanNasabahProvider()),
         ChangeNotifierProvider(create: (_) => BagiHasilProvider()),
         ChangeNotifierProvider(create: (_) => BagiHasilBankProvider()),
-        ChangeNotifierProvider(create: (_) => SembakoProvider()),
+        ChangeNotifierProvider(create: (_) => BarangProvider()),
         ChangeNotifierProvider(create: (_) => MutasiProvider()),
         ChangeNotifierProvider(create: (_) => DistribusiSisaProvider()),
-        ChangeNotifierProvider.value(value: _pengangkutan),
+        ChangeNotifierProvider(create: (_) => PenimbanganProvider()),
+        ChangeNotifierProvider(create: (_) => SetoranProvider()),
+        ChangeNotifierProvider(create: (_) => RewardProvider()),
+        ChangeNotifierProvider(create: (_) => BankProvider()),
+        ChangeNotifierProvider(create: (_) => TabunganSampahProvider()),
+        ChangeNotifierProvider(create: (_) => ProfilProvider()),
+        ChangeNotifierProvider(create: (_) => PengangkutanProvider()),
       ],
       child: MaterialApp(
         navigatorKey: _navigatorKey,

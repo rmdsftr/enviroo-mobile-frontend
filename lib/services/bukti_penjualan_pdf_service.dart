@@ -7,7 +7,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:screenshot/screenshot.dart';
 
 import '../models/penjualan_model.dart';
-import '../screens/penjualan_eksternal/pdf_bukti_penjualan.dart';
+import '../screens/penjualan/pdf_bukti_penjualan.dart';
 
 /// Bikin file PDF bukti penjualan dari template yang sama persis dipakai
 /// PdfBuktiPenjualanScreen — jadi hasil unduhannya gak akan beda sama preview.

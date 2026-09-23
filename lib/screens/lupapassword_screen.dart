@@ -1,5 +1,6 @@
 import 'package:enviroo/screens/verifikasi_otp_screen.dart';
-import 'package:enviroo/services/auth_service.dart';
+import 'package:enviroo/providers/auth_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:enviroo/widgets/success_bottom_sheet.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
@@ -41,7 +42,9 @@ class _LupaPasswordState extends State<LupaPasswordScreen> {
 
     setState(() => _isLoading = true);
 
-    final result = await AuthService.sendEmailForgetPassword(email);
+    final result = await context
+        .read<AuthProvider>()
+        .sendEmailForgetPassword(email);
 
     if (!mounted) return;
     setState(() => _isLoading = false);

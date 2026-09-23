@@ -1,8 +1,8 @@
 import 'package:enviroo/models/detail_petugas_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
-import 'package:enviroo/screens/admin_bsi/home_bsi_screen.dart';
-import 'package:enviroo/screens/admin_bsm/home_bsm_screen.dart';
-import 'package:enviroo/screens/admin_bsu/home_bsu_screen.dart';
+import 'package:enviroo/screens/petugas/home_bsi_screen.dart';
+import 'package:enviroo/screens/petugas/home_bsm_screen.dart';
+import 'package:enviroo/screens/petugas/home_bsu_screen.dart';
 import 'package:enviroo/screens/edit_profil_screen.dart';
 import 'package:enviroo/screens/nasabah/home_screen.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
@@ -10,7 +10,8 @@ import 'package:enviroo/screens/log_akun_screen.dart';
 import 'package:enviroo/screens/lihat_foto_screen.dart';
 import 'package:enviroo/screens/splash_screen.dart';
 import 'package:enviroo/screens/ubah_password_screen.dart';
-import 'package:enviroo/services/profil_service.dart';
+import 'package:enviroo/providers/profil_provider.dart';
+import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/cupertino.dart';
@@ -68,34 +69,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _fetchDetailNasabah(String? nasabahId) async {
     if (nasabahId == null) return;
     setState(() => _isLoadingDetail = true);
-    try {
-      final data = await ProfilService.getDetailNasabah(nasabahId);
-      if (mounted) {
-        setState(() {
-          _detailNasabah = data;
-          _isLoadingDetail = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoadingDetail = false);
-      debugPrint('Gagal mengambil detail nasabah: $e');
+    final prov = context.read<ProfilProvider>();
+    await prov.fetchNasabah(nasabahId);
+    if (!mounted) return;
+    if (prov.nasabahStatus == FetchStatus.success) {
+      setState(() {
+        _detailNasabah = prov.nasabah;
+        _isLoadingDetail = false;
+      });
+    } else {
+      setState(() => _isLoadingDetail = false);
+      debugPrint('Gagal mengambil detail nasabah: ${prov.nasabahError}');
     }
   }
 
   Future<void> _fetchDetailPetugas(String? petugasId) async {
     if (petugasId == null) return;
     setState(() => _isLoadingDetail = true);
-    try {
-      final data = await ProfilService.getDetailPetugas(petugasId);
-      if (mounted) {
-        setState(() {
-          _detailPetugas = data;
-          _isLoadingDetail = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoadingDetail = false);
-      debugPrint('Gagal mengambil detail petugas: $e');
+    final prov = context.read<ProfilProvider>();
+    await prov.fetchPetugas(petugasId);
+    if (!mounted) return;
+    if (prov.petugasStatus == FetchStatus.success) {
+      setState(() {
+        _detailPetugas = prov.petugas;
+        _isLoadingDetail = false;
+      });
+    } else {
+      setState(() => _isLoadingDetail = false);
+      debugPrint('Gagal mengambil detail petugas: ${prov.petugasError}');
     }
   }
 
@@ -471,7 +472,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             _buildInfoRow('ID Petugas', _detailPetugas!.petugasId.isNotEmpty ? _detailPetugas!.petugasId : '-'),
             const SizedBox(height: 12),
-            _buildInfoRow('NIK', _detailPetugas!.userId.isNotEmpty ? _detailPetugas!.userId : '-'),
+            _buildInfoRow('ID Pengguna', _detailPetugas!.userId.isNotEmpty ? _detailPetugas!.userId : '-'),
             const SizedBox(height: 12),
             _buildInfoRow('Email', _detailPetugas!.email.isNotEmpty ? _detailPetugas!.email : '-'),
             const SizedBox(height: 12),
@@ -517,7 +518,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             _buildInfoRow("ID Nasabah", _detailNasabah!['nasabah_id'] ?? '-'),
             const SizedBox(height: 12),
-            _buildInfoRow("NIK", _detailNasabah!['user_id'] ?? '-'),
+            _buildInfoRow("ID Pengguna", _detailNasabah!['user_id'] ?? '-'),
             const SizedBox(height: 12),
             _buildInfoRow("Email", _detailNasabah!['email'] ?? '-'),
             const SizedBox(height: 12),

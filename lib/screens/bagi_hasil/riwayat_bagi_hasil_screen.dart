@@ -5,10 +5,12 @@ import 'package:provider/provider.dart';
 import '../../models/bagi_hasil_bank_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bagi_hasil_bank_provider.dart';
+import '../../providers/reward_provider.dart';
+import '../../providers/penjualan_provider.dart' show FetchStatus;
 import '../../widgets/filter_chip_row.dart';
 import '../../widgets/topbar_back.dart';
 import '../../widgets/filter_month_year.dart';
-import '../../screens/penjualan_eksternal/riwayat_penjualan_screen.dart';
+import '../../screens/penjualan/riwayat_penjualan_screen.dart';
 import 'detail_bagi_hasil_screen.dart';
 
 class _C {
@@ -46,7 +48,7 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
         ? DateTime(now.year - 1, 12 + startMonth)
         : DateTime(now.year, startMonth);
     prov.setDateFilter(filterStart, filterEnd, bankId);
-    prov.fetchPersenBagiHasil(bankId);
+    context.read<RewardProvider>().fetchNilaiReward(bankId);
   }
 
   @override
@@ -103,7 +105,10 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
               const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _buildPersenBagiHasilCard(prov),
+                child: Consumer<RewardProvider>(
+                  builder: (_, reward, __) =>
+                      _buildPersenBagiHasilCard(reward),
+                ),
               ),
               const SizedBox(height: 16),
             ],
@@ -159,64 +164,84 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
     );
   }
 
-  Widget _buildPersenBagiHasilCard(BagiHasilBankProvider prov) {
-    if (prov.persenStatus == BhBankStatus.loading) {
+  /// Jenis saldo untuk satu baris persentase: 'saldo rupiah' / 'saldo poin'.
+  ///
+  /// Sumber utamanya `satuan` ("Rp" / "poin"). Kalau kosong atau tak dikenal,
+  /// jatuh ke `namaReward` ("Uang" / "Barang") yang masih dipakai backend.
+  /// Dua-duanya istilah mentah backend, jadi tidak ada yang boleh tampil apa
+  /// adanya ke nasabah.
+  String _labelSaldo(PersenBagiHasilReward r) {
+    final s = r.satuan.toLowerCase();
+    if (s.contains('poin')) return 'saldo poin';
+    if (s.contains('rp') || s.contains('rupiah')) return 'saldo rupiah';
+    return r.namaReward.toLowerCase().contains('barang')
+        ? 'saldo poin'
+        : 'saldo rupiah';
+  }
+
+  Widget _buildPersenBagiHasilCard(RewardProvider reward) {
+    if (reward.nilaiStatus == FetchStatus.loading) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
         child: Center(child: CircularProgressIndicator(color: _C.green)),
       );
     }
-    if (prov.persenNasabah.isEmpty) return const SizedBox.shrink();
+    if (reward.persenNasabah.isEmpty) return const SizedBox.shrink();
 
+    final items = reward.persenNasabah;
+
+    // Satu kartu per jenis saldo, berdampingan dan sama tinggi walau teks
+    // salah satunya melipat lebih panjang.
+    //
+    // IntrinsicHeight wajib di sini: Row ini hidup di dalam area scroll, jadi
+    // tingginya tidak terbatas. Tanpa pembatas itu, CrossAxisAlignment.stretch
+    // meneruskan tinggi tak hingga ke kartunya dan seluruh layar gagal
+    // di-layout ("BoxConstraints forces an infinite height").
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            if (i > 0) const SizedBox(width: 10),
+            Expanded(child: _kartuPersen(items[i])),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _kartuPersen(PersenBagiHasilReward r) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: _C.dark.withValues(alpha: 0.08)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
-            'Persentase bagi hasil untuk nasabah',
-            style: TextStyle(
+            '${r.persenBagiHasil.toStringAsFixed(0)}%',
+            style: const TextStyle(
               fontFamily: 'Poppins',
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: _C.dark.withValues(alpha: 0.7),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              height: 1.1,
+              color: _C.green,
             ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: prov.persenNasabah.map((r) {
-              return Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      '${r.persenBagiHasil.toStringAsFixed(0)}%',
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: _C.green,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      'Insentif ${r.namaReward}',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 9.5,
-                        color: _C.dark.withValues(alpha: 0.5),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'bagi hasil ${_labelSaldo(r)} nasabah',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 9.5,
+                height: 1.35,
+                color: _C.dark.withValues(alpha: 0.5),
+              ),
+            ),
           ),
         ],
       ),
@@ -302,10 +327,13 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
   Widget _buildRewardChipFilter() {
     return FilterChipRow<String>(
       padding: const EdgeInsets.symmetric(horizontal: 5),
+      // Label memakai jenis SALDO. Nilainya tetap 'uang'/'barang' karena itu
+      // yang dicocokkan ke namaReward dari backend di _buildList() -- jangan
+      // ikut diubah.
       items: const [
         FilterChipItem(value: 'semua', label: 'Semua'),
-        FilterChipItem(value: 'uang', label: 'Uang'),
-        FilterChipItem(value: 'sembako', label: 'Barang'),
+        FilterChipItem(value: 'uang', label: 'Rupiah'),
+        FilterChipItem(value: 'barang', label: 'Poin'),
       ],
       selectedValue: _rewardFilter,
       onSelected: (v) => setState(() => _rewardFilter = v),
@@ -332,7 +360,7 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
         : raw.where((item) {
             final lower = item.namaReward.toLowerCase();
             if (_rewardFilter == 'uang') return lower.contains('uang');
-            if (_rewardFilter == 'sembako') return lower.contains('barang');
+            if (_rewardFilter == 'barang') return lower.contains('barang');
             return true;
           }).toList();
 

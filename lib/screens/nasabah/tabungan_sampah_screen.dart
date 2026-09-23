@@ -1,6 +1,7 @@
 import 'package:enviroo/models/tabungan_sampah_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
-import 'package:enviroo/services/tabungan_sampah_service.dart';
+import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
+import 'package:enviroo/providers/tabungan_sampah_provider.dart';
 import 'package:enviroo/widgets/filter_month_year.dart';
 import 'package:enviroo/widgets/navbar.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
@@ -19,7 +20,7 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
   static const _teal = Color(0xFF013236);
   static const _accent = Color(0xFF4EA771);
 
-  List<SetoranGroup> _setoran = [];
+  List<SampahTabungan> _sampah = [];
   bool _isLoading = true;
   String? _error;
   int _selectedTab = 0; // 0 = Cair, 1 = Belum Cair
@@ -30,7 +31,7 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
 
   final _rupiahFmt =
       NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-  final _dateFmt = DateFormat('dd MMM yyyy', 'id_ID');
+  final _dateTimeFmt = DateFormat('dd MMM yyyy, HH.mm', 'id_ID');
 
   @override
   void initState() {
@@ -54,50 +55,54 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
     final start = DateTime(_filterStart.year, _filterStart.month, 1);
     final end = DateTime(_filterEnd.year, _filterEnd.month + 1, 0);
 
-    final result = await TabunganSampahService.getBukuTabungan(
+    final prov = context.read<TabunganSampahProvider>();
+    await prov.fetchNasabah(
       nasabahId,
       startDate: fmt.format(start),
       endDate: fmt.format(end),
     );
 
     if (!mounted) return;
-    if (result['success'] == true) {
-      final response = result['data'] as BukuTabunganResponse;
+    if (prov.nasabahStatus == FetchStatus.success) {
       setState(() {
-        _setoran = response.setoran;
+        _sampah = prov.nasabah?.sampah ?? [];
         _isLoading = false;
       });
     } else {
       setState(() {
-        _error = result['message'] ?? 'Gagal memuat data tabungan';
+        _error = prov.nasabahError ?? 'Gagal memuat data tabungan';
         _isLoading = false;
       });
     }
   }
 
-  List<SetoranGroup> get _filteredSetoran {
-    return _setoran
-        .map((group) {
-          final filteredItems = group.items.where((item) {
+  /// Menyaring per BARIS tabungan, lalu membuang jenis sampah yang jadi
+  /// kosong. Jadi satu jenis sampah bisa muncul di tab Cair maupun Belum Cair
+  /// sekaligus kalau baris-barisnya memang beda status.
+  List<SampahTabungan> get _filteredSampah {
+    return _sampah
+        .map((g) {
+          final baris = g.tabungan.where((t) {
             if (_selectedTab == 0) {
-              return item.status == 'Cair' || item.status == 'Cair Sebagian';
-            } else {
-              return item.status == 'Belum Cair';
+              return t.status == 'Cair' || t.status == 'Cair Sebagian';
             }
+            return t.status == 'Belum Cair';
           }).toList();
-          return SetoranGroup(
-            sourceId: group.sourceId,
-            tanggalSetoran: group.tanggalSetoran,
-            items: filteredItems,
+          return SampahTabungan(
+            sampahId: g.sampahId,
+            namaSampah: g.namaSampah,
+            satuanSampah: g.satuanSampah,
+            satuanDiterima: g.satuanDiterima,
+            tabungan: baris,
           );
         })
-        .where((group) => group.items.isNotEmpty)
+        .where((g) => g.tabungan.isNotEmpty)
         .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filteredSetoran;
+    final filtered = _filteredSampah;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F5),
@@ -240,28 +245,27 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
     );
   }
 
-  Widget _buildList(List<SetoranGroup> list) {
+  Widget _buildList(List<SampahTabungan> list) {
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
       itemCount: list.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, i) => _buildSetoranCard(list[i]),
+      itemBuilder: (_, i) => _buildSampahCard(list[i]),
     );
   }
 
-  Widget _buildSetoranCard(SetoranGroup group) {
-    final tanggal = group.tanggalSetoran != null
-        ? _dateFmt.format(group.tanggalSetoran!)
-        : '-';
+  Widget _buildSampahCard(SampahTabungan g) {
+    final semuaCair = g.tabungan.every((t) => t.status == 'Cair');
+    final semuaBelum = g.tabungan.every((t) => t.status == 'Belum Cair');
+    final statusGrup = semuaCair
+        ? 'Cair'
+        : semuaBelum
+            ? 'Belum Cair'
+            : 'Cair Sebagian';
 
-    final allCair = group.items.every((e) => e.status == 'Cair');
-    final allBelum = group.items.every((e) => e.status == 'Belum Cair');
-    final groupStatus =
-        allCair ? 'Cair' : allBelum ? 'Belum Cair' : 'Cair Sebagian';
-
-    final key = group.sourceId;
+    final key = g.sampahId;
     final isExpanded = _expandedCards.contains(key);
 
     return Container(
@@ -276,7 +280,7 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header ──────────────────────────────────────────────────────────
+          // -- Header: jenis sampahnya --------------------------------------
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             child: Row(
@@ -287,7 +291,7 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
                     color: _accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.savings_rounded,
+                  child: const Icon(Icons.recycling_rounded,
                       size: 18, color: _accent),
                 ),
                 const SizedBox(width: 10),
@@ -296,7 +300,7 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Setoran $tanggal',
+                        g.namaSampah,
                         style: const TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 13,
@@ -305,40 +309,41 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
                         ),
                       ),
                       Text(
-                        '${group.items.length} item',
+                        '${g.sampahId}  \u2022  ${g.tabungan.length} tabungan',
                         style: TextStyle(
                           fontFamily: 'Poppins',
-                          fontSize: 11,
+                          fontSize: 10.5,
                           color: _teal.withValues(alpha: 0.55),
                         ),
                       ),
                     ],
                   ),
                 ),
-                _buildStatusBadge(groupStatus),
+                const SizedBox(width: 8),
+                _buildStatusBadge(statusGrup),
               ],
             ),
           ),
 
-          // ── Expanded items ───────────────────────────────────────────────────
+          // -- Baris tabungan -----------------------------------------------
           if (isExpanded) ...[
             const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(vertical: 4),
-              itemCount: group.items.length,
+              itemCount: g.tabungan.length,
               separatorBuilder: (_, __) => const Divider(
                   height: 1,
                   thickness: 1,
                   indent: 16,
                   endIndent: 16,
                   color: Color(0xFFF0F0F0)),
-              itemBuilder: (_, i) => _buildItemRow(group.items[i]),
+              itemBuilder: (_, i) => _buildBarisTabungan(g, g.tabungan[i]),
             ),
           ],
 
-          // ── Toggle button ────────────────────────────────────────────────────
+          // -- Toggle --------------------------------------------------------
           const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
           GestureDetector(
             onTap: () => setState(() {
@@ -379,18 +384,17 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
     );
   }
 
-  Widget _buildItemRow(ItemTabungan item) {
+  Widget _buildBarisTabungan(SampahTabungan g, BarisTabungan t) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.namaSampah,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  t.createdAt != null ? _dateTimeFmt.format(t.createdAt!) : '-',
                   style: const TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 12,
@@ -398,51 +402,120 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
                     color: _teal,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${_fmtQty(item.qtySetoran)} ${item.satuan}'
-                  '${item.sisaQty < item.qtySetoran ? '  •  Sisa ${_fmtQty(item.sisaQty)} ${item.satuan}' : ''}',
+              ),
+              const SizedBox(width: 8),
+              _buildStatusBadge(t.status, small: true),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _baris('ID tabungan', t.tabunganId),
+          _baris('Dari setoran', t.sourceId),
+          // qty & sisa memakai satuan SAMPAH, bukan satuan nilai.
+          _baris('Disetor', '${_fmtQty(t.qty)} ${g.satuanSampah}'),
+          _baris('Sisa', '${_fmtQty(t.sisaQty)} ${g.satuanSampah}'),
+
+          if (t.detailPencairan.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              t.detailPencairan.length > 1
+                  ? 'Pencairan (${t.detailPencairan.length}x)'
+                  : 'Pencairan',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: _teal.withValues(alpha: 0.65),
+              ),
+            ),
+            const SizedBox(height: 6),
+            ...t.detailPencairan.map((d) => _buildPencairan(g, d)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPencairan(SampahTabungan g, DetailPencairan d) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: _accent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _accent.withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  d.tanggalCair != null
+                      ? _dateTimeFmt.format(d.tanggalCair!)
+                      : '-',
                   style: TextStyle(
                     fontFamily: 'Poppins',
-                    fontSize: 11,
+                    fontSize: 10.5,
                     color: _teal.withValues(alpha: 0.55),
                   ),
                 ),
-                if (item.hargaItem != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    item.namaReward.toLowerCase() == 'barang'
-                        ? '${_fmtQty(item.hargaItem!)} poin / ${item.satuan}'
-                        : '${_rupiahFmt.format(item.hargaItem!)} / ${item.satuan}',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: _teal.withValues(alpha: 0.55),
-                    ),
-                  ),
-                ],
-              ],
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _fmtNilai(d.subtotal, g.satuanDiterima),
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: _accent,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${_fmtQty(d.qtyDipakai)} ${g.satuanSampah}'
+            '  \u00d7  ${_fmtNilai(d.hargaItem, g.satuanDiterima)} / ${g.satuanSampah}',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 11,
+              color: _teal.withValues(alpha: 0.7),
             ),
           ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (item.nilaiTotal != null)
-                Text(
-                  item.namaReward.toLowerCase() == 'barang'
-                      ? '${_fmtQty(item.nilaiTotal!)} poin'
-                      : _rupiahFmt.format(item.nilaiTotal!),
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: _teal,
-                  ),
-                ),
-              const SizedBox(height: 4),
-              _buildStatusBadge(item.status, small: true),
-            ],
+        ],
+      ),
+    );
+  }
+
+  Widget _baris(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 92,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 11,
+                color: _teal.withValues(alpha: 0.5),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: _teal.withValues(alpha: 0.85),
+              ),
+            ),
           ),
         ],
       ),
@@ -529,7 +602,7 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.cloud_off_rounded,
+            Icon(Icons.error_outline_rounded,
                 size: 56, color: _teal.withValues(alpha: 0.25)),
             const SizedBox(height: 16),
             Text(
@@ -570,6 +643,19 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
 
   String _fmtQty(double v) =>
       v == v.truncateToDouble() ? v.toInt().toString() : v.toString();
+
+  /// Menulis nilai ekonomi menurut `satuan_diterima` dari backend:
+  /// "Rp" jadi AWALAN (Rp 80), selain itu jadi AKHIRAN (80 poin).
+  ///
+  /// Sengaja menyimpulkan dari satuannya, bukan dari nama_reward seperti kode
+  /// lama — nama_reward ("Uang"/"Barang") tidak mengatakan apa pun soal cara
+  /// menulis angkanya.
+  String _fmtNilai(double v, String satuanDiterima) {
+    final s = satuanDiterima.toLowerCase();
+    if (s.contains('rp') || s.contains('rupiah')) return _rupiahFmt.format(v);
+    final satuan = satuanDiterima.isEmpty ? 'poin' : satuanDiterima;
+    return '${_fmtQty(v)} $satuan';
+  }
 }
 
 // ── Sticky header delegate ───────────────────────────────────────────────────

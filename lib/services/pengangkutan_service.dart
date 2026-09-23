@@ -4,13 +4,14 @@ import 'package:http/http.dart' as http;
 import 'package:enviroo/core/config/api_config.dart';
 import '../models/sesi_pengangkutan_model.dart';
 import 'package:enviroo/core/network/api_client.dart';
+import 'package:enviroo/core/network/api_failure.dart';
 
 class PengangkutanService {
   static Future<Map<String, dynamic>> checkJadwalHariIni(String bsiId) async {
     try {
       final response = await ApiClient.get(Uri.parse('${ApiConfig.checkPengangkutanUrl}/$bsiId'));
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         return {
           'success': true,
           'total_jadwal_hari_ini': body['total_jadwal_hari_ini'] ?? 0,
@@ -19,7 +20,7 @@ class PengangkutanService {
       }
       return {'success': false, 'message': body['error'] ?? 'Gagal mengecek jadwal'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -42,12 +43,12 @@ class PengangkutanService {
         }),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 201) {
+      if (response.sukses) {
         return {'success': true, 'data': body['data'], 'message': body['message'] ?? 'Sesi pengangkutan berhasil dimulai'};
       }
       return {'success': false, 'statusCode': response.statusCode, 'message': body['error'] ?? 'Gagal memulai sesi pengangkutan'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -62,10 +63,10 @@ class PengangkutanService {
           : base;
       final response = await ApiClient.get(uri);
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      if (response.sukses) return {'success': true, 'data': body['data']};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil data pengangkutan'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -73,10 +74,10 @@ class PengangkutanService {
     try {
       final response = await ApiClient.get(Uri.parse('${ApiConfig.getUnitBsiUrl}/$bankId'));
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      if (response.sukses) return {'success': true, 'data': body['data']};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil daftar BSU'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -93,10 +94,10 @@ class PengangkutanService {
         body: jsonEncode({'current_status': currentStatus, 'new_status': newStatus, 'notes': notes}),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'message': body['message'] ?? 'Status berhasil diperbarui'};
+      if (response.sukses) return {'success': true, 'message': body['message'] ?? 'Status berhasil diperbarui'};
       return {'success': false, 'statusCode': response.statusCode, 'message': body['error'] ?? 'Gagal memperbarui status'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -117,10 +118,10 @@ class PengangkutanService {
         }),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 201) return {'success': true, 'message': body['message'] ?? 'Permintaan berhasil diajukan'};
+      if (response.sukses) return {'success': true, 'message': body['message'] ?? 'Permintaan berhasil diajukan'};
       return {'success': false, 'statusCode': response.statusCode, 'message': body['error'] ?? 'Gagal mengajukan permintaan'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -130,10 +131,10 @@ class PengangkutanService {
         Uri.parse('${ApiConfig.listSampahPengangkutanUrl}/$bsiId/$bsuId'),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body['data'] ?? []};
+      if (response.sukses) return {'success': true, 'data': body['data'] ?? []};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil list sampah'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -168,12 +169,12 @@ class PengangkutanService {
       }
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 201) {
+      if (response.sukses) {
         return {'success': true, 'total_item': body['total_item'] ?? 0, 'message': body['message'] ?? 'Sampah berhasil diinput'};
       }
       return {'success': false, 'statusCode': response.statusCode, 'message': body['error'] ?? 'Gagal menginput sampah pengangkutan'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -191,10 +192,10 @@ class PengangkutanService {
         return request;
       });
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      if (response.sukses) return {'success': true, 'data': body['data']};
       return {'success': false, 'message': body['error'] ?? 'Gagal memuat preview pengangkutan'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -204,10 +205,10 @@ class PengangkutanService {
         Uri.parse('${ApiConfig.detailSampahPengangkutanUrl}/$pengangkutanId'),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      if (response.sukses) return {'success': true, 'data': body['data']};
       return {'success': false, 'statusCode': response.statusCode, 'message': body['error'] ?? 'Gagal mengambil detail pengangkutan'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -217,10 +218,10 @@ class PengangkutanService {
         Uri.parse('${ApiConfig.getAllActivePengangkutanUrl}/$bsiId/$adminId'),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body['data'] ?? []};
+      if (response.sukses) return {'success': true, 'data': body['data'] ?? []};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil sesi aktif'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -230,10 +231,10 @@ class PengangkutanService {
         Uri.parse('${ApiConfig.baseUrl}/pengangkutan/check-sesi-active/$bsuId'),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body};
+      if (response.sukses) return {'success': true, 'data': body};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengecek sesi aktif'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -245,12 +246,12 @@ class PengangkutanService {
         Uri.parse('${ApiConfig.pengangkutanBase}/detail-sesi-active/$pengangkutanId'),
       );
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      if (res.statusCode == 200) {
+      if (res.sukses) {
         return (data: DetailSesiPengangkutanModel.fromJson(body), error: null);
       }
       return (data: null, error: body['error'] as String? ?? 'Gagal memuat detail sesi');
     } catch (e) {
-      return (data: null, error: 'Tidak dapat terhubung ke server');
+      return (data: null, error: ApiFailure.from(e).pesan);
     }
   }
 }

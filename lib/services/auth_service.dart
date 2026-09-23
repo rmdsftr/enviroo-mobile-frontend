@@ -2,7 +2,26 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:enviroo/core/config/api_config.dart';
 import 'package:enviroo/core/network/api_client.dart';
+import 'package:enviroo/core/network/api_failure.dart';
 
+/// Autentikasi & sesi.
+///
+/// ⚠️ Sebagian besar method di sini sengaja memakai `http` mentah, BUKAN
+/// `ApiClient`. Jangan "dirapikan" jadi `ApiClient` tanpa membaca ini:
+///
+/// 1. [refreshToken] **tidak boleh** lewat `ApiClient` — dia justru yang
+///    dipanggil `ApiClient` sebagai callback `onUnauthorized`. Mengalihkannya
+///    berarti rekursi tak hingga begitu access token kedaluwarsa.
+/// 2. [refreshToken] dan [logout] mengirim header `Cookie: refresh_token=…`
+///    manual (lihat catatan di [refreshToken]); `ApiClient` hanya menyuntikkan
+///    `Authorization`, jadi header itu akan hilang.
+/// 3. Enam method pra-login ([cekUserMobile], [login], [aktivasiAkun], dan tiga
+///    method forget-password) dipanggil saat belum ada token sama sekali —
+///    auto-refresh 401 tidak relevan di sana.
+///
+/// Yang memang sudah semestinya lewat `ApiClient`: [changePassword] dan
+/// [switchRole]. Profil sesi (`getProfilNasabah`/`getProfilPetugas`) sudah
+/// dipindah ke `ProfilService`.
 class AuthService {
   /// Step 1: Cek user di mobile — mengembalikan role yang tersedia.
   /// Response sukses: { success, user_id, multiple_roles, roles[] }
@@ -22,7 +41,7 @@ class AuthService {
 
       final Map<String, dynamic> body = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         final data = body['data'] as Map<String, dynamic>;
         return {
           'success': true,
@@ -39,7 +58,7 @@ class AuthService {
     } catch (e) {
       return {
         'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
+        'message': ApiFailure.from(e).pesan,
       };
     }
   }
@@ -63,7 +82,7 @@ class AuthService {
 
       final Map<String, dynamic> body = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         return {
           'success': true,
           'data': body['data'],
@@ -77,7 +96,7 @@ class AuthService {
     } catch (e) {
       return {
         'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
+        'message': ApiFailure.from(e).pesan,
       };
     }
   }
@@ -100,7 +119,7 @@ class AuthService {
 
       final Map<String, dynamic> responseData = jsonDecode(response.body);
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.sukses) {
         return {
           'success': true,
           'message': responseData['message'] ?? 'Aktivasi berhasil',
@@ -114,43 +133,7 @@ class AuthService {
     } catch (e) {
       return {
         'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
-      };
-    }
-  }
-
-  /// Reaktivasi akun lama (NIK + OTP saja, tanpa password)
-  static Future<Map<String, dynamic>> reactivateAkun(String nik, String otp) async {
-    try {
-      final response = await http.post(
-        Uri.parse(ApiConfig.reactivateUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({
-          'user_id': nik,
-          'otp': otp,
-        }),
-      ).timeout(const Duration(seconds: 10));
-
-      final Map<String, dynamic> responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return {
-          'success': true,
-          'message': responseData['message'] ?? 'Aktivasi ulang berhasil',
-        };
-      } else {
-        return {
-          'success': false,
-          'message': responseData['error'] ?? 'Gagal melakukan aktivasi ulang',
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
+        'message': ApiFailure.from(e).pesan,
       };
     }
   }
@@ -172,7 +155,7 @@ class AuthService {
 
       final Map<String, dynamic> body = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         return {
           'success': true,
           'message': body['message'] ?? 'Email OTP berhasil dikirim',
@@ -188,7 +171,7 @@ class AuthService {
     } catch (e) {
       return {
         'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
+        'message': ApiFailure.from(e).pesan,
       };
     }
   }
@@ -209,7 +192,7 @@ class AuthService {
 
       final Map<String, dynamic> body = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         return {
           'success': true,
           'message': body['message'] ?? 'Verifikasi OTP berhasil',
@@ -223,7 +206,7 @@ class AuthService {
     } catch (e) {
       return {
         'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
+        'message': ApiFailure.from(e).pesan,
       };
     }
   }
@@ -249,7 +232,7 @@ class AuthService {
 
       final Map<String, dynamic> body = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         return {
           'success': true,
           'message': body['message'] ?? 'Password berhasil diubah',
@@ -263,32 +246,31 @@ class AuthService {
     } catch (e) {
       return {
         'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
+        'message': ApiFailure.from(e).pesan,
       };
     }
   }
 
 
   /// Change Password
-  static Future<Map<String, dynamic>> changePassword(String passwordLama, String passwordBaru, String konfirmasiPasswordBaru, String token) async {
+  static Future<Map<String, dynamic>> changePassword(
+    String passwordLama,
+    String passwordBaru,
+    String konfirmasiPasswordBaru,
+  ) async {
     try {
-      final response = await http.post(
+      final response = await ApiClient.post(
         Uri.parse(ApiConfig.changePasswordUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode({
           'password_lama': passwordLama,
           'password_baru': passwordBaru,
           'konfirmasi_password_baru': konfirmasiPasswordBaru,
         }),
-      ).timeout(const Duration(seconds: 10));
+      );
 
       final Map<String, dynamic> responseData = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         return {
           'success': true,
           'message': responseData['message'] ?? 'Password berhasil diubah',
@@ -302,76 +284,12 @@ class AuthService {
     } catch (e) {
       return {
         'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
+        'message': ApiFailure.from(e).pesan,
       };
     }
   }
 
-  /// Ambil data lengkap profil nasabah
-  static Future<Map<String, dynamic>> getProfilNasabah(String nasabahID, String token) async {
-    try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.profilNasabahUrl}/$nasabahID'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 10));
 
-      final Map<String, dynamic> body = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': body['data'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': body['error'] ?? 'Gagal mengambil profil nasabah',
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
-      };
-    }
-  }
-
-  /// Ambil data lengkap profil petugas
-  static Future<Map<String, dynamic>> getProfilPetugas(String adminID, String token) async {
-    try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.activePetugasUrl}/$adminID'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 10));
-
-      final Map<String, dynamic> body = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': body['data'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': body['error'] ?? 'Gagal mengambil profil petugas',
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
-      };
-    }
-  }
 
   /// Logout user
   ///
@@ -393,7 +311,7 @@ class AuthService {
 
       final Map<String, dynamic> body = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         return {
           'success': true,
           'message': body['message'] ?? 'Logout berhasil',
@@ -407,7 +325,7 @@ class AuthService {
     } catch (e) {
       return {
         'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
+        'message': ApiFailure.from(e).pesan,
       };
     }
   }
@@ -423,7 +341,7 @@ class AuthService {
 
       final Map<String, dynamic> body = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         return {'success': true, 'data': body['data']};
       } else {
         return {
@@ -434,7 +352,7 @@ class AuthService {
     } catch (e) {
       return {
         'success': false,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
+        'message': ApiFailure.from(e).pesan,
       };
     }
   }
@@ -458,7 +376,7 @@ class AuthService {
 
       final Map<String, dynamic> body = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         return {
           'success': true,
           'message': body['message'],
@@ -479,7 +397,7 @@ class AuthService {
       return {
         'success': false,
         'network_error': true,
-        'message': 'Gagal terhubung ke server: ${e.toString()}',
+        'message': ApiFailure.from(e).pesan,
       };
     }
   }

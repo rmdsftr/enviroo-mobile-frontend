@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/distribusi_sisa_provider.dart';
 import '../../providers/penjualan_provider.dart' show FetchStatus;
 import '../../widgets/confirm_bottom_sheet.dart';
+import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'detail_distribusi_sisa_screen.dart';
 
@@ -75,11 +76,8 @@ class _PreviewDistribusiSisaScreenState
     if (!mounted) return;
 
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(prov.submitError ?? 'Submit distribusi sisa gagal',
-            style: const TextStyle(fontFamily: 'Poppins')),
-        backgroundColor: _C.danger,
-      ));
+      showCustomSnackBar(
+          context, prov.submitError ?? 'Submit distribusi sisa gagal');
       return;
     }
 
@@ -142,7 +140,7 @@ class _PreviewDistribusiSisaScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.wifi_off_rounded,
+              Icon(Icons.error_outline_rounded,
                   size: 40, color: _C.danger.withValues(alpha: 0.5)),
               const SizedBox(height: 12),
               Text(msg,

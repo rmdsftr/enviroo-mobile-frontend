@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/bagi_hasil_model.dart';
+import '../models/bagi_hasil_nasabah_model.dart';
 import '../providers/penjualan_provider.dart' show FetchStatus;
 import '../services/bagi_hasil_service.dart';
 
@@ -28,6 +29,24 @@ class BagiHasilProvider extends ChangeNotifier {
   FetchStatus get detailStatus => _detailStatus;
   DetailBagiHasilModel? get detail => _detail;
   String? get detailError => _detailError;
+
+  // ── Riwayat bagi hasil nasabah ─────────────────────────────────────────────
+  FetchStatus _nasabahListStatus = FetchStatus.idle;
+  List<BagiHasilNasabahItem> _nasabahList = [];
+  String? _nasabahListError;
+
+  FetchStatus get nasabahListStatus => _nasabahListStatus;
+  List<BagiHasilNasabahItem> get nasabahList => _nasabahList;
+  String? get nasabahListError => _nasabahListError;
+
+  // ── Struk bagi hasil nasabah ───────────────────────────────────────────────
+  FetchStatus _nasabahDetailStatus = FetchStatus.idle;
+  BagiHasilNasabahDetail? _nasabahDetail;
+  String? _nasabahDetailError;
+
+  FetchStatus get nasabahDetailStatus => _nasabahDetailStatus;
+  BagiHasilNasabahDetail? get nasabahDetail => _nasabahDetail;
+  String? get nasabahDetailError => _nasabahDetailError;
 
   // ─────────────────────────────────────────────────────────────────────────
   Future<void> fetchPreview(String penjualanId, String bankId) async {
@@ -79,6 +98,58 @@ class BagiHasilProvider extends ChangeNotifier {
     } else {
       _detailError = res['message']?.toString();
       _detailStatus = FetchStatus.error;
+    }
+    notifyListeners();
+  }
+
+  /// Riwayat bagi hasil milik seorang nasabah.
+  ///
+  /// ⚠️ Service mengembalikan body mentah, jadi daftarnya ada di
+  /// `data['riwayat_bagi_hasil']` — bukan langsung `data` seperti di
+  /// [fetchDetailNasabah].
+  Future<void> fetchListNasabah(
+    String nasabahId, {
+    required String startDate,
+    required String endDate,
+  }) async {
+    _nasabahListStatus = FetchStatus.loading;
+    _nasabahListError = null;
+    notifyListeners();
+
+    final res = await BagiHasilService.getListBagiHasilNasabah(
+      nasabahId,
+      startDate: startDate,
+      endDate: endDate,
+    );
+
+    if (res['success'] == true) {
+      final body = res['data'] as Map<String, dynamic>? ?? {};
+      _nasabahList = (body['riwayat_bagi_hasil'] as List? ?? [])
+          .map((e) => BagiHasilNasabahItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+      _nasabahListStatus = FetchStatus.success;
+    } else {
+      _nasabahListError = res['message']?.toString();
+      _nasabahListStatus = FetchStatus.error;
+    }
+    notifyListeners();
+  }
+
+  Future<void> fetchDetailNasabah(String penerimaId) async {
+    _nasabahDetailStatus = FetchStatus.loading;
+    _nasabahDetailError = null;
+    _nasabahDetail = null;
+    notifyListeners();
+
+    final res = await BagiHasilService.getDetailBagiHasilNasabah(penerimaId);
+
+    if (res['success'] == true && res['data'] != null) {
+      _nasabahDetail =
+          BagiHasilNasabahDetail.fromJson(res['data'] as Map<String, dynamic>);
+      _nasabahDetailStatus = FetchStatus.success;
+    } else {
+      _nasabahDetailError = res['message']?.toString();
+      _nasabahDetailStatus = FetchStatus.error;
     }
     notifyListeners();
   }

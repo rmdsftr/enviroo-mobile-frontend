@@ -8,7 +8,7 @@ class ApiConfig {
   /// turunan di bawah tetap berupa constant expression.
   static const String baseUrl = String.fromEnvironment(
     'ENVIROO_API_BASE_URL',
-    defaultValue: 'http://192.168.1.8:8080',
+    defaultValue: 'http://172.20.10.3:8080',
   );
 
   // Auth Endpoints
@@ -19,7 +19,6 @@ class ApiConfig {
   static const String refreshUrl = '$authBase/refresh';
   static const String switchRoleUrl = '$authBase/switch-role';
   static const String aktivasiUrl = '$authBase/aktivasi-akun';
-  static const String reactivateUrl = '$authBase/reactivate-akun';
   static const String changePasswordUrl = '$authBase/change-password';
   static const String forgetPasswordSendEmailUrl = '$authBase/forget-password/send-email';
   static const String forgetPasswordVerifikasiOtpUrl = '$authBase/forget-password/verifikasi-otp';
@@ -31,6 +30,18 @@ class ApiConfig {
   static const String getDetailNasabahUrl = '$profilBase/detail-nasabah'; // usage: $getDetailNasabahUrl/$nasabahId
   static const String getDetailBankUrl = '$profilBase/detail-bank'; // usage: $getDetailBankUrl/$bankId
   static const String getDetailPetugasUrl = '$profilBase/detail-petugas'; // usage: $getDetailPetugasUrl/$petugasId
+  // ── Prefix /users ──────────────────────────────────────────────────────────
+  //
+  // ⚠️ Prefix ini SENGAJA dilayani dua service, bukan satu. Jangan disatukan.
+  //
+  //   update-profil, log, active-petugas, active-user  -> ProfilService
+  //   update-fcm-token                                 -> NotifikasiService
+  //
+  // `/users` itu artefak pengelompokan route di backend, bukan batas kohesi di
+  // sisi mobile. Empat yang pertama semuanya data profil, jadi wajar sekelompok
+  // dengan `/profil`. Sedangkan `update-fcm-token` milik alur FCM — memindahkan-
+  // nya ke service user justru bikin `FcmMessaging` bergantung pada modul user,
+  // dan itu lebih buruk daripada prefix yang terbelah.
   static const String updateProfilUrl = '$baseUrl/users/update-profil'; // usage: $updateProfilUrl/$userId
   static const String logAkunUrl = '$baseUrl/users/log'; // usage: $logAkunUrl/$userId
   static const String activePetugasUrl = '$baseUrl/users/active-petugas'; // usage: $activePetugasUrl/$adminId
@@ -43,16 +54,15 @@ class ApiConfig {
   static const String getDetailSampahUrl = '$katalogBase/get-detail'; // usage: $getDetailSampahUrl/$sampahId
   static const String getKategoriUrl = '$katalogBase/get-kategori';
 
-  // Sembako Endpoints
-  static const String sembakoBase = '$baseUrl/barang';
-  static const String getKatalogSembakoUrl = '$sembakoBase/get'; // usage: $getKatalogSembakoUrl/$bankId
-  static const String detailSembakoUrl = '$sembakoBase/detail-bsu'; // usage: $detailSembakoUrl/$sembakoId?bank_id=
-  static const String previewDistribusiBsuUrl = '$sembakoBase/preview-distribusi-bsu'; // usage: POST $previewDistribusiBsuUrl/$bsiId/$bsuId
-  static const String addDistribusiBsuUrl = '$sembakoBase/add-distribusi-bsu'; // usage: POST $addDistribusiBsuUrl/$bsiId/$bsuId (old)
-  static const String addDistribusiBsuV2Url = '$sembakoBase/add-distribusi-bsu'; // usage: POST body: {disbako_id, bsu_id, admin_bsu_id, items}
-  static const String qrDistribusiUrl = '$sembakoBase/qr-distribusi'; // usage: POST $qrDistribusiUrl
-  static const String listDistribusiSembakoUrl = '$sembakoBase/list-distribusi'; // usage: GET $listDistribusiSembakoUrl/$bankId
-  static const String detailDistribusiSembakoUrl = '$sembakoBase/detail-distribusi'; // usage: GET $detailDistribusiSembakoUrl/$disbakoId
+  // Barang Endpoints
+  static const String barangBase = '$baseUrl/barang';
+  static const String getKatalogBarangUrl = '$barangBase/get'; // usage: $getKatalogBarangUrl/$bankId
+  static const String detailBarangUrl = '$barangBase/detail-bsu'; // usage: $detailBarangUrl/$produkId?bank_id=
+  static const String previewDistribusiBsuUrl = '$barangBase/preview-distribusi-bsu'; // usage: POST $previewDistribusiBsuUrl/$bsiId/$bsuId
+  static const String addDistribusiBsuV2Url = '$barangBase/add-distribusi-bsu'; // usage: POST body: {disba_id, bsu_id, admin_bsu_id, items}
+  static const String qrDistribusiUrl = '$barangBase/qr-distribusi'; // usage: POST $qrDistribusiUrl
+  static const String listDistribusiBarangUrl = '$barangBase/list-distribusi'; // usage: GET $listDistribusiBarangUrl/$bankId
+  static const String detailDistribusiBarangUrl = '$barangBase/detail-distribusi'; // usage: GET $detailDistribusiBarangUrl/$disbaId
 
   // Konten Endpoints
   static const String kontenBase = '$baseUrl/konten';
@@ -63,10 +73,10 @@ class ApiConfig {
   static const String penimbanganBase = '$baseUrl/penimbangan';
   static const String checkPenimbanganUrl = '$penimbanganBase/check'; // usage: $checkPenimbanganUrl/$bankId
   static const String checkActivePenimbanganUrl = '$penimbanganBase/check-active'; // usage: $checkActivePenimbanganUrl/$bankId
-  static const String addPenimbanganUrl = '$penimbanganBase/add'; // usage: $addPenimbanganUrl/$bankId/$adminId
   static const String updatePenimbanganUrl = '$penimbanganBase/update'; // usage: $updatePenimbanganUrl/$penimbanganId
   static const String getPenimbanganUrl = '$penimbanganBase/get'; // usage: $getPenimbanganUrl/$bankId
   static const String batalPenimbanganUrl = '$penimbanganBase/batal'; // usage: POST $batalPenimbanganUrl?penimbangan_id=$penimbanganId
+  static const String listSetoranPenimbanganUrl = '$penimbanganBase/list-setoran'; // usage: $listSetoranPenimbanganUrl/$penimbanganId
 
   // Admin Endpoints
   static const String adminBase = '$baseUrl/admin';
@@ -93,7 +103,6 @@ class ApiConfig {
   static const String verifikasiSetoranUrl = '$setoranBase/verifikasi'; // usage: $verifikasiSetoranUrl/$penimbanganId/$nasabahId/$adminId
   static const String previewSetoranUrl = '$setoranBase/preview'; // POST $previewSetoranUrl/$penimbanganId/$nasabahId (form: items)
   static const String inputSetoranUrl = '$setoranBase/input'; // usage: $inputSetoranUrl/$penimbanganId/$nasabahId/$adminId
-  static const String listSetoranPenimbanganUrl = '$penimbanganBase/list-setoran'; // usage: $listSetoranPenimbanganUrl/$penimbanganId
   static const String detailSetoranNasabahUrl = '$setoranBase/detail'; // usage: $detailSetoranNasabahUrl/$setoranId
   static const String listSetoranNasabahUrl = '$setoranBase/riwayat'; // usage: $listSetoranNasabahUrl/$nasabahId?start_date=&end_date=
 
@@ -140,8 +149,6 @@ class ApiConfig {
   static const String detailBagiHasilUrl = '$bagiHasilBase/detail'; // GET /$penjualanId
   static const String listBagiHasilNasabahUrl = '$bagiHasilBase/list-bh-nasabah'; // GET /$nasabahId?start_date=&end_date=
   static const String detailBagiHasilNasabahUrl = '$bagiHasilBase/detail-bh-nasabah'; // GET /$penerimaId
-  static const String listBagiHasilBsuUrl = '$bagiHasilBase/list-bh-bsu'; // GET /$bsuId
-  static const String detailBagiHasilBsuUrl = '$bagiHasilBase/detail-bh-bsu'; // GET /$penerimaId
   static const String listBagiHasilBankUrl = '$bagiHasilBase/list-bh-bank'; // GET /$bankId?start_date=&end_date=
   static const String detailBagiHasilBankUrl = '$bagiHasilBase/detail-bh-bank'; // GET /$bagiHasilId
 
@@ -150,9 +157,6 @@ class ApiConfig {
   static const String getBukuTabunganUrl = '$tabunganSampahBase/buku-tabungan'; // GET $getBukuTabunganUrl/:nasabah_id
   static const String getBukuTabunganBsuUrl = '$tabunganSampahBase/buku-tabungan-bsu'; // GET $getBukuTabunganBsuUrl/:bsu_id
 
-  // Info Mobile Endpoints
-  static const String infoMobileBase = '$baseUrl/info-mobile';
-  static const String getRewardOverviewNasabahUrl = '$infoMobileBase/reward-overview'; // usage: $getRewardOverviewNasabahUrl/:nasabah_id
 
   // Notifikasi Endpoints
   static const String notifikasiBase = '$baseUrl/notifikasi';

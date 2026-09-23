@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
@@ -200,10 +201,12 @@ class PenarikanPetugasProvider extends ChangeNotifier {
     return false;
   }
 
+  /// [buktiFoto] berkas mentah - service mengirimnya sebagai multipart,
+  /// bukan base64 seperti sebelum backend berubah.
   Future<bool> selesaikanManual({
     required String nasabahId,
     required String penarikanId,
-    required String buktiFoto,
+    required File buktiFoto,
     required String catatan,
   }) async {
     if (!_hasToken) {

@@ -1,7 +1,7 @@
-import 'package:enviroo/screens/info_bank_sampah_screen.dart';
-import 'package:enviroo/screens/katalog_screen.dart';
-import 'package:enviroo/screens/nasabah/list_bagi_hasil_nasabah_screen.dart';
-import 'package:enviroo/screens/nasabah/riwayat_setoran_screen.dart';
+import 'package:enviroo/screens/nasabah/info_bank_sampah_screen.dart';
+import 'package:enviroo/screens/katalog/katalog_screen.dart';
+import 'package:enviroo/screens/bagi_hasil/list_bagi_hasil_nasabah_screen.dart';
+import 'package:enviroo/screens/setoran/riwayat_setoran_screen.dart';
 import 'package:enviroo/screens/nasabah/tabungan_sampah_screen.dart';
 import 'package:enviroo/screens/penarikan/penarikan_nasabah_screen.dart';
 import 'package:flutter/material.dart';
@@ -77,7 +77,10 @@ class _MainMenuState extends State<MainMenu> {
                         iconColor: Colors.white,
                         onTap: () => Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => KatalogScreen()),
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const KatalogScreen(role: 'nasabah'),
+                          ),
                         ),
                       ),
                     ),

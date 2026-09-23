@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:enviroo/core/config/api_config.dart';
 import 'package:enviroo/core/network/api_client.dart';
+import 'package:enviroo/core/network/api_failure.dart';
 
 class SetoranService {
   static Future<Map<String, dynamic>> verifikasiSetoran(
@@ -15,7 +16,7 @@ class SetoranService {
         body: jsonEncode({'qr_data': qrData, 'admin_id': adminId}),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         return {
           'success': true,
           'status': body['status'] ?? 'unverified',
@@ -25,7 +26,7 @@ class SetoranService {
       }
       return {'success': false, 'status': 'unverified', 'message': body['error'] ?? 'Akses ditolak'};
     } catch (e) {
-      return {'success': false, 'status': 'unverified', 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'status': 'unverified', 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -42,21 +43,10 @@ class SetoranService {
         return request;
       });
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      if (response.sukses) return {'success': true, 'data': body['data']};
       return {'success': false, 'message': body['error'] ?? 'Gagal memuat preview setoran'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
-    }
-  }
-
-  static Future<Map<String, dynamic>> getListSetoranPenimbangan(String penimbanganId) async {
-    try {
-      final res = await ApiClient.get(Uri.parse('${ApiConfig.listSetoranPenimbanganUrl}/$penimbanganId'));
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      if (res.statusCode == 200) return {'success': true, 'data': body['data']};
-      return {'success': false, 'message': body['error'] ?? 'Gagal memuat data setoran'};
-    } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -64,10 +54,10 @@ class SetoranService {
     try {
       final res = await ApiClient.get(Uri.parse('${ApiConfig.detailSetoranNasabahUrl}/$setoranId'));
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      if (res.statusCode == 200) return {'success': true, 'data': body['data']};
+      if (res.sukses) return {'success': true, 'data': body['data']};
       return {'success': false, 'message': body['error'] ?? 'Gagal memuat detail setoran'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -85,10 +75,10 @@ class SetoranService {
       );
       final res = await ApiClient.get(uri);
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      if (res.statusCode == 200) return {'success': true, 'data': body['data']};
+      if (res.sukses) return {'success': true, 'data': body['data']};
       return {'success': false, 'message': body['error'] ?? 'Gagal memuat riwayat setoran'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -112,7 +102,7 @@ class SetoranService {
         return request;
       });
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 201) {
+      if (response.sukses) {
         return {
           'success': true,
           'setoran_id': body['setoran_id'] ?? '',
@@ -123,7 +113,7 @@ class SetoranService {
       }
       return {'success': false, 'message': body['error'] ?? 'Gagal menyimpan setoran'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 }

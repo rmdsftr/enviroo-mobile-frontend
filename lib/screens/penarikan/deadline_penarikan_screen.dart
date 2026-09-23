@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/penarikan_model.dart';
 import '../../providers/penarikan_petugas_provider.dart';
+import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'preview_request_penarikan_screen.dart';
 
@@ -241,13 +242,7 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
   }
 
   void _showErrorSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.red,
-        content: Text(message, style: const TextStyle(fontFamily: 'Poppins')),
-      ),
-    );
+    showCustomSnackBar(context, message);
   }
 
   // ── Teks per mode ─────────────────────────────────────────────────────────

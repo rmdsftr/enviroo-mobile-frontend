@@ -52,7 +52,7 @@ class NilaiRewardBank {
   String get namaReward => reward?.namaReward ?? '';
   String get satuan => reward?.satuan ?? '';
 
-  bool get isSembako => namaReward.toLowerCase().contains('barang');
+  bool get isBarang => namaReward.toLowerCase().contains('barang');
   bool get isUang => namaReward.toLowerCase().contains('uang');
 
   double convertPoin(double poin) {
@@ -244,7 +244,7 @@ class SaldoReward {
   });
 
   bool get isUang => namaReward.toLowerCase().contains('uang');
-  bool get isSembako => namaReward.toLowerCase().contains('barang');
+  bool get isBarang => namaReward.toLowerCase().contains('barang');
 
   factory SaldoReward.fromJson(Map<String, dynamic> j) => SaldoReward(
         rewardId: _i(j['reward_id']),
@@ -271,8 +271,8 @@ class SaldoNasabahV2 {
 
   SaldoReward? get saldoUang =>
       saldo.cast<SaldoReward?>().firstWhere((s) => s!.isUang, orElse: () => null);
-  SaldoReward? get saldoSembako =>
-      saldo.cast<SaldoReward?>().firstWhere((s) => s!.isSembako, orElse: () => null);
+  SaldoReward? get saldoBarang =>
+      saldo.cast<SaldoReward?>().firstWhere((s) => s!.isBarang, orElse: () => null);
 
   bool get hasPerRewardSaldo => saldo.isNotEmpty;
 
@@ -378,7 +378,7 @@ class PenarikanItem {
   });
 
   bool get isUang => namaReward.toLowerCase().contains('uang');
-  bool get isSembako => namaReward.toLowerCase().contains('barang');
+  bool get isBarang => namaReward.toLowerCase().contains('barang');
 
   factory PenarikanItem.fromJson(Map<String, dynamic> j) => PenarikanItem(
         penarikanId: (j['penarikan_id'] ?? '') as String,
@@ -400,27 +400,27 @@ class PenarikanItem {
 
 // ── Penarikan detail (response /penarikan/detail/:id — header + riwayat) ─────
 
-class DetailSembakoItem {
-  final String sembakoId;
-  final String namaSembako;
+class DetailBarangItem {
+  final String produkId;
+  final String namaBarang;
   final String? photoUrl;
   final double qty;
   final double nilaiPoin;
   final double subtotalPoin;
 
-  DetailSembakoItem({
-    required this.sembakoId,
-    required this.namaSembako,
+  DetailBarangItem({
+    required this.produkId,
+    required this.namaBarang,
     this.photoUrl,
     required this.qty,
     required this.nilaiPoin,
     required this.subtotalPoin,
   });
 
-  factory DetailSembakoItem.fromJson(Map<String, dynamic> j) =>
-      DetailSembakoItem(
-        sembakoId: (j['produk_id'] ?? '') as String,
-        namaSembako: (j['nama_barang'] ?? '') as String,
+  factory DetailBarangItem.fromJson(Map<String, dynamic> j) =>
+      DetailBarangItem(
+        produkId: (j['produk_id'] ?? '') as String,
+        namaBarang: (j['nama_barang'] ?? '') as String,
         photoUrl: j['photo_url'] as String?,
         qty: _d(j['qty']),
         nilaiPoin: _d(j['nilai_poin']),
@@ -470,7 +470,7 @@ class PenarikanDetail {
   final DateTime? deadlineJemput;
   final String? buktiFoto;
   final List<PenarikanRiwayatItem> riwayat;
-  final List<DetailSembakoItem> detailSembako;
+  final List<DetailBarangItem> detailBarang;
 
   PenarikanDetail({
     required this.penarikanId,
@@ -487,11 +487,11 @@ class PenarikanDetail {
     this.deadlineJemput,
     this.buktiFoto,
     this.riwayat = const [],
-    this.detailSembako = const [],
+    this.detailBarang = const [],
   });
 
   bool get isUang => namaReward.toLowerCase().contains('uang');
-  bool get isSembako => namaReward.toLowerCase().contains('barang');
+  bool get isBarang => namaReward.toLowerCase().contains('barang');
 
   /// Waktu pengajuan dibuat — entri riwayat paling awal (pending).
   DateTime get createdAt =>
@@ -522,9 +522,9 @@ class PenarikanDetail {
           .whereType<Map<String, dynamic>>()
           .map(PenarikanRiwayatItem.fromJson)
           .toList(),
-      detailSembako: detailList
+      detailBarang: detailList
           .whereType<Map<String, dynamic>>()
-          .map(DetailSembakoItem.fromJson)
+          .map(DetailBarangItem.fromJson)
           .toList(),
     );
   }
@@ -564,25 +564,25 @@ class PenarikanListResponse {
 
 // ── Preview data (response from /penarikan/preview) ─────────────────────────
 
-class PreviewSembakoItem {
-  final String sembakoId;
-  final String namaSembako;
+class PreviewBarangItem {
+  final String produkId;
+  final String namaBarang;
   final double qty;
   final double nilaiPoin;
   final double subtotalPoin;
 
-  PreviewSembakoItem({
-    required this.sembakoId,
-    required this.namaSembako,
+  PreviewBarangItem({
+    required this.produkId,
+    required this.namaBarang,
     required this.qty,
     required this.nilaiPoin,
     required this.subtotalPoin,
   });
 
-  factory PreviewSembakoItem.fromJson(Map<String, dynamic> j) =>
-      PreviewSembakoItem(
-        sembakoId: (j['produk_id'] ?? '') as String,
-        namaSembako: (j['nama_barang'] ?? '') as String,
+  factory PreviewBarangItem.fromJson(Map<String, dynamic> j) =>
+      PreviewBarangItem(
+        produkId: (j['produk_id'] ?? '') as String,
+        namaBarang: (j['nama_barang'] ?? '') as String,
         qty: _d(j['qty']),
         nilaiPoin: _d(j['nilai_poin']),
         subtotalPoin: _d(j['subtotal_poin']),
@@ -598,12 +598,12 @@ class PenarikanPreviewData {
   final double nominalPenarikan;
   final double saldoSetelah;
   final bool saldoCukup;
-  final List<PreviewSembakoItem> itemSembako;
+  final List<PreviewBarangItem> itemBarang;
 
   // Form data carried forward to submit (not from API)
   final int rewardId;
   final double? nominalRequest;
-  final List<Map<String, dynamic>> itemSembakoRequest;
+  final List<Map<String, dynamic>> itemBarangRequest;
 
   PenarikanPreviewData({
     required this.nasabahId,
@@ -614,20 +614,20 @@ class PenarikanPreviewData {
     required this.nominalPenarikan,
     required this.saldoSetelah,
     required this.saldoCukup,
-    required this.itemSembako,
+    required this.itemBarang,
     required this.rewardId,
     this.nominalRequest,
-    this.itemSembakoRequest = const [],
+    this.itemBarangRequest = const [],
   });
 
   bool get isUang => namaReward.toLowerCase().contains('uang');
-  bool get isSembako => namaReward.toLowerCase().contains('barang');
+  bool get isBarang => namaReward.toLowerCase().contains('barang');
 
   factory PenarikanPreviewData.fromJson(
     Map<String, dynamic> j, {
     required int rewardId,
     double? nominalRequest,
-    List<Map<String, dynamic>> itemSembakoRequest = const [],
+    List<Map<String, dynamic>> itemBarangRequest = const [],
   }) {
     final items = (j['item_barang'] as List?) ?? [];
     return PenarikanPreviewData(
@@ -639,13 +639,13 @@ class PenarikanPreviewData {
       nominalPenarikan: _d(j['nominal_penarikan']),
       saldoSetelah: _d(j['saldo_setelah']),
       saldoCukup: (j['saldo_cukup'] as bool?) ?? false,
-      itemSembako: items
+      itemBarang: items
           .whereType<Map<String, dynamic>>()
-          .map(PreviewSembakoItem.fromJson)
+          .map(PreviewBarangItem.fromJson)
           .toList(),
       rewardId: rewardId,
       nominalRequest: nominalRequest,
-      itemSembakoRequest: itemSembakoRequest,
+      itemBarangRequest: itemBarangRequest,
     );
   }
 }
@@ -656,7 +656,7 @@ class PenarikanFormData {
   final int rewardId;
   final String namaReward;
   final double? nominalPenarikan;
-  final List<Map<String, dynamic>> itemSembako;
+  final List<Map<String, dynamic>> itemBarang;
   // Diisi di DeadlinePenarikanScreen (step 2)
   final DateTime? batasKonfirmasi;
   final String? catatanPetugas;
@@ -665,7 +665,7 @@ class PenarikanFormData {
     required this.rewardId,
     required this.namaReward,
     this.nominalPenarikan,
-    this.itemSembako = const [],
+    this.itemBarang = const [],
     this.batasKonfirmasi,
     this.catatanPetugas,
   });
@@ -678,11 +678,11 @@ class PenarikanFormData {
       rewardId: rewardId,
       namaReward: namaReward,
       nominalPenarikan: nominalPenarikan,
-      itemSembako: itemSembako,
+      itemBarang: itemBarang,
       batasKonfirmasi: batasKonfirmasi ?? this.batasKonfirmasi,
       catatanPetugas: catatanPetugas ?? this.catatanPetugas,
     );
   }
 
-  bool get isSembako => namaReward.toLowerCase().contains('barang');
+  bool get isBarang => namaReward.toLowerCase().contains('barang');
 }

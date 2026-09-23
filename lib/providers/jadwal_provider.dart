@@ -89,4 +89,18 @@ class JadwalProvider with ChangeNotifier {
       pesan: m.namaJadwalSpesial,
     )).toList();
   }
+
+  /// Jadwal penimbangan BSM untuk SATU bulan.
+  ///
+  /// Sengaja passthrough, bukan slice: dua dari tiga pemanggilnya memanggil ini
+  /// berulang lintas bulan lalu menggabungkan hasilnya sendiri. Kalau hasilnya
+  /// disimpan di provider, tiap iterasi menimpa iterasi sebelumnya dan yang
+  /// tersisa cuma bulan terakhir. Ketiganya juga sudah punya flag loading dan
+  /// error masing-masing.
+  Future<Map<String, dynamic>> fetchPenimbanganBsm(
+    String bankId, {
+    required int month,
+    required int year,
+  }) =>
+      JadwalService.getJadwalPenimbanganBsm(bankId, month: month, year: year);
 }

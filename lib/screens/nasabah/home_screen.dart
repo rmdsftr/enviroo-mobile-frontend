@@ -1,11 +1,15 @@
 import 'package:enviroo/layouts/balance.dart';
-import 'package:enviroo/screens/nasabah/list_bagi_hasil_nasabah_screen.dart';
+import 'package:enviroo/screens/bagi_hasil/list_bagi_hasil_nasabah_screen.dart';
 import 'package:enviroo/layouts/informasi_layouts.dart';
 import 'package:enviroo/layouts/jadwal_layouts.dart';
 import 'package:enviroo/layouts/menu_layouts.dart';
+import 'package:enviroo/core/network/network_status.dart';
+import 'package:enviroo/models/bagi_hasil_bank_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/providers/dashboard_provider.dart';
 import 'package:enviroo/providers/konten_provider.dart';
-import 'package:enviroo/services/reward_overview_service.dart';
+import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
+import 'package:enviroo/providers/reward_provider.dart';
 import 'package:enviroo/layouts/transaksi_layouts.dart';
 import 'package:enviroo/widgets/navbar.dart';
 import 'package:enviroo/widgets/topbar_custom.dart';
@@ -30,13 +34,16 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Fetch profile data when home screen initializes
+    // Sengaja TIDAK memanggil auth.fetchNasabahProfile() di sini: keempat jalan
+    // menuju HomeScreen (splash, login, role_options, switch role di profil)
+    // baru saja menjalankan bootstrap yang mengambil profil sesi. initState juga
+    // tidak jalan lagi saat layar di-pop, jadi panggilan di sini hanya menjadi
+    // request kedua ke endpoint yang sama. Beranda pun tidak menampilkan apa pun
+    // dari profil itu — saldo ditarik sendiri oleh BalanceLayouts.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = Provider.of<AuthProvider>(context, listen: false);
       if (auth.role == 'nasabah') {
-        auth.fetchNasabahProfile();
-
-        // Fetch konten informasi too
+        // Fetch konten informasi
         if (auth.bankId != null) {
           Provider.of<KontenProvider>(context, listen: false).fetchKonten(
             auth.bankId!,
@@ -44,7 +51,46 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
       }
+
+      if (!mounted) return;
+      _net = context.read<NetworkStatus>();
+      _lastRecoveryToken = _net!.recoveryToken;
+      _net!.addListener(_onNetworkRecovered);
     });
+  }
+
+  // ─── Muat ulang otomatis saat jaringan pulih ───────────────────────────────
+  //
+  // Menutup NoConnectionScreen saja tidak cukup: layar ini di baliknya masih
+  // menampilkan data gagal-muat dari waktu offline tadi. Tanpa bagian ini, user
+  // balik ke beranda yang tampak kosong dan harus tarik-segarkan sendiri.
+
+  NetworkStatus? _net;
+  int _lastRecoveryToken = 0;
+
+  @override
+  void dispose() {
+    // WAJIB — NetworkStatus itu singleton yang hidup seumur app; listener yang
+    // bocor akan menembak di widget yang sudah mati.
+    _net?.removeListener(_onNetworkRecovered);
+    super.dispose();
+  }
+
+  void _onNetworkRecovered() {
+    if (!mounted || _net == null) return;
+    // Bandingkan token, jangan sekadar "ada notifikasi": NetworkStatus juga
+    // notify saat offline MENYALA, dan itu tidak boleh memicu fetch.
+    final token = _net!.recoveryToken;
+    if (token == _lastRecoveryToken) return;
+    _lastRecoveryToken = token;
+
+    final auth = context.read<AuthProvider>();
+    _jadwalKey.currentState?.refresh();
+    // BalanceLayouts punya jalur refresh sendiri lewat saldoRefreshToken.
+    context.read<DashboardProvider>().requestSaldoRefresh();
+    if (auth.bankId != null) {
+      context.read<KontenProvider>().fetchKonten(auth.bankId!, published: true);
+    }
   }
 
   @override
@@ -126,36 +172,73 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _rewardLoading = true;
   String? _rewardError;
   // New structure: separate lists per reward type
-  List<Map<String, dynamic>> _rewardUang = [];
-  List<Map<String, dynamic>> _rewardSembako = [];
+  List<PersenBagiHasilReward> _rewardUang = [];
+  List<PersenBagiHasilReward> _rewardBarang = [];
   bool _rewardFetched = false;
 
-  Future<void> _fetchRewardOverview() async {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final nasabahId = auth.identityId;
-    if (nasabahId == null) return;
+  /// Penjaga permintaan ganda.
+  ///
+  /// `build()` menjadwalkan fetch lewat post-frame callback selama
+  /// [_rewardFetched] masih false, sementara tombol "Coba lagi" juga memanggil
+  /// langsung. Karena [_rewardFetched] baru jadi true di AKHIR fetch, sekali
+  /// tekan tombol itu dulu berangkat dua permintaan sekaligus.
+  bool _rewardInFlight = false;
 
+  /// Persentase bagi hasil per jenis insentif, diambil dari
+  /// `GET /nilai-reward/get/:bank_id`. Datanya per-BANK, bukan per-nasabah —
+  /// provider sudah menyaring `level_user == 'nasabah'` ke [persenNasabah].
+  Future<void> _fetchRewardOverview() async {
+    if (_rewardInFlight) return;
+
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final bankId = auth.bankId;
+
+    // Dulu di sini cuma `return` kosong. Akibatnya _rewardLoading tidak pernah
+    // turun: spinner berputar selamanya, dan karena _rewardFetched juga tetap
+    // false, build() menjadwalkan fetch baru tiap frame -- yang langsung
+    // return lagi. Nasabah terjebak tanpa pesan apa pun dan tanpa jalan keluar.
+    // Sekarang diperlakukan sebagai error biasa yang punya tombol coba lagi.
+    if (bankId == null || bankId.isEmpty) {
+      setState(() {
+        _rewardError =
+            'Data bank sampah kamu belum termuat. Coba lagi sebentar.';
+        _rewardLoading = false;
+        _rewardFetched = true;
+      });
+      return;
+    }
+
+    _rewardInFlight = true;
     setState(() {
       _rewardLoading = true;
       _rewardError = null;
     });
 
-    final result = await RewardOverviewService.getRewardOverview(nasabahId);
+    final prov = context.read<RewardProvider>();
+    await prov.fetchNilaiReward(bankId);
 
     if (!mounted) return;
-    if (result['success'] == true && result['data'] != null) {
-      final data = result['data'] as Map<String, dynamic>;
+    if (prov.nilaiStatus == FetchStatus.success) {
+      final semua = prov.persenNasabah;
       setState(() {
-        _rewardUang = List<Map<String, dynamic>>.from(data['uang'] ?? []);
-        _rewardSembako = List<Map<String, dynamic>>.from(data['barang'] ?? []);
+        // Dipisah lewat namaReward, bukan rewardId — pola yang sama dengan
+        // NilaiRewardBank.isUang/isBarang, jadi tidak patah kalau id berubah.
+        _rewardUang = semua
+            .where((e) => e.namaReward.toLowerCase().contains('uang'))
+            .toList();
+        _rewardBarang = semua
+            .where((e) => e.namaReward.toLowerCase().contains('barang'))
+            .toList();
         _rewardLoading = false;
         _rewardFetched = true;
+        _rewardInFlight = false;
       });
     } else {
       setState(() {
-        _rewardError = result['message'] ?? 'Gagal memuat data reward';
+        _rewardError = prov.nilaiError ?? 'Gagal memuat data reward';
         _rewardLoading = false;
         _rewardFetched = true;
+        _rewardInFlight = false;
       });
     }
   }
@@ -192,10 +275,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                 ),
-                onPressed: () {
-                  _rewardFetched = false;
-                  _fetchRewardOverview();
-                },
+                // Jangan reset _rewardFetched di sini: itu justru membuat
+                // build() menjadwalkan fetch kedua di frame berikutnya.
+                onPressed: _fetchRewardOverview,
                 child: const Text('Coba lagi'),
               ),
             ],
@@ -249,12 +331,14 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // reward == null berarti bank belum mengatur jenis itu —
+                  // kartunya tetap tampil, tapi dalam keadaan terkunci.
                   ..._rewardUang.isNotEmpty
-                      ? _rewardUang.map((r) => _RewardCard(rewardData: r, type: _RewardType.uang))
-                      : [const _RewardCard(rewardData: {}, type: _RewardType.uang, notAvailable: true)],
-                  ..._rewardSembako.isNotEmpty
-                      ? _rewardSembako.map((r) => _RewardCard(rewardData: r, type: _RewardType.sembako))
-                      : [const _RewardCard(rewardData: {}, type: _RewardType.sembako, notAvailable: true)],
+                      ? _rewardUang.map((r) => _RewardCard(reward: r, type: _RewardType.uang))
+                      : [const _RewardCard(type: _RewardType.uang)],
+                  ..._rewardBarang.isNotEmpty
+                      ? _rewardBarang.map((r) => _RewardCard(reward: r, type: _RewardType.barang))
+                      : [const _RewardCard(type: _RewardType.barang)],
                 ],
               ),
             ),
@@ -267,42 +351,57 @@ class _HomeScreenState extends State<HomeScreen> {
 
 // ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ Reward Card Widget ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬
 
-enum _RewardType { uang, sembako }
+enum _RewardType { uang, barang }
 
 class _RewardCard extends StatelessWidget {
-  final Map<String, dynamic> rewardData;
+  /// Null = bank belum mengatur jenis insentif ini.
+  final PersenBagiHasilReward? reward;
   final _RewardType type;
-  final bool notAvailable;
   const _RewardCard({
-    required this.rewardData,
+    this.reward,
     required this.type,
-    this.notAvailable = false,
   });
+
+  bool get notAvailable => reward == null;
 
   Color get _accent {
     switch (type) {
       case _RewardType.uang:
-        return const Color(0xFF88CC0C);
-      case _RewardType.sembako:
+        return const Color(0xFF3A8C5C);
+      case _RewardType.barang:
         return const Color(0xFF3A8C5C);
     }
   }
 
 
-  String get _typeName {
-    switch (type) {
-      case _RewardType.uang:
-        return 'Reward Uang';
-      case _RewardType.sembako:
-        return 'Reward Barang';
+  /// Baris atas kolom kanan: jenis SALDO-nya.
+  ///
+  /// Backend mengirim satuan mentah ("Rp", "poin") yang bukan kalimat untuk
+  /// dibaca nasabah. Kalau satuannya kosong atau tak dikenal -- misalnya bank
+  /// belum mengatur jenis ini -- jatuh ke jenis kartunya sendiri.
+  String get _labelSaldo {
+    final s = (reward?.satuan ?? '').toLowerCase();
+    if (s.contains('poin')) return 'Saldo Poin';
+    if (s.contains('rp') || s.contains('rupiah')) return 'Saldo Rupiah';
+    return type == _RewardType.barang ? 'Saldo Poin' : 'Saldo Rupiah';
+  }
+
+  /// Baris bawah kolom kanan: nama insentifnya ("Uang" / "Barang" dari
+  /// backend). Kapitalisasinya diseragamkan supaya "UANG" tidak bocor apa
+  /// adanya kalau backend berubah.
+  String get _labelInsentif {
+    final n = reward?.namaReward ?? '';
+    if (n.isEmpty) {
+      return type == _RewardType.barang ? 'Insentif Barang' : 'Insentif Uang';
     }
+    return 'Insentif ${n[0].toUpperCase()}${n.substring(1).toLowerCase()}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final nama = notAvailable ? _typeName : (rewardData['nama_reward'] ?? '-') as String;
-    final deskripsi = notAvailable ? '' : (rewardData['deskripsi_reward'] ?? '') as String;
-    final persen = notAvailable ? 0.0 : (rewardData['persentase_bagi_hasil'] as num?)?.toDouble() ?? 0;
+    final r = reward;
+    final deskripsi = r?.deskripsi ?? '';
+    final persen = r?.persenBagiHasil ?? 0.0;
 
     return GestureDetector(
       onTap: notAvailable
@@ -313,7 +412,7 @@ class _RewardCard extends StatelessWidget {
                   builder: (_) => ListBagiHasilNasabahScreen(
                     initialTab: switch (type) {
                       _RewardType.uang => 0,
-                      _RewardType.sembako => 1,
+                      _RewardType.barang => 1,
                     },
                   ),
                 ),
@@ -348,53 +447,109 @@ class _RewardCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Tab/label berwarna di pojok kiri atas
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: (notAvailable ? const Color(0xFF9E9E9E) : _accent)
-                            .withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            notAvailable ? Icons.lock_outline_rounded : Icons.auto_awesome_rounded,
-                            size: 13,
-                            color: notAvailable ? const Color(0xFF9E9E9E) : _accent,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            notAvailable
-                                ? 'Belum tersedia'
-                                : 'Bagi hasil ${_formatPersen(persen)}%',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: notAvailable ? const Color(0xFF9E9E9E) : _accent,
+                    // Persentase (angka besar) di kiri, identitas reward di
+                    // kanan. Dulu ketiganya bertumpuk ke bawah satu baris
+                    // masing-masing, jadi angka bagi hasil -- yang paling
+                    // dicari nasabah -- tampil sekecil label biasa.
+                    Row(
+                      children: [
+                        // Kolom 1 -- persentase bagi hasil level 'nasabah'.
+                        if (notAvailable)
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF9E9E9E)
+                                  .withValues(alpha: 0.10),
+                              shape: BoxShape.circle,
                             ),
+                            child: const Icon(
+                              Icons.lock_outline_rounded,
+                              size: 22,
+                              color: Color(0xFF9E9E9E),
+                            ),
+                          )
+                        else
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                _formatPersen(persen),
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1,
+                                  letterSpacing: -1.5,
+                                  color: _accent,
+                                ),
+                              ),
+                              Text(
+                                '%',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: _accent,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
 
-                    const SizedBox(height: 14),
+                        const SizedBox(width: 14),
 
-                    // Judul reward
-                    Text(
-                      nama,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF013236),
-                      ),
+                        // Kolom 2 -- jenis saldo sebagai judul, nama
+                        // insentif sebagai keterangan di bawahnya.
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Jenis saldo yang jadi judulnya -- itu yang
+                              // dicari nasabah. Nama insentif di bawahnya
+                              // cuma keterangan.
+                              Text(
+                                _labelSaldo,
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.25,
+                                  letterSpacing: -0.3,
+                                  color: notAvailable
+                                      ? const Color(0xFF9E9E9E)
+                                      : const Color(0xFF013236),
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: Color(0xFF3A8C5C).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                child:
+                                Text(
+                                  _labelInsentif,
+                                  style: const TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.3,
+                                    color: Color(0xFF013236),
+                                  ),
+                              ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
 
                     if (deskripsi.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 12),
                       Text(
                         deskripsi,
                         style: const TextStyle(
@@ -432,16 +587,23 @@ class _RewardCard extends StatelessWidget {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Text(
-                            'Lihat riwayat bagi hasil',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: _accent,
+                          // Expanded, bukan Spacer: teksnya sekarang ikut
+                          // menyebut jenis saldo, jadi bisa panjang dan harus
+                          // boleh melipat daripada jebol lewat tepi kartu.
+                          Expanded(
+                            child: Text(
+                              'Lihat riwayat bagi hasil '
+                              '${_labelSaldo.toLowerCase()}',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                height: 1.4,
+                                color: _accent,
+                              ),
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 10),
                           Container(
                             width: 26,
                             height: 26,

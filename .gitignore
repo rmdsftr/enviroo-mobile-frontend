@@ -62,3 +62,7 @@ secrets.dart
 
 # Claude Code
 .claude/
+
+refactor_plan.md
+pubspec.yaml
+pubspec.lock

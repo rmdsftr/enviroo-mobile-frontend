@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/penarikan_nasabah_provider.dart';
+import '../../providers/reward_provider.dart';
 import '../../widgets/filter_chip_row.dart';
 import '../../widgets/filter_month_year.dart';
 import '../../widgets/topbar_back.dart';
@@ -25,13 +26,13 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
   static const Color dark = Color(0xFF013236);
   static const Color neon = Color(0xFF88CC0C);
 
-  // 'semua' | 'uang' | 'sembako'
+  // 'semua' | 'uang' | 'barang'
   String _rewardFilter = 'semua';
 
   static const _rewardChips = [
     FilterChipItem(value: 'semua', label: 'Semua'),
     FilterChipItem(value: 'uang', label: 'Uang'),
-    FilterChipItem(value: 'sembako', label: 'Barang'),
+    FilterChipItem(value: 'barang', label: 'Barang'),
   ];
 
   @override
@@ -41,7 +42,7 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
       final auth = context.read<AuthProvider>();
       final prov = context.read<PenarikanNasabahProvider>();
       prov.bind(auth);
-      prov.loadInitial();
+      prov.loadInitial(context.read<RewardProvider>());
     });
   }
 
@@ -196,7 +197,7 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
                   .where((i) {
                 if (_rewardFilter == 'semua') return true;
                 if (_rewardFilter == 'uang') return i.isUang;
-                return i.isSembako;
+                return i.isBarang;
               }).toList();
 
               return Column(
@@ -205,7 +206,8 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
                   Expanded(
                     child: RefreshIndicator(
                       color: primary,
-                      onRefresh: () => prov.loadInitial(),
+                      onRefresh: () =>
+                          prov.loadInitial(context.read<RewardProvider>()),
                       child: CustomScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         slivers: [

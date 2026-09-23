@@ -5,9 +5,9 @@ import '../models/katalog_model.dart';
 import '../models/penarikan_model.dart';
 import '../services/dashboard_service.dart';
 import '../services/penarikan_service.dart';
-import '../services/reward_service.dart';
-import '../services/sembako_service.dart';
+import '../services/barang_service.dart';
 import 'auth_provider.dart';
+import 'reward_provider.dart';
 
 class PenarikanNasabahProvider extends ChangeNotifier {
   AuthProvider? _auth;
@@ -21,9 +21,9 @@ class PenarikanNasabahProvider extends ChangeNotifier {
   bool loadingRewards = false;
   List<NilaiRewardBank> nilaiRewards = [];
 
-  // ── Sembako catalog (for request form) ───────────────────────────────────
-  bool loadingSembako = false;
-  List<KatalogSembakoModel> sembakoList = <KatalogSembakoModel>[];
+  // ── Barang catalog (for request form) ───────────────────────────────────
+  bool loadingBarang = false;
+  List<KatalogBarangModel> barangList = <KatalogBarangModel>[];
 
   // ── Penarikan list ────────────────────────────────────────────────────────
   bool loadingList = false;
@@ -81,9 +81,9 @@ class PenarikanNasabahProvider extends ChangeNotifier {
             orElse: () => null,
           );
 
-  NilaiRewardBank? get rewardSembako =>
+  NilaiRewardBank? get rewardBarang =>
       nilaiRewards.cast<NilaiRewardBank?>().firstWhere(
-            (r) => r!.isSembako,
+            (r) => r!.isBarang,
             orElse: () => null,
           );
 
@@ -109,37 +109,34 @@ class PenarikanNasabahProvider extends ChangeNotifier {
 
   // ── Load reward types ─────────────────────────────────────────────────────
 
-  Future<void> loadRewards() async {
+  /// [reward] disuntik lewat argumen — endpoint /nilai-reward dimiliki
+  /// RewardProvider, tapi datanya harus ada di tangan provider ini karena
+  /// getter [rewardUang] dan [rewardBarang] diturunkan darinya.
+  Future<void> loadRewards(RewardProvider reward) async {
     if (_bankId == null) return;
     loadingRewards = true;
     notifyListeners();
 
-    final res = await RewardService.getNilaiReward(_bankId!);
+    await reward.fetchNilaiReward(_bankId!);
+    nilaiRewards = reward.nilaiReward;
     loadingRewards = false;
-    if (res['success'] == true) {
-      final list = (res['data'] as List?) ?? [];
-      nilaiRewards = list
-          .whereType<Map<String, dynamic>>()
-          .map((e) => NilaiRewardBank.fromJson(e))
-          .toList();
-    }
     notifyListeners();
   }
 
-  // ── Load sembako catalog ──────────────────────────────────────────────────
+  // ── Load barang catalog ──────────────────────────────────────────────────
 
-  Future<void> loadSembako() async {
+  Future<void> loadBarang() async {
     if (_bankId == null) return;
-    loadingSembako = true;
+    loadingBarang = true;
     notifyListeners();
 
-    final res = await SembakoService.getSembakoBank(_bankId!);
-    loadingSembako = false;
+    final res = await BarangService.getBarangBank(_bankId!);
+    loadingBarang = false;
     if (res['success'] == true) {
       final list = (res['data'] as List?) ?? [];
-      sembakoList = list
+      barangList = list
           .whereType<Map<String, dynamic>>()
-          .map<KatalogSembakoModel>((e) => KatalogSembakoModel.fromJson(e))
+          .map<KatalogBarangModel>((e) => KatalogBarangModel.fromJson(e))
           .toList();
     }
     notifyListeners();
@@ -147,7 +144,7 @@ class PenarikanNasabahProvider extends ChangeNotifier {
 
   // ── Load initial data for PenarikanNasabahScreen ─────────────────────────
 
-  Future<void> loadInitial() async {
+  Future<void> loadInitial(RewardProvider reward) async {
     final now = DateTime.now();
     _filterEnd = DateTime(now.year, now.month);
     final startMonth = now.month - 2;
@@ -159,7 +156,7 @@ class PenarikanNasabahProvider extends ChangeNotifier {
 
     await Future.wait([
       loadSaldo(),
-      loadRewards(),
+      loadRewards(reward),
     ]);
 
     await loadList(refresh: true);
@@ -167,11 +164,11 @@ class PenarikanNasabahProvider extends ChangeNotifier {
 
   // ── Load form data for RequestPenarikanScreen ─────────────────────────────
 
-  Future<void> loadFormData() async {
+  Future<void> loadFormData(RewardProvider reward) async {
     await Future.wait([
       if (saldo == null) loadSaldo(),
-      if (nilaiRewards.isEmpty) loadRewards(),
-      if (sembakoList.isEmpty) loadSembako(),
+      if (nilaiRewards.isEmpty) loadRewards(reward),
+      if (barangList.isEmpty) loadBarang(),
     ]);
   }
 
@@ -297,7 +294,7 @@ class PenarikanNasabahProvider extends ChangeNotifier {
   Future<Map<String, dynamic>> callPreview({
     required int rewardId,
     double? nominalPenarikan,
-    List<Map<String, dynamic>> itemSembako = const [],
+    List<Map<String, dynamic>> itemBarang = const [],
   }) async {
     if (!_ok) {
       return {'success': false, 'message': 'Sesi tidak valid'};
@@ -306,7 +303,7 @@ class PenarikanNasabahProvider extends ChangeNotifier {
       nasabahId: _nasabahId!,
       rewardId: rewardId,
       nominalPenarikan: nominalPenarikan,
-      itemSembako: itemSembako,
+      itemBarang: itemBarang,
     );
   }
 
@@ -315,7 +312,7 @@ class PenarikanNasabahProvider extends ChangeNotifier {
   Future<Map<String, dynamic>> callAjukan({
     required int rewardId,
     double? nominalPenarikan,
-    List<Map<String, dynamic>> itemSembako = const [],
+    List<Map<String, dynamic>> itemBarang = const [],
     DateTime? deadlineKonfirmasi,
     String? catatan,
   }) async {
@@ -326,7 +323,7 @@ class PenarikanNasabahProvider extends ChangeNotifier {
       nasabahId: _nasabahId!,
       rewardId: rewardId,
       nominalPenarikan: nominalPenarikan,
-      itemSembako: itemSembako,
+      itemBarang: itemBarang,
       deadlineKonfirmasi: deadlineKonfirmasi,
       catatan: catatan,
     );

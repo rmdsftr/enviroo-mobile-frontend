@@ -7,6 +7,7 @@ import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/penarikan_nasabah_provider.dart';
 import '../../widgets/penarikan_detail_widgets.dart';
+import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'qr_penarikan_screen.dart';
 
@@ -51,7 +52,10 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
 
   String _fmtDeadline(DateTime? dt) {
     if (dt == null) return '-';
-    final dateStr = DateFormat('d MMMM yyyy', 'id_ID').format(dt);
+    // Bulan disingkat ('Sep', bukan 'September'). Versi panjangnya membuat
+    // nilainya melipat ke baris kedua di kartu Estimasi Konfirmasi, sehingga
+    // barisnya terlihat sesak.
+    final dateStr = DateFormat('d MMM yyyy', 'id_ID').format(dt);
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
     return '$dateStr, $h.$m WIB';
@@ -224,27 +228,12 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
 
     if (ok) {
       HapticFeedback.mediumImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text(
-            'Pengajuan penarikan dibatalkan. Saldo sudah dikembalikan ke rekeningmu',
-            style: TextStyle(fontFamily: 'Poppins'),
-          ),
-          backgroundColor: primary,
-        ),
-      );
+      showCustomSnackBar(
+          context,
+          'Pengajuan penarikan dibatalkan. Saldo sudah dikembalikan ke rekeningmu',
+          type: SnackBarType.success);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text(
-            'Gagal membatalkan pengajuan',
-            style: TextStyle(fontFamily: 'Poppins'),
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showCustomSnackBar(context, 'Gagal membatalkan pengajuan');
     }
   }
 
@@ -348,7 +337,7 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
                 _buildHeader(detail),
                 const SizedBox(height: 20),
                 _buildInfoSection(detail),
-                if (detail.isSembako && detail.detailSembako.isNotEmpty) ...[
+                if (detail.isBarang && detail.detailBarang.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   _buildBarangCard(detail),
                 ],
@@ -408,10 +397,10 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
     );
   }
 
-  // ── Detail Barang (sembako) ──────────────────────────────────────────────
+  // ── Detail Barang (barang) ──────────────────────────────────────────────
 
   Widget _buildBarangCard(PenarikanDetail detail) {
-    final items = detail.detailSembako;
+    final items = detail.detailBarang;
 
     return SectionCard(
       icon: Icons.shopping_basket_rounded,

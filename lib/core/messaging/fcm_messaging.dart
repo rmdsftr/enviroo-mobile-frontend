@@ -7,15 +7,12 @@ import '../../providers/auth_provider.dart';
 import '../../providers/notifikasi_provider.dart';
 import 'notif_payload.dart';
 
-/// Callback saat sebuah push membawa data deep-link.
+/// Callback saat sebuah push membawa data deep-link dan tree sudah siap
+/// dinavigasi.
 ///
-/// [navigate] bernilai false ketika app baru cold-start dari notifikasi: widget
-/// tree belum siap, jadi pemanggil sebaiknya hanya menandai state dan tidak
-/// mendorong route baru.
-typedef NotifDeepLink = void Function(
-  NotifPayload payload, {
-  required bool navigate,
-});
+/// Push yang datang saat app masih terminated tidak lewat sini: tree belum ada,
+/// jadi payload-nya ditahan dan diambil lewat [FcmMessaging.takePendingDeepLink].
+typedef NotifDeepLink = void Function(NotifPayload payload);
 
 /// Satu-satunya titik di aplikasi yang menyentuh Firebase Cloud Messaging.
 ///
@@ -47,6 +44,21 @@ class FcmMessaging {
   StreamSubscription<String>? _tokenSub;
   bool _started = false;
 
+  /// Deep-link dari push yang membuka app saat masih terminated.
+  ///
+  /// Ditahan di sini karena saat [getInitialMessage] resolve, widget tree belum
+  /// ada — navigasinya pasti tertimpa SplashScreen. SplashScreen yang
+  /// mengambilnya lewat [takePendingDeepLink] setelah sampai di home.
+  NotifPayload? _pendingDeepLink;
+
+  /// Ambil deep-link cold-start yang tertahan, sekaligus mengosongkannya supaya
+  /// tidak terpakai dua kali.
+  NotifPayload? takePendingDeepLink() {
+    final payload = _pendingDeepLink;
+    _pendingDeepLink = null;
+    return payload;
+  }
+
   /// Pasang seluruh listener FCM.
   ///
   /// Aman dipanggil berulang: pemanggilan kedua diabaikan supaya listener tidak
@@ -71,23 +83,25 @@ class FcmMessaging {
     _subs.add(FirebaseMessaging.onMessageOpenedApp.listen((msg) {
       debugPrint('[FCM] onMessageOpenedApp: ${msg.notification?.title}');
       refreshNotifikasi();
-      _dispatchDeepLink(msg, navigate: true);
+      _dispatchDeepLink(msg);
     }));
 
     // Terminated → foreground: app dibuka dari notifikasi (cold start).
-    // Navigasi tidak dilakukan karena tree belum siap; highlight dikonsumsi
-    // saat user membuka layar tujuan secara manual.
+    // Deep-link-nya ditahan, bukan dieksekusi: tree belum ada dan SplashScreen
+    // sebentar lagi memanggil pushAndRemoveUntil yang akan menimpa route apa
+    // pun yang didorong sekarang.
     _messaging.getInitialMessage().then((msg) {
       // Bisa resolve setelah dispose() — jangan sentuh provider yang sudah mati.
       if (!_started || msg == null) return;
       debugPrint('[FCM] getInitialMessage: ${msg.notification?.title}');
       refreshNotifikasi();
-      _dispatchDeepLink(msg, navigate: false);
+      _pendingDeepLink = NotifPayload.from(msg);
     });
   }
 
   Future<void> dispose() async {
     _started = false;
+    _pendingDeepLink = null;
     await _tokenSub?.cancel();
     _tokenSub = null;
     for (final sub in _subs) {
@@ -165,9 +179,9 @@ class FcmMessaging {
     _notif.fetchNotifikasi(role: _auth.role);
   }
 
-  void _dispatchDeepLink(RemoteMessage msg, {required bool navigate}) {
+  void _dispatchDeepLink(RemoteMessage msg) {
     final payload = NotifPayload.from(msg);
     if (payload == null) return;
-    _onDeepLink(payload, navigate: navigate);
+    _onDeepLink(payload);
   }
 }

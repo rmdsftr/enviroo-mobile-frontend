@@ -1,7 +1,8 @@
 import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/success_bottom_sheet.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
-import 'package:enviroo/services/auth_service.dart';
+import 'package:enviroo/providers/auth_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -82,7 +83,8 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
     setState(() => _isLoading = true);
 
     // Kirim tanpa password — backend akan kasih tahu apakah password perlu diisi
-    final result = await AuthService.aktivasiAkun(nik, otp, '');
+    final result =
+        await context.read<AuthProvider>().aktivasiAkun(nik, otp, '');
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -122,11 +124,11 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
 
     setState(() => _isLoading = true);
 
-    final result = await AuthService.aktivasiAkun(
-      _nikController.text.trim(),
-      _otpController.text.trim(),
-      password,
-    );
+    final result = await context.read<AuthProvider>().aktivasiAkun(
+          _nikController.text.trim(),
+          _otpController.text.trim(),
+          password,
+        );
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -187,7 +189,7 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _step == 1
-                        ? 'Masukkan NIK dan kode aktivasi dari Admin untuk memverifikasi akunmu.'
+                        ? 'Masukkan ID Pengguna dan kode aktivasi dari Admin untuk memverifikasi akunmu.'
                         : 'Akun ini belum memiliki password. Buat password baru untuk mulai login.',
                     style: TextStyle(
                       fontFamily: 'Poppins',
@@ -221,10 +223,10 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
       children: [
         _field(
           controller: _nikController,
-          hint: 'Masukkan NIK',
+          hint: 'Masukkan ID Pengguna',
           icon: Icons.badge_rounded,
           isInvalid: _isNikInvalid,
-          errorText: 'NIK wajib diisi dengan angka',
+          errorText: 'ID Pengguna wajib diisi dengan angka',
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         ),

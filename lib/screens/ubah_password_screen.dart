@@ -1,6 +1,5 @@
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/screens/splash_screen.dart';
-import 'package:enviroo/services/auth_service.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/success_bottom_sheet.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
@@ -41,14 +40,11 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
       _isLoading = true;
     });
 
-    final token = Provider.of<AuthProvider>(context, listen: false)
-        .currentUser?.accessToken ?? '';
-
-    final response = await AuthService.changePassword(
+    final response =
+        await Provider.of<AuthProvider>(context, listen: false).changePassword(
       passwordLama,
       passwordBaru,
       konfirmasiPassword,
-      token,
     );
 
     setState(() {

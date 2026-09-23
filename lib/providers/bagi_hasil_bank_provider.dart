@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 
 import '../models/bagi_hasil_bank_model.dart';
 import '../services/bagi_hasil_service.dart';
-import '../services/reward_service.dart';
 
 enum BhBankStatus { idle, loading, success, error }
 
@@ -16,35 +15,7 @@ class BagiHasilBankProvider extends ChangeNotifier {
   BagiHasilBankListResponse? get listData => _listData;
   String? get listError => _listError;
 
-  // ── Persentase bagi hasil (khusus level_user "nasabah") ──────────────────
-  BhBankStatus _persenStatus = BhBankStatus.idle;
-  List<PersenBagiHasilReward> _persenNasabah = [];
-  String? _persenError;
-
-  BhBankStatus get persenStatus => _persenStatus;
-  List<PersenBagiHasilReward> get persenNasabah => _persenNasabah;
-  String? get persenError => _persenError;
-
-  Future<void> fetchPersenBagiHasil(String bankId) async {
-    _persenStatus = BhBankStatus.loading;
-    _persenError = null;
-    notifyListeners();
-
-    final res = await RewardService.getNilaiReward(bankId);
-    if (res['success'] == true) {
-      final list = (res['data'] as List?) ?? [];
-      _persenNasabah = list
-          .whereType<Map<String, dynamic>>()
-          .map((e) => PersenBagiHasilReward.fromJson(e))
-          .where((e) => e.levelUser == 'nasabah')
-          .toList();
-      _persenStatus = BhBankStatus.success;
-    } else {
-      _persenError = res['message']?.toString();
-      _persenStatus = BhBankStatus.error;
-    }
-    notifyListeners();
-  }
+  // Persentase bagi hasil pindah ke RewardProvider — endpoint-nya /nilai-reward.
 
   BhBankStatus _detailStatus = BhBankStatus.idle;
   BagiHasilBankDetail? _detail;

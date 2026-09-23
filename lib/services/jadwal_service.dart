@@ -2,16 +2,17 @@ import 'dart:convert';
 import 'package:enviroo/core/config/api_config.dart';
 import '../models/jadwal_model.dart';
 import 'package:enviroo/core/network/api_client.dart';
+import 'package:enviroo/core/network/api_failure.dart';
 
 class JadwalService {
   static Future<Map<String, dynamic>> getJadwalByBankId(String bankId, {required int month, required int year}) async {
     try {
       final response = await ApiClient.get(Uri.parse('${ApiConfig.getJadwalUrl}/$bankId?month=$month&year=$year'));
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'data': body['data']};
+      if (response.sukses) return {'success': true, 'data': body['data']};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil data jadwal'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 
@@ -25,7 +26,7 @@ class JadwalService {
       final response = await ApiClient.get(Uri.parse(
           '${ApiConfig.getJadwalPenimbanganBsmUrl}/$bankId?month=$month&year=$year'));
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) {
+      if (response.sukses) {
         final List rawList = body['data'] ?? [];
         final list = rawList
             .whereType<Map<String, dynamic>>()
@@ -35,7 +36,7 @@ class JadwalService {
       }
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil jadwal penimbangan'};
     } catch (e) {
-      return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
+      return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
 }

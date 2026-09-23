@@ -1,16 +1,7 @@
+import 'package:enviroo/core/messaging/notif_router.dart';
 import 'package:enviroo/models/notifikasi_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/notifikasi_provider.dart';
-import 'package:enviroo/providers/pengangkutan_provider.dart';
-import 'package:enviroo/screens/admin_bsi/detail_pengangkutan_screen.dart';
-import 'package:enviroo/screens/admin_bsi/katalog_sembako_screen.dart';
-import 'package:enviroo/screens/admin_bsi/pengangkutan_bsi_screen.dart';
-import 'package:enviroo/screens/admin_bsu/struk_bagi_hasil_bsu_screen.dart';
-import 'package:enviroo/screens/nasabah/detail_setoran_screen.dart';
-import 'package:enviroo/screens/penarikan/detail_penarikan_screen.dart';
-import 'package:enviroo/screens/penarikan/detail_transaksi_penarikan_screen.dart';
-import 'package:enviroo/screens/nasabah/struk_bagi_hasil_nasabah.dart';
-import 'package:enviroo/screens/petugas/list_setoran_nasabah.dart';
 import 'package:enviroo/widgets/filter_chip_row.dart';
 import 'package:enviroo/widgets/pagination.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
@@ -45,8 +36,6 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
   }
 
   Future<void> _onTapNotif(NotifikasiModel notif) async {
-    final auth = context.read<AuthProvider>();
-
     // Await agar backend selesai persist sebelum navigasi — cegah race condition
     if (!notif.isRead) {
       await context.read<NotifikasiProvider>().markAsRead(
@@ -56,92 +45,12 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
 
     if (!mounted) return;
 
-    // Navigasi berdasarkan ref_type
-    if (notif.refId == null) return;
-    final refId = notif.refId!;
-
-    switch (notif.refType) {
-      case 'jadwal_pengangkutan':
-        // Hanya tandai dibaca, tidak navigasi ke screen lain
-        return;
-      case 'jadwal_penimbangan':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ListSetoranNasabahScreen(
-              penimbanganId: refId,
-              tanggalPenimbangan: '',
-            ),
-          ),
-        );
-      case 'setoran':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => DetailSetoranScreen(setoranId: refId),
-          ),
-        );
-      case 'pengangkutan':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => DetailPengangkutanScreen(pengangkutanId: refId),
-          ),
-        );
-      case 'pengajuan_pengangkutan':
-        context.read<PengangkutanProvider>().setHighlight(refId);
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const PengangkutanBsiScreen(
-              initialTab: 1,
-              initialFilter: 'requested',
-            ),
-          ),
-        );
-      case 'distribusi_barang':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const KatalogSembakoScreen(),
-          ),
-        );
-      case 'penarikan':
-        final role = auth.role;
-        if (role == 'nasabah') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => DetailPenarikanScreen(penarikanId: refId),
-            ),
-          );
-        } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  DetailTransaksiPenarikanScreen(penarikanId: refId),
-            ),
-          );
-        }
-      case 'bagi_hasil':
-        final role = auth.role;
-        if (role == 'nasabah') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => StrukBagiHasilNasabah(penerimaId: refId),
-            ),
-          );
-        } else if (role == 'petugas_bsu') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => StrukBagiHasilBsuScreen(penerimaSisaId: refId),
-            ),
-          );
-        }
-    }
+    // Navigasi berdasarkan ref_type. Tabel tujuannya ada di NotifRouter supaya
+    // tap dari dalam app dan tap dari system tray tidak bisa beda tujuan.
+    final refType = notif.refType;
+    final refId = notif.refId;
+    if (refType == null || refId == null) return;
+    NotifRouter.open(Navigator.of(context), refType: refType, refId: refId);
   }
 
   // ─── Config per ref_type ──────────────────────────────────────────────────
@@ -189,15 +98,10 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
   bool _isPenimbanganBsm(String? refType) =>
       refType == 'jadwal_penimbangan' || refType == 'penimbangan';
 
-  bool _isTappable(String? refType, String? refId) {
-    if (refId == null) return false;
-    return refType == 'setoran' ||
-        refType == 'pengangkutan' ||
-        refType == 'pengajuan_pengangkutan' ||
-        refType == 'distribusi_barang' ||
-        refType == 'bagi_hasil' ||
-        refType == 'penarikan';
-  }
+  // Affordance "Lihat detail" ikut tabel di NotifRouter — kalau ref_type +
+  // role ini memang tidak punya tujuan, jangan dibikin kelihatan bisa di-tap.
+  bool _isTappable(String? refType, String? refId, String role) =>
+      NotifRouter.hasDestination(refType: refType, refId: refId, role: role);
 
   String _formatWaktu(String createdAt) {
     final dt = DateTime.tryParse(createdAt)?.toLocal();
@@ -234,7 +138,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.wifi_off_rounded,
+                            Icon(Icons.error_outline_rounded,
                                 size: 40,
                                 color: Colors.red.withOpacity(0.5)),
                             const SizedBox(height: 12),
@@ -400,7 +304,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                                       padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
                                       itemCount: notifs.length,
                                       itemBuilder: (context, index) =>
-                                          _buildNotifCard(notifs[index]),
+                                          _buildNotifCard(notifs[index], role),
                                     ),
                                   ),
                                   if (provider.totalPages > 1) ...[
@@ -426,11 +330,11 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
     );
   }
 
-  Widget _buildNotifCard(NotifikasiModel notif) {
+  Widget _buildNotifCard(NotifikasiModel notif, String role) {
     if (_isJadwal(notif.refType)) return _buildJadwalCard(notif);
 
     final color = _getColor(notif.refType);
-    final tappable = _isTappable(notif.refType, notif.refId);
+    final tappable = _isTappable(notif.refType, notif.refId, role);
 
     return GestureDetector(
       onTap: () => _onTapNotif(notif),

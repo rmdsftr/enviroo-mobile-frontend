@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:enviroo/screens/reset_password_screen.dart';
-import 'package:enviroo/services/auth_service.dart';
+import 'package:enviroo/providers/auth_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -52,7 +54,9 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
   Future<void> _resendOtp() async {
     setState(() => _isResending = true);
 
-    final result = await AuthService.sendEmailForgetPassword(widget.email);
+    final result = await context
+        .read<AuthProvider>()
+        .sendEmailForgetPassword(widget.email);
 
     if (!mounted) return;
     setState(() => _isResending = false);
@@ -74,85 +78,21 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
       _startTimer();
 
       // Tampilkan snackbar sukses yang informatif
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            backgroundColor: const Color(0xFF013236),
-            duration: const Duration(seconds: 4),
-            content: Row(
-              children: [
-                const Icon(Icons.mark_email_read_outlined,
-                    color: Color(0xFF4EA771), size: 22),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Kode OTP baru telah dikirim!',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: Color(0xFFFFFFFF),
-                        ),
-                      ),
-                      Text(
-                        'Cek email ${widget.email}. Berlaku 10 menit.',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: Color(0xFFFFFFFF),
-                          height: 1.4,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+      showCustomSnackBar(
+        context,
+        'Kode OTP baru telah dikirim!',
+        subtitle: 'Cek email ${widget.email}. Berlaku 10 menit.',
+        type: SnackBarType.info,
+        icon: Icons.mark_email_read_outlined,
+        hideCurrent: true,
+      );
     } else {
       // Tampilkan snackbar error
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            backgroundColor: const Color(0xFFB61E20),
-            duration: const Duration(seconds: 4),
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline_rounded,
-                    color: Color(0xFFFFFFFF), size: 22),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    result['message'] ?? 'Gagal mengirim ulang OTP',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      color: Color(0xFFFFFFFF),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+      showCustomSnackBar(
+        context,
+        result['message'] ?? 'Gagal mengirim ulang OTP',
+        hideCurrent: true,
+      );
     }
   }
 
@@ -186,8 +126,9 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
 
     setState(() => _isLoading = true);
 
-    final result = await AuthService.verifikasiOtpForgetPassword(
-        widget.email, otp);
+    final result = await context
+        .read<AuthProvider>()
+        .verifikasiOtpForgetPassword(widget.email, otp);
 
     if (!mounted) return;
     setState(() => _isLoading = false);

@@ -1,8 +1,10 @@
+import 'package:enviroo/core/messaging/fcm_messaging.dart';
+import 'package:enviroo/core/messaging/notif_router.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/notifikasi_provider.dart';
-import 'package:enviroo/screens/admin_bsi/home_bsi_screen.dart';
-import 'package:enviroo/screens/admin_bsm/home_bsm_screen.dart';
-import 'package:enviroo/screens/admin_bsu/home_bsu_screen.dart';
+import 'package:enviroo/screens/petugas/home_bsi_screen.dart';
+import 'package:enviroo/screens/petugas/home_bsm_screen.dart';
+import 'package:enviroo/screens/petugas/home_bsu_screen.dart';
 import 'package:enviroo/screens/nasabah/home_screen.dart';
 import 'package:enviroo/screens/login_screen.dart';
 import 'package:flutter/material.dart';
@@ -82,6 +84,10 @@ class _SplashScreenState extends State<SplashScreen>
             _navigateToHome(auth.role);
           } else {
             debugPrint("Splash: Navigasi ke LoginScreen");
+            // Sesi sudah habis padahal app dibuka dari notifikasi — buang
+            // deep-link-nya supaya tidak menggantung dan kepicu di waktu yang
+            // tidak nyambung setelah user login ulang.
+            context.read<FcmMessaging>().takePendingDeepLink();
             // Tidak ada sesi → ke login
             Navigator.pushReplacement(
               context,
@@ -120,6 +126,12 @@ class _SplashScreenState extends State<SplashScreen>
       destination = const HomeBsuScreen();
     }
 
+    // Keduanya diambil sebelum navigasi: setelah pushAndRemoveUntil, context
+    // milik SplashScreen sudah tercabut dari tree. NavigatorState-nya sendiri
+    // milik root navigator, jadi tetap hidup dan masih bisa dipakai push.
+    final navigator = Navigator.of(context);
+    final pendingDeepLink = context.read<FcmMessaging>().takePendingDeepLink();
+
     Navigator.pushAndRemoveUntil(
       context,
       PageRouteBuilder(
@@ -130,6 +142,17 @@ class _SplashScreenState extends State<SplashScreen>
       ),
       (route) => false,
     );
+
+    // App dibuka dari notifikasi saat terminated. Baru sekarang tree siap, dan
+    // home sudah jadi route dasar sehingga tombol back dari layar tujuan
+    // kembali ke home, bukan keluar app.
+    if (pendingDeepLink != null) {
+      NotifRouter.open(
+        navigator,
+        refType: pendingDeepLink.refType,
+        refId: pendingDeepLink.refId,
+      );
+    }
   }
 
   @override

@@ -1,3 +1,7 @@
+// RewardModel dulu dideklarasi kembar di sini. Sekarang satu definisi saja,
+// tinggal di penjualan_model.dart.
+import 'penjualan_model.dart';
+
 class KategoriSampahModel {
   final int kategoriId;
   final String kategori;
@@ -8,29 +12,6 @@ class KategoriSampahModel {
     return KategoriSampahModel(
       kategoriId: json['KategoriID'] ?? json['kategori_id'] ?? 0,
       kategori: (json['Kategori'] ?? json['kategori'] ?? '').toString(),
-    );
-  }
-}
-
-class RewardModel {
-  final int rewardId;
-  final String namaReward;
-  final String satuan;
-  final String? deskripsi;
-
-  RewardModel({
-    required this.rewardId,
-    required this.namaReward,
-    required this.satuan,
-    this.deskripsi,
-  });
-
-  factory RewardModel.fromJson(Map<String, dynamic> json) {
-    return RewardModel(
-      rewardId: json['RewardID'] ?? json['reward_id'] ?? 0,
-      namaReward: (json['NamaReward'] ?? json['nama_reward'] ?? '').toString(),
-      satuan: (json['Satuan'] ?? json['satuan'] ?? '').toString(),
-      deskripsi: (json['Deskripsi'] ?? json['deskripsi'])?.toString(),
     );
   }
 }
@@ -91,7 +72,11 @@ class KatalogSampahModel {
 }
 
 class HargaPerLevelModel {
-  final int schemaId;
+  // String, bukan int: backend mengirim id sebagai teks ("12010010010022").
+  // Dulu bertipe int, dan karena `json[...]` itu dynamic, analyzer diam —
+  // gagalnya baru muncul saat runtime sebagai TypeError yang lalu ditelan
+  // `catch` di KatalogProvider dan tampil sebagai "Data tidak tersedia".
+  final String schemaId;
   final String levelUser;
   final double harga;
   final String satuanReward;
@@ -105,7 +90,7 @@ class HargaPerLevelModel {
 
   factory HargaPerLevelModel.fromJson(Map<String, dynamic> json) {
     return HargaPerLevelModel(
-      schemaId: json['schema_id'] ?? 0,
+      schemaId: json['schema_id']?.toString() ?? '',
       levelUser: json['level_user'] ?? '',
       harga: (json['harga'] as num?)?.toDouble() ?? 0.0,
       satuanReward: json['satuan_reward'] ?? '',
@@ -114,8 +99,9 @@ class HargaPerLevelModel {
 }
 
 class HistoryHargaModel {
-  final int historyId;
-  final int schemaId;
+  // Sama seperti HargaPerLevelModel: id dikirim backend sebagai teks.
+  final String historyId;
+  final String schemaId;
   final String levelUser;
   final double hargaLama;
   final double hargaBaru;
@@ -134,8 +120,8 @@ class HistoryHargaModel {
 
   factory HistoryHargaModel.fromJson(Map<String, dynamic> json) {
     return HistoryHargaModel(
-      historyId: json['history_id'] ?? 0,
-      schemaId: json['schema_id'] ?? 0,
+      historyId: json['history_id']?.toString() ?? '',
+      schemaId: json['schema_id']?.toString() ?? '',
       levelUser: json['level_user'] ?? '',
       hargaLama: (json['harga_lama'] as num?)?.toDouble() ?? 0.0,
       hargaBaru: (json['harga_baru'] as num?)?.toDouble() ?? 0.0,
@@ -199,27 +185,27 @@ class DetailSampahModel {
   }
 }
 
-// ── Sembako models ────────────────────────────────────────────────────────────
+// ── Barang models ────────────────────────────────────────────────────────────
 
-class KatalogSembakoModel {
-  final String sembakoId;
-  final String namaSembako;
+class KatalogBarangModel {
+  final String produkId;
+  final String namaBarang;
   final String photoUrl;
   final double stok;
   final double nilaiPoin;
 
-  KatalogSembakoModel({
-    required this.sembakoId,
-    required this.namaSembako,
+  KatalogBarangModel({
+    required this.produkId,
+    required this.namaBarang,
     required this.photoUrl,
     required this.stok,
     required this.nilaiPoin,
   });
 
-  factory KatalogSembakoModel.fromJson(Map<String, dynamic> json) {
-    return KatalogSembakoModel(
-      sembakoId: json['produk_id']?.toString() ?? '',
-      namaSembako: json['nama_barang']?.toString() ?? '',
+  factory KatalogBarangModel.fromJson(Map<String, dynamic> json) {
+    return KatalogBarangModel(
+      produkId: json['produk_id']?.toString() ?? '',
+      namaBarang: json['nama_barang']?.toString() ?? '',
       photoUrl: json['photo_url']?.toString() ?? json['PhotoURL']?.toString() ?? '',
       stok: _toDouble(json['stok']),
       nilaiPoin: _toDouble(json['nilai_poin']),
@@ -235,32 +221,32 @@ class KatalogSembakoModel {
   bool get hasNilaiPoin => nilaiPoin > 0;
 }
 
-// ── Riwayat distribusi sembako ────────────────────────────────────────────────
+// ── Riwayat distribusi barang ────────────────────────────────────────────────
 
-class RiwayatDistribusiSembakoModel {
-  final String disbakoId;
+class RiwayatDistribusiBarangModel {
+  final String disbaId;
   final DateTime tanggalKirim;
   final double item;
   final double stokSebelum;
   final double stokSesudah;
 
-  RiwayatDistribusiSembakoModel({
-    required this.disbakoId,
+  RiwayatDistribusiBarangModel({
+    required this.disbaId,
     required this.tanggalKirim,
     required this.item,
     required this.stokSebelum,
     required this.stokSesudah,
   });
 
-  factory RiwayatDistribusiSembakoModel.fromJson(Map<String, dynamic> json) {
+  factory RiwayatDistribusiBarangModel.fromJson(Map<String, dynamic> json) {
     DateTime parsedDate;
     try {
       parsedDate = DateTime.parse(json['tanggal_kirim'] ?? '').toLocal();
     } catch (_) {
       parsedDate = DateTime.now();
     }
-    return RiwayatDistribusiSembakoModel(
-      disbakoId: json['disba_id']?.toString() ?? '',
+    return RiwayatDistribusiBarangModel(
+      disbaId: json['disba_id']?.toString() ?? '',
       tanggalKirim: parsedDate,
       item: (json['item'] as num?)?.toDouble() ?? 0.0,
       stokSebelum: (json['stok_sebelum'] as num?)?.toDouble() ?? 0.0,
@@ -269,20 +255,20 @@ class RiwayatDistribusiSembakoModel {
   }
 }
 
-class DetailSembakoWithRiwayat {
-  final KatalogSembakoModel sembako;
-  final List<RiwayatDistribusiSembakoModel> riwayatDistribusi;
+class DetailBarangWithRiwayat {
+  final KatalogBarangModel barang;
+  final List<RiwayatDistribusiBarangModel> riwayatDistribusi;
 
-  DetailSembakoWithRiwayat({
-    required this.sembako,
+  DetailBarangWithRiwayat({
+    required this.barang,
     required this.riwayatDistribusi,
   });
 }
 
-// ── Detail distribusi sembako ─────────────────────────────────────────────────
+// ── Detail distribusi barang ─────────────────────────────────────────────────
 
 class DetailDistribusiItemModel {
-  final String sembakoId;
+  final String produkId;
   final String namaBarang;
   final String photoUrl;
   final double nilaiPoin;
@@ -290,7 +276,7 @@ class DetailDistribusiItemModel {
   final double subtotalPoin;
 
   DetailDistribusiItemModel({
-    required this.sembakoId,
+    required this.produkId,
     required this.namaBarang,
     required this.photoUrl,
     required this.nilaiPoin,
@@ -300,7 +286,7 @@ class DetailDistribusiItemModel {
 
   factory DetailDistribusiItemModel.fromJson(Map<String, dynamic> json) {
     return DetailDistribusiItemModel(
-      sembakoId: json['produk_id']?.toString() ?? '',
+      produkId: json['produk_id']?.toString() ?? '',
       namaBarang: json['nama_barang']?.toString() ?? '-',
       photoUrl: json['photo_url']?.toString() ?? '',
       nilaiPoin: (json['nilai_poin'] as num?)?.toDouble() ?? 0.0,
@@ -310,8 +296,8 @@ class DetailDistribusiItemModel {
   }
 }
 
-class DetailDistribusiSembakoModel {
-  final String disbakoId;
+class DetailDistribusiBarangModel {
+  final String disbaId;
   final String namaBsi;
   final String namaBsu;
   final String namaAdminBsi;
@@ -322,8 +308,8 @@ class DetailDistribusiSembakoModel {
   final String statusDistribusi;
   final List<DetailDistribusiItemModel> items;
 
-  DetailDistribusiSembakoModel({
-    required this.disbakoId,
+  DetailDistribusiBarangModel({
+    required this.disbaId,
     required this.namaBsi,
     required this.namaBsu,
     required this.namaAdminBsi,
@@ -335,7 +321,7 @@ class DetailDistribusiSembakoModel {
     required this.items,
   });
 
-  factory DetailDistribusiSembakoModel.fromJson(Map<String, dynamic> json) {
+  factory DetailDistribusiBarangModel.fromJson(Map<String, dynamic> json) {
     final hdr = json['header'] as Map<String, dynamic>;
     DateTime parsedDate;
     try {
@@ -344,8 +330,8 @@ class DetailDistribusiSembakoModel {
       parsedDate = DateTime.now();
     }
     final rawItems = json['items'] as List<dynamic>? ?? [];
-    return DetailDistribusiSembakoModel(
-      disbakoId: hdr['disba_id']?.toString() ?? '',
+    return DetailDistribusiBarangModel(
+      disbaId: hdr['disba_id']?.toString() ?? '',
       namaBsi: hdr['nama_bsi']?.toString() ?? '-',
       namaBsu: hdr['nama_bsu']?.toString() ?? '-',
       namaAdminBsi: hdr['nama_admin_bsi']?.toString() ?? '-',
@@ -361,32 +347,32 @@ class DetailDistribusiSembakoModel {
   }
 }
 
-// ── List distribusi sembako (BSI → BSU) ──────────────────────────────────────
+// ── List distribusi barang (BSI → BSU) ──────────────────────────────────────
 
-class ListDistribusiSembakoModel {
-  final String disbakoId;
+class ListDistribusiBarangModel {
+  final String disbaId;
   final String namaBsu;
   final DateTime createdAt;
   final double totalItem;
   final String statusDistribusi;
 
-  ListDistribusiSembakoModel({
-    required this.disbakoId,
+  ListDistribusiBarangModel({
+    required this.disbaId,
     required this.namaBsu,
     required this.createdAt,
     required this.totalItem,
     required this.statusDistribusi,
   });
 
-  factory ListDistribusiSembakoModel.fromJson(Map<String, dynamic> json) {
+  factory ListDistribusiBarangModel.fromJson(Map<String, dynamic> json) {
     DateTime parsedDate;
     try {
       parsedDate = DateTime.parse(json['created_at'] ?? '').toLocal();
     } catch (_) {
       parsedDate = DateTime.now();
     }
-    return ListDistribusiSembakoModel(
-      disbakoId: json['disba_id']?.toString() ?? '',
+    return ListDistribusiBarangModel(
+      disbaId: json['disba_id']?.toString() ?? '',
       namaBsu: json['nama_bsu']?.toString() ?? '-',
       createdAt: parsedDate,
       totalItem: (json['total_item'] as num?)?.toDouble() ?? 0.0,
@@ -395,11 +381,11 @@ class ListDistribusiSembakoModel {
   }
 }
 
-// ── Preview distribusi sembako ─────────────────────────────────────────────────
+// ── Preview distribusi barang ─────────────────────────────────────────────────
 
 class PreviewDistribusiItemModel {
-  final String sembakoId;
-  final String namaSembako;
+  final String produkId;
+  final String namaBarang;
   final String photoUrl;
   final double nilaiPoin;
   final int stokKirim;
@@ -410,8 +396,8 @@ class PreviewDistribusiItemModel {
   final bool bsuItemBaru;
 
   PreviewDistribusiItemModel({
-    required this.sembakoId,
-    required this.namaSembako,
+    required this.produkId,
+    required this.namaBarang,
     required this.photoUrl,
     required this.nilaiPoin,
     required this.stokKirim,
@@ -424,8 +410,8 @@ class PreviewDistribusiItemModel {
 
   factory PreviewDistribusiItemModel.fromJson(Map<String, dynamic> json) {
     return PreviewDistribusiItemModel(
-      sembakoId: json['produk_id']?.toString() ?? '',
-      namaSembako: json['nama_barang']?.toString() ?? '',
+      produkId: json['produk_id']?.toString() ?? '',
+      namaBarang: json['nama_barang']?.toString() ?? '',
       photoUrl: json['photo_url']?.toString() ?? '',
       nilaiPoin: (json['nilai_poin'] as num?)?.toDouble() ?? 0.0,
       stokKirim: (json['stok_kirim'] as num?)?.toInt() ?? 0,

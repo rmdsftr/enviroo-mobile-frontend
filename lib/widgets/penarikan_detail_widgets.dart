@@ -337,10 +337,10 @@ class _PenarikanRiwayatCardState extends State<PenarikanRiwayatCard> {
   }
 }
 
-/// Breakdown item barang (sembako) 2-kolom: nama+nilai poin (kiri),
+/// Breakdown item barang (barang) 2-kolom: nama+nilai poin (kiri),
 /// qty+subtotal poin (kanan). Dipakai di [SectionCard] "Detail Barang".
 class DetailBarangRow extends StatelessWidget {
-  final DetailSembakoItem item;
+  final DetailBarangItem item;
   const DetailBarangRow({super.key, required this.item});
 
   @override
@@ -359,7 +359,7 @@ class DetailBarangRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.namaSembako,
+                  item.namaBarang,
                   style: const TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 13,

@@ -17,13 +17,14 @@ class RewardModel {
   factory RewardModel.fromJson(Map<String, dynamic> json) {
     return RewardModel(
       rewardId: json['RewardID'] ?? json['reward_id'] ?? 0,
-      namaReward: json['NamaReward'] ?? json['nama_reward'] ?? '',
-      satuan: json['Satuan'] ?? json['satuan'] ?? '',
-      deskripsi: json['Deskripsi'] ?? json['deskripsi'],
+      // .toString() menjaga dari nilai non-string yang dikirim backend.
+      namaReward: (json['NamaReward'] ?? json['nama_reward'] ?? '').toString(),
+      satuan: (json['Satuan'] ?? json['satuan'] ?? '').toString(),
+      deskripsi: (json['Deskripsi'] ?? json['deskripsi'])?.toString(),
     );
   }
 
-  bool get isSembako => namaReward.toLowerCase() == 'barang';
+  bool get isBarang => namaReward.toLowerCase() == 'barang';
 }
 
 // ─── Riwayat Penjualan (List Item) ──────────────────────────────────────────

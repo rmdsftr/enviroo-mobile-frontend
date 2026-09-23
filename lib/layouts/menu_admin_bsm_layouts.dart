@@ -1,8 +1,12 @@
 import 'package:enviroo/screens/bagi_hasil/riwayat_bagi_hasil_screen.dart';
-import 'package:enviroo/screens/penjualan_eksternal/riwayat_penjualan_screen.dart';
+import 'package:enviroo/screens/penjualan/riwayat_penjualan_screen.dart';
 import 'package:enviroo/screens/penarikan/penarikan_petugas_screen.dart';
-import 'package:enviroo/screens/petugas/penimbangan_screen.dart';
+import 'package:enviroo/screens/penimbangan/penimbangan_screen.dart';
+import 'package:enviroo/screens/katalog/katalog_screen.dart';
+import 'package:enviroo/screens/jadwal/navigasi_jadwal_screen.dart';
+import 'package:enviroo/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class MenuAdminBSM extends StatefulWidget {
   @override
@@ -82,6 +86,38 @@ class _MenuAdminBSMState extends State<MenuAdminBSM> {
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const RiwayatBagiHasilScreen())),
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildMenuItem(
+                      context: context,
+                      label: "Katalog",
+                      icon: Icons.collections_bookmark_rounded,
+                      color: const Color(0xFF4EA771),
+                      iconColor: Colors.white,
+                      // role diteruskan karena katalog_screen memakainya untuk
+                      // memutuskan apakah tab "Barang" ikut ditampilkan.
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => KatalogScreen(
+                            role: context.read<AuthProvider>().role,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildMenuItem(
+                      context: context,
+                      label: "Jadwal",
+                      icon: Icons.calendar_month_rounded,
+                      color:  const Color(0xFF2D9CDB),
+                      iconColor: Colors.white,
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const NavigasiJadwalScreen())),
                     ),
                   ),
                 ],
