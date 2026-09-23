@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:enviroo/models/petugas_model.dart';
@@ -76,28 +77,19 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
     if (barcode == null || barcode.rawValue == null) return;
 
     final raw = barcode.rawValue!;
-    if (!raw.startsWith('ENVIROO-ANGKUTBSU|')) return;
+
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      if (decoded['type'] != 'ENVIROO-ANGKUTBSU') return;
+    } catch (_) {
+      return;
+    }
 
     setState(() => _isProcessing = true);
     _scannerController.stop();
     HapticFeedback.mediumImpact();
 
-    final parts = raw.split('|');
-    final adminBsuId = parts.length >= 2 ? parts[1] : '';
-
-    if (adminBsuId.isEmpty) {
-      showCustomSnackBar(context, 'QR code tidak valid');
-      _resumeScan();
-      return;
-    }
-
-    await _submit(adminBsuId, null);
-  }
-
-  void _resumeScan() {
-    if (!mounted) return;
-    setState(() => _isProcessing = false);
-    _scannerController.start();
+    await _submit(raw, null);
   }
 
   // ── Foto fallback ──────────────────────────────────────────────────────────
@@ -144,11 +136,12 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
     }
 
     setState(() => _isProcessing = true);
-    await _submit(adminBsuId, foto);
+    final qrData = '{"type":"ENVIROO-ANGKUTBSU","admin_bsu_id":"$adminBsuId","pengangkutan_id":"${widget.pengangkutanId}"}';
+    await _submit(qrData, foto);
   }
 
   // ── Submit ─────────────────────────────────────────────────────────────────
-  Future<void> _submit(String adminBsuId, File? bukti) async {
+  Future<void> _submit(String qrData, File? bukti) async {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
 
@@ -156,9 +149,8 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
     final adminBsiId = auth.identityId ?? '';
 
     final res = await PengangkutanService.inputSampah(
-      widget.pengangkutanId,
+      qrData,
       adminBsiId,
-      adminBsuId,
       widget.items,
       buktiFoto: bukti,
     );

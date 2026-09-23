@@ -38,7 +38,7 @@ class _TopBarCustomState extends State<TopBarCustom> {
     final auth = context.read<AuthProvider>();
     if (!auth.isLoggedIn) return;
     context.read<NotifikasiProvider>().fetchNotifikasi(
-          userId: auth.userId,
+          role: auth.role,
         );
   }
 
@@ -50,9 +50,34 @@ class _TopBarCustomState extends State<TopBarCustom> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Image.asset(
-            widget.logo ?? "assets/images/logo-fix.png",
-            height: 22,
+          Row(
+            children : [
+              Image.asset(
+                widget.logo ?? "assets/images/logo-fix.png",
+                height: 22,
+              ),
+              // SizedBox(width: 4),
+              // Text(
+              //   'envir',
+              //   style: TextStyle(
+              //     fontFamily: 'Poppins',
+              //     fontSize: 17,
+              //     fontWeight: FontWeight.w700,
+              //     color: const Color(0xFF013236),
+              //   ),
+              // ),
+              // SizedBox(width: 1),
+              // Text(
+              //   'oo',
+              //   style: TextStyle(
+              //     fontFamily: 'Poppins',
+              //     fontSize: 17,
+              //     fontWeight: FontWeight.w700,
+              //     color: const Color(0xFF013236),
+              //     letterSpacing: -2,
+              //   ),
+              // )
+            ]
           ),
           Row(
             children: [
@@ -75,7 +100,8 @@ class _TopBarCustomState extends State<TopBarCustom> {
                     ),
                     Consumer<NotifikasiProvider>(
                       builder: (context, notifProvider, _) {
-                        final count = notifProvider.unreadCount;
+                        final role = context.read<AuthProvider>().role;
+                        final count = notifProvider.unreadCountFor(role);
                         if (count == 0) return const SizedBox.shrink();
                         final label = count > 9 ? '9+' : '$count';
                         return Positioned(

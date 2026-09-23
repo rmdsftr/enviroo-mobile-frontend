@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/penjualan_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/penjualan_provider.dart';
 import '../../widgets/custom_snackbar.dart';
+import '../../widgets/filter_chip_row.dart';
 import '../../widgets/topbar_back.dart';
 import 'pilih_sampah_screen.dart';
 
@@ -16,6 +18,8 @@ class _C {
   static const border = Color(0xFFE6EDE9);
 }
 
+enum _MitraInputMode { baru, pilih }
+
 class JenisTransaksiScreen extends StatefulWidget {
   const JenisTransaksiScreen({super.key});
 
@@ -25,33 +29,50 @@ class JenisTransaksiScreen extends StatefulWidget {
 
 class _JenisTransaksiScreenState extends State<JenisTransaksiScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _identitasCtrl = TextEditingController();
+  final _namaMitraCtrl = TextEditingController();
+  _MitraInputMode _mitraMode = _MitraInputMode.baru;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final prov = context.read<PenjualanProvider>();
+      final bankId = context.read<AuthProvider>().bankId ?? '';
       // Pre-fill kalau user balik ke halaman ini
-      _identitasCtrl.text = prov.identitasPembeli;
+      _namaMitraCtrl.text = prov.namaMitra;
+      // Kalau sebelumnya udah milih mitra existing (misal dari shortcut
+      // "Mitra Pengepul Langganan"), langsung buka di mode "Pilih Mitra".
+      if (prov.selectedMitraId != null) {
+        setState(() => _mitraMode = _MitraInputMode.pilih);
+      }
       prov.fetchRewards();
+      if (bankId.isNotEmpty) prov.fetchMitra(bankId);
     });
   }
 
   @override
   void dispose() {
-    _identitasCtrl.dispose();
+    _namaMitraCtrl.dispose();
     super.dispose();
   }
 
   void _next() {
-    if (!_formKey.currentState!.validate()) return;
     final prov = context.read<PenjualanProvider>();
+
     if (prov.selectedReward == null) {
       showCustomSnackBar(context, 'Jenis reward wajib dipilih');
       return;
     }
-    prov.setIdentitasPembeli(_identitasCtrl.text.trim());
+
+    if (_mitraMode == _MitraInputMode.baru) {
+      if (!_formKey.currentState!.validate()) return;
+      prov.setNamaMitra(_namaMitraCtrl.text.trim());
+    } else {
+      if (prov.selectedMitraId == null) {
+        showCustomSnackBar(context, 'Pilih salah satu mitra dari daftar');
+        return;
+      }
+    }
 
     Navigator.push(
       context,
@@ -130,29 +151,61 @@ class _JenisTransaksiScreenState extends State<JenisTransaksiScreen> {
                             onChanged: prov.setReward,
                           ),
                           const SizedBox(height: 18),
-                          const _LabelField(label: 'Identitas Pembeli'),
-                          const SizedBox(height: 6),
-                          TextFormField(
-                            controller: _identitasCtrl,
-                            decoration: _inputDecoration(
-                              hint: 'Contoh: PT Semen Padang',
-                              icon: Icons.store_rounded,
-                            ),
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 13,
-                              color: _C.dark,
-                            ),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
-                                return 'Identitas pembeli wajib diisi';
-                              }
-                              if (v.trim().length < 3) {
-                                return 'Minimal 3 karakter';
-                              }
-                              return null;
-                            },
+                          const _LabelField(label: 'Nama Mitra'),
+                          const SizedBox(height: 8),
+                          FilterChipRow<_MitraInputMode>(
+                            padding: EdgeInsets.zero,
+                            colorMode: FilterChipColorMode.dark,
+                            selectedValue: _mitraMode,
+                            items: const [
+                              FilterChipItem(
+                                value: _MitraInputMode.baru,
+                                label: 'Input Baru',
+                              ),
+                              FilterChipItem(
+                                value: _MitraInputMode.pilih,
+                                label: 'Pilih Mitra',
+                              ),
+                            ],
+                            onSelected: (mode) =>
+                                setState(() => _mitraMode = mode),
                           ),
+                          const SizedBox(height: 12),
+                          if (_mitraMode == _MitraInputMode.baru)
+                            TextFormField(
+                              controller: _namaMitraCtrl,
+                              decoration: _inputDecoration(
+                                hint: 'Contoh: PT Semen Padang',
+                                icon: Icons.store_rounded,
+                              ),
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 13,
+                                color: _C.dark,
+                              ),
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'Nama mitra wajib diisi';
+                                }
+                                if (v.trim().length < 3) {
+                                  return 'Minimal 3 karakter';
+                                }
+                                return null;
+                              },
+                            )
+                          else
+                            _MitraPicker(
+                              status: prov.mitraStatus,
+                              error: prov.mitraError,
+                              mitraList: prov.mitraList,
+                              selectedMitraId: prov.selectedMitraId,
+                              onSelect: prov.selectMitra,
+                              onRetry: () {
+                                final bankId =
+                                    context.read<AuthProvider>().bankId ?? '';
+                                if (bankId.isNotEmpty) prov.fetchMitra(bankId);
+                              },
+                            ),
                         ],
                       ),
                     ),
@@ -175,7 +228,7 @@ InputDecoration _inputDecoration({String? hint, IconData? icon}) {
     hintStyle: const TextStyle(
         fontFamily: 'Poppins', fontSize: 12.5, color: _C.muted),
     prefixIcon: icon != null
-        ? Icon(icon, color: _C.green, size: 20)
+        ? Icon(icon, color: _C.dark, size: 20)
         : null,
     filled: true,
     fillColor: Colors.white,
@@ -244,6 +297,127 @@ class _Heading extends StatelessWidget {
           ),
         ],
       );
+}
+
+class _MitraPicker extends StatelessWidget {
+  final FetchStatus status;
+  final String? error;
+  final List<MitraModel> mitraList;
+  final String? selectedMitraId;
+  final ValueChanged<MitraModel> onSelect;
+  final VoidCallback onRetry;
+
+  const _MitraPicker({
+    required this.status,
+    required this.error,
+    required this.mitraList,
+    required this.selectedMitraId,
+    required this.onSelect,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (status == FetchStatus.loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: CircularProgressIndicator(color: _C.green),
+        ),
+      );
+    }
+
+    if (status == FetchStatus.error) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          children: [
+            Text(
+              error ?? 'Gagal memuat daftar mitra',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontFamily: 'Poppins', fontSize: 12.5, color: _C.muted),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('Coba Lagi', style: TextStyle(fontFamily: 'Poppins')),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _C.dark,
+                side: const BorderSide(color: _C.border),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (mitraList.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        decoration: BoxDecoration(
+          color: _C.cardBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _C.border),
+        ),
+        child: const Text(
+          'Belum ada mitra terdaftar. Gunakan "Input Baru" untuk mendaftarkan mitra ini.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontFamily: 'Poppins', fontSize: 12.5, color: _C.muted),
+        ),
+      );
+    }
+
+    return Column(
+      children: mitraList.map((m) {
+        final isSelected = m.mitraId == selectedMitraId;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Material(
+            color: isSelected ? const Color(0xFFF4FBE6) : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => onSelect(m),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isSelected ? _C.green : _C.border,
+                    width: isSelected ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.storefront_rounded,
+                      size: 20,
+                      color: isSelected ? _C.green : _C.dark,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        m.namaMitra,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _C.dark,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
 }
 
 class _StepIndicator extends StatelessWidget {

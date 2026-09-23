@@ -35,12 +35,14 @@ class PenjualanProvider extends ChangeNotifier {
 
   // ── Form (lintas-screen) ───────────────────────────────────────────────────
   RewardModel? _selectedReward;
-  String _identitasPembeli = '';
+  String _namaMitra = '';
+  String? _selectedMitraId;
   final List<ItemSampahPilihan> _itemsSampah = [];
   File? _buktiFoto;
 
   RewardModel? get selectedReward => _selectedReward;
-  String get identitasPembeli => _identitasPembeli;
+  String get namaMitra => _namaMitra;
+  String? get selectedMitraId => _selectedMitraId;
   List<ItemSampahPilihan> get itemsSampah => _itemsSampah;
   File? get buktiFoto => _buktiFoto;
 
@@ -81,9 +83,19 @@ class PenjualanProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setIdentitasPembeli(String value) {
-    _identitasPembeli = value;
+  void setNamaMitra(String value) {
+    _namaMitra = value;
+    // Ketik manual = gak pakai mitra existing lagi, walau sebelumnya sempat dipilih dari list.
+    _selectedMitraId = null;
     // Tidak perlu notify — biasanya dipakai di TextField yang sudah re-render sendiri.
+  }
+
+  /// Pilih mitra yang sudah terdaftar (master data) — dipakai buat submit
+  /// via `mitra_id`, beda jalur dari [setNamaMitra] yang submit via `nama_mitra`.
+  void selectMitra(MitraModel mitra) {
+    _namaMitra = mitra.namaMitra;
+    _selectedMitraId = mitra.mitraId;
+    notifyListeners();
   }
 
   void toggleSampah(ItemSampahPilihan item, {bool? selected}) {
@@ -139,7 +151,8 @@ class PenjualanProvider extends ChangeNotifier {
   /// atau ketika user keluar dari alur input.
   void resetForm() {
     _selectedReward = null;
-    _identitasPembeli = '';
+    _namaMitra = '';
+    _selectedMitraId = null;
     _itemsSampah.clear();
     _buktiFoto = null;
     _submitError = null;
@@ -155,12 +168,12 @@ class PenjualanProvider extends ChangeNotifier {
   // Network calls
   // ───────────────────────────────────────────────────────────────────────────
 
-  Future<void> fetchRiwayat(String bankId) async {
+  Future<void> fetchRiwayat(String bankId, {String? startDate, String? endDate}) async {
     _riwayatStatus = FetchStatus.loading;
     _riwayatError = null;
     notifyListeners();
 
-    final res = await PenjualanService.getRiwayatEksternal(bankId);
+    final res = await PenjualanService.getRiwayatEksternal(bankId, startDate: startDate, endDate: endDate);
     if (res['success'] == true) {
       final List data = res['data'] ?? [];
       _riwayat = data.map((e) => RiwayatPenjualanModel.fromJson(e)).toList();
@@ -191,11 +204,11 @@ class PenjualanProvider extends ChangeNotifier {
 
   // ── Mitra Penjualan ─────────────────────────────────────────────────────────
   FetchStatus _mitraStatus = FetchStatus.idle;
-  List<String> _mitraList = [];
+  List<MitraModel> _mitraList = [];
   String? _mitraError;
 
   FetchStatus get mitraStatus => _mitraStatus;
-  List<String> get mitraList => _mitraList;
+  List<MitraModel> get mitraList => _mitraList;
   String? get mitraError => _mitraError;
 
   Future<void> fetchMitra(String bankId) async {
@@ -206,7 +219,10 @@ class PenjualanProvider extends ChangeNotifier {
     final res = await PenjualanService.getMitraEksternal(bankId);
     if (res['success'] == true) {
       final List data = res['data'] ?? [];
-      _mitraList = data.map((e) => (e['nama'] ?? '').toString()).toList();
+      _mitraList = data
+          .map((e) => MitraModel.fromJson(e))
+          .where((m) => m.isActive)
+          .toList();
       _mitraStatus = FetchStatus.success;
     } else {
       _mitraError = res['message'];
@@ -281,7 +297,7 @@ class PenjualanProvider extends ChangeNotifier {
     required String adminId,
   }) async {
     if (_selectedReward == null ||
-        _identitasPembeli.isEmpty ||
+        _namaMitra.isEmpty ||
         _itemsSampah.isEmpty ||
         _buktiFoto == null) {
       _submitError = 'Data belum lengkap';
@@ -297,7 +313,8 @@ class PenjualanProvider extends ChangeNotifier {
       bankId: bankId,
       adminId: adminId,
       rewardId: _selectedReward!.rewardId,
-      identitasPembeli: _identitasPembeli,
+      mitraId: _selectedMitraId,
+      namaMitra: _selectedMitraId == null ? _namaMitra : null,
       itemsSampah: _itemsSampah.map((e) => e.toPayload()).toList(),
       buktiFoto: _buktiFoto!,
     );

@@ -24,11 +24,10 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
   bool _isLoading = true;
   String? _error;
   int _selectedTab = 0; // 0 = Cair, 1 = Belum Cair
+  final Set<String> _expandedCards = {};
 
-  static DateTime _defaultStart() => DateTime(2020);
-
-  late DateTime _filterStart = _defaultStart();
-  late DateTime _filterEnd = DateTime.now();
+  late DateTime _filterStart;
+  late DateTime _filterEnd;
 
   final _rupiahFmt =
       NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
@@ -37,6 +36,12 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _filterEnd = DateTime(now.year, now.month);
+    final startMonth = now.month - 2;
+    _filterStart = startMonth <= 0
+        ? DateTime(now.year - 1, 12 + startMonth)
+        : DateTime(now.year, startMonth);
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
   }
 
@@ -49,7 +54,9 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final bsuId = auth.bankId ?? '';
 
-    final result = await TabunganSampahService.getBukuTabunganBsu(bsuId);
+    final startDate = '${_filterStart.year}-${_filterStart.month.toString().padLeft(2, '0')}-01';
+    final endDate = '${_filterEnd.year}-${_filterEnd.month.toString().padLeft(2, '0')}-${DateTime(_filterEnd.year, _filterEnd.month + 1, 0).day.toString().padLeft(2, '0')}';
+    final result = await TabunganSampahService.getBukuTabunganBsu(bsuId, startDate: startDate, endDate: endDate);
 
     if (!mounted) return;
     if (result['success'] == true) {
@@ -106,66 +113,97 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
     final filtered = _filtered;
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F5),
-      body: SafeArea(
-        child: Column(
-          children: [
-            const TopBarBack(title: 'Buku Tabungan BSU'),
-            Expanded(
-              child: RefreshIndicator(
-                color: _accent,
-                onRefresh: _fetch,
-                child: CustomScrollView(
-                  physics: const BouncingScrollPhysics(
-                    parent: AlwaysScrollableScrollPhysics(),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bg_struk2.webp'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              const TopBarBack(title: 'Buku Tabungan BSU'),
+              Expanded(
+                child: RefreshIndicator(
+                  color: _accent,
+                  onRefresh: _fetch,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 12),
+                        _buildSubtitle(),
+                        const SizedBox(height: 14),
+                        MainNavbar(
+                          selectedIndex: _selectedTab,
+                          onTabChanged: (i) => setState(() => _selectedTab = i),
+                          tabs: const ['Cair', 'Belum Cair'],
+                          backgroundColor: Colors.white.withValues(alpha: 0.6),
+                          border: Border.all(
+                            color: const Color(0xFF013236).withValues(alpha: 0.1),
+                            width: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          constraints: BoxConstraints(
+                            minHeight: MediaQuery.of(context).size.height,
+                          ),
+                          decoration: const BoxDecoration(color: Colors.white),
+                          padding: const EdgeInsets.only(top: 10, bottom: 40),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+                                child: Text(
+                                  'Monitoring tabungan sampah',
+                                  style: const TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _teal,
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                child: MonthYearFilterRow(
+                                  filterStart: _filterStart,
+                                  filterEnd: _filterEnd,
+                                  onChanged: (start, end) {
+                                    setState(() {
+                                      _filterStart = start;
+                                      _filterEnd = end;
+                                    });
+                                    _fetch();
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              if (_isLoading)
+                                const Center(
+                                  child: CircularProgressIndicator(color: _accent),
+                                )
+                              else if (_error != null)
+                                _buildError()
+                              else if (filtered.isEmpty)
+                                _buildEmpty()
+                              else
+                                _buildList(filtered),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  slivers: [
-                    SliverToBoxAdapter(child: _buildSubtitle()),
-                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                    SliverToBoxAdapter(
-                      child: MainNavbar(
-                        selectedIndex: _selectedTab,
-                        onTabChanged: (i) => setState(() => _selectedTab = i),
-                        tabs: const ['Cair', 'Belum Cair'],
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                        child: MonthYearFilterRow(
-                          filterStart: _filterStart,
-                          filterEnd: _filterEnd,
-                          onChanged: (start, end) => setState(() {
-                            _filterStart = start;
-                            _filterEnd = end;
-                          }),
-                        ),
-                      ),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                    if (_isLoading)
-                      const SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                          child: CircularProgressIndicator(color: _accent),
-                        ),
-                      )
-                    else if (_error != null)
-                      SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: _buildError(),
-                      )
-                    else if (filtered.isEmpty)
-                      SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: _buildEmpty(),
-                      )
-                    else
-                      _buildListSliver(filtered),
-                  ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -185,17 +223,14 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
     );
   }
 
-  Widget _buildListSliver(List<PengangkutanGroup> list) {
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-      sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (_, i) => i.isOdd
-              ? const SizedBox(height: 12)
-              : _buildGroupCard(list[i ~/ 2]),
-          childCount: list.length * 2 - 1,
-        ),
-      ),
+  Widget _buildList(List<PengangkutanGroup> list) {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      itemCount: list.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (_, i) => _buildGroupCard(list[i]),
     );
   }
 
@@ -208,6 +243,9 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
     final allBelum = group.items.every((e) => e.status == 'Belum Cair');
     final groupStatus =
         allCair ? 'Cair' : allBelum ? 'Belum Cair' : 'Cair Sebagian';
+
+    final key = group.sourceId;
+    final isExpanded = _expandedCards.contains(key);
 
     return Container(
       decoration: BoxDecoration(
@@ -225,7 +263,7 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             child: Row(
               children: [
                 Container(
@@ -266,20 +304,59 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
               ],
             ),
           ),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            itemCount: group.items.length,
-            separatorBuilder: (_, __) => const Divider(
-              height: 1,
-              thickness: 1,
-              indent: 16,
-              endIndent: 16,
-              color: Color(0xFFF0F0F0),
+
+          if (isExpanded) ...[
+            const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              itemCount: group.items.length,
+              separatorBuilder: (_, __) => const Divider(
+                height: 1,
+                thickness: 1,
+                indent: 16,
+                endIndent: 16,
+                color: Color(0xFFF0F0F0),
+              ),
+              itemBuilder: (_, i) => _buildItemRow(group.items[i]),
             ),
-            itemBuilder: (_, i) => _buildItemRow(group.items[i]),
+          ],
+
+          const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
+          GestureDetector(
+            onTap: () => setState(() {
+              if (isExpanded) {
+                _expandedCards.remove(key);
+              } else {
+                _expandedCards.add(key);
+              }
+            }),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    isExpanded ? 'Tutup' : 'Lihat detail',
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _accent,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    isExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 16,
+                    color: _accent,
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -318,7 +395,7 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
                 if (item.hargaItem != null) ...[
                   const SizedBox(height: 2),
                   Text(
-                    item.namaReward.toLowerCase() == 'sembako'
+                    item.namaReward.toLowerCase() == 'barang'
                         ? '${_fmtQty(item.hargaItem!)} poin / ${item.satuan}'
                         : '${_rupiahFmt.format(item.hargaItem!)} / ${item.satuan}',
                     style: TextStyle(
@@ -348,7 +425,7 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
             children: [
               if (item.nilaiTotal != null)
                 Text(
-                  item.namaReward.toLowerCase() == 'sembako'
+                  item.namaReward.toLowerCase() == 'barang'
                       ? '${_fmtQty(item.nilaiTotal!)} poin'
                       : _rupiahFmt.format(item.nilaiTotal!),
                   style: const TextStyle(
@@ -405,33 +482,38 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
   }
 
   Widget _buildEmpty() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.savings_outlined,
-            size: 64, color: _teal.withValues(alpha: 0.2)),
-        const SizedBox(height: 16),
-        Text(
-          'Belum ada tabungan sampah',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: _teal.withValues(alpha: 0.4),
-          ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.savings_outlined,
+                size: 64, color: _teal.withValues(alpha: 0.2)),
+            const SizedBox(height: 16),
+            Text(
+              'Belum ada tabungan sampah',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: _teal.withValues(alpha: 0.4),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Data tabungan akan muncul setelah\npengangkutan sampah berhasil dilakukan.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                color: _teal.withValues(alpha: 0.35),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 6),
-        Text(
-          'Data tabungan akan muncul setelah\npengangkutan sampah berhasil dilakukan.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 12,
-            color: _teal.withValues(alpha: 0.35),
-          ),
-        ),
-      ],
+      ),
     );
   }
 

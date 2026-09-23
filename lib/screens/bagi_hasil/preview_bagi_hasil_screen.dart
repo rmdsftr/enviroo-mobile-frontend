@@ -252,7 +252,7 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
   Widget _buildContent(PreviewBagiHasilModel preview, bool submitting) {
     final fmtRp = NumberFormat('#,##0', 'id_ID');
 
-    String fmtNilai(double val) => preview.reward.toLowerCase() == 'sembako'
+    String fmtNilai(double val) => preview.reward.toLowerCase() == 'barang'
         ? '${fmtRp.format(val)} poin'
         : 'Rp ${fmtRp.format(val)}';
 
@@ -379,108 +379,76 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
                         ],
                       ),
                       const SizedBox(height: 14),
-                      ...preview.penerima.asMap().entries.map((bankEntry) {
-                        final isLastBank =
-                            bankEntry.key == preview.penerima.length - 1;
-                        final bank = bankEntry.value;
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Bank sub-header
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: _C.dark.withValues(alpha: 0.06),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(
-                                      Icons.account_balance_rounded,
-                                      size: 13,
-                                      color: _C.dark),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    bank.namaBank,
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: _C.dark.withValues(alpha: 0.7),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                      ...preview.penerima.map((bank) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            margin: const EdgeInsets.only(top:10),
+                            decoration: BoxDecoration(
+                              color: _C.dark.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            const SizedBox(height: 8),
-                            // Nasabah rows
-                            ...bank.nasabahPenerima.asMap().entries.map((e) {
-                              final isLastNasabah = e.key ==
-                                  bank.nasabahPenerima.length - 1;
-                              final n = e.value;
-                              return Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 9),
-                                    child: Row(
-                                      children: [
-                                        const SizedBox(width: 4),
-                                        Container(
-                                          padding: const EdgeInsets.all(6),
-                                          decoration: BoxDecoration(
-                                            color: _C.green
-                                                .withValues(alpha: 0.08),
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                          ),
-                                          child: const Icon(
-                                              Icons.person_rounded,
-                                              size: 13,
-                                              color: _C.green),
+                            child: Text(
+                              bank.namaBank,
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: _C.dark.withValues(alpha: 0.6),
+                              ),
+                            ),
+                          ),
+                          ...bank.nasabahPenerima.asMap().entries.map((e) {
+                            final isLastNasabah = e.key == bank.nasabahPenerima.length - 1;
+                            final n = e.value;
+                            return Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 9),
+                                  child: Row(
+                                    children: [
+                                      const SizedBox(width: 4),
+                                      Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: _C.green.withValues(alpha: 0.08),
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            n.namaNasabah.isNotEmpty
-                                                ? n.namaNasabah
-                                                : n.nasabahId,
-                                            style: const TextStyle(
-                                              fontFamily: 'Poppins',
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                              color: _C.dark,
-                                            ),
-                                          ),
-                                        ),
-                                        Text(
-                                          fmtNilai(n.totalDiterima),
+                                        child: const Icon(Icons.person_rounded,
+                                            size: 13, color: _C.green),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          n.namaNasabah.isNotEmpty ? n.namaNasabah : n.nasabahId,
                                           style: const TextStyle(
                                             fontFamily: 'Poppins',
                                             fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: _C.green,
+                                            fontWeight: FontWeight.w500,
+                                            color: _C.dark,
                                           ),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                      Text(
+                                        fmtNilai(n.totalDiterima),
+                                        style: const TextStyle(
+                                          fontFamily: 'Poppins',
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: _C.green,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  if (!isLastNasabah) _divider(),
-                                ],
-                              );
-                            }),
-                            if (!isLastBank) ...[
-                              const SizedBox(height: 4),
-                              Divider(
-                                  color:
-                                      _C.dark.withValues(alpha: 0.12),
-                                  height: 16),
-                            ],
-                          ],
-                        );
-                      }),
+                                ),
+                                if (!isLastNasabah) _divider(),
+                              ],
+                            );
+                          }),
+                        ],
+                      )),
                     ],
                   ),
                 ),

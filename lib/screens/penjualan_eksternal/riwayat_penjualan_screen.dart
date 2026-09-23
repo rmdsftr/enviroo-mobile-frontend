@@ -8,7 +8,6 @@ import '../../providers/penjualan_provider.dart';
 import '../../widgets/topbar_back.dart';
 import '../../widgets/filter_month_year.dart';
 import '../../widgets/filter_chip_row.dart';
-import '../../widgets/navbar.dart';
 import 'detail_penjualan_screen.dart';
 import 'jenis_transaksi_screen.dart';
 
@@ -22,7 +21,9 @@ class _C {
 }
 
 class RiwayatPenjualanScreen extends StatefulWidget {
-  const RiwayatPenjualanScreen({super.key});
+  final String initialStatusFilter;
+
+  const RiwayatPenjualanScreen({super.key, this.initialStatusFilter = 'Selesai'});
 
   @override
   State<RiwayatPenjualanScreen> createState() => _RiwayatPenjualanScreenState();
@@ -32,12 +33,14 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
   DateTime _filterStart =
       DateTime(DateTime.now().year, DateTime.now().month - 2);
   DateTime _filterEnd = DateTime.now();
-  String _filterReward = 'Semua';
-  int _tabIndex = 0; // 0 = Pending, 1 = Terdistribusi
+  late String _statusFilter;
+
+  static const _statusOptions = ['Selesai', 'Menunggu Bagi Hasil'];
 
   @override
   void initState() {
     super.initState();
+    _statusFilter = widget.initialStatusFilter;
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
@@ -47,17 +50,21 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
     final bankId = auth.bankId ?? '';
     if (bankId.isEmpty) return;
     await Future.wait([
-      prov.fetchRiwayat(bankId),
+      prov.fetchRiwayat(
+        bankId,
+        startDate: '${_filterStart.year}-${_filterStart.month.toString().padLeft(2, '0')}-01',
+        endDate: '${_filterEnd.year}-${_filterEnd.month.toString().padLeft(2, '0')}-${DateTime(_filterEnd.year, _filterEnd.month + 1, 0).day.toString().padLeft(2, '0')}',
+      ),
       prov.fetchRewards(),
       prov.fetchMitra(bankId),
     ]);
   }
 
-  void _openForm({String? initialMitraName}) {
+  void _openForm({MitraModel? initialMitra}) {
     final prov = context.read<PenjualanProvider>();
     prov.resetForm();
-    if (initialMitraName != null) {
-      prov.setIdentitasPembeli(initialMitraName);
+    if (initialMitra != null) {
+      prov.selectMitra(initialMitra);
     }
     Navigator.push(
       context,
@@ -72,7 +79,7 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/bg_struk.webp'),
+            image: AssetImage('assets/images/bg_struk2.webp'),
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
           ),
@@ -85,151 +92,141 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
                 child: RefreshIndicator(
                   color: _C.green,
                   onRefresh: _load,
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      // ── Bagian atas ────────────────────────────
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: () => _openForm(),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF013236),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(50),
-                                  ),
-                                  elevation: 0,
-                                ),
-                                icon: const Icon(Icons.add_rounded, size: 18),
-                                label: const Text(
-                                  'Jual Sampah ke Pihak Eksternal',
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
+                  child: Consumer<PenjualanProvider>(
+                    builder: (_, prov, __) {
+                      final isBusy = prov.riwayatStatus == FetchStatus.idle ||
+                          prov.riwayatStatus == FetchStatus.loading;
+                      final isError = prov.riwayatStatus == FetchStatus.error;
+
+                      return CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          // ── Bagian atas — scroll away normally ────────
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                              child: IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Expanded(child: _buildJualCard()),
+                                    const SizedBox(width: 12),
+                                    Expanded(child: _buildDaftarMitraCard(prov)),
+                                  ],
                                 ),
                               ),
                             ),
                           ),
-                          Consumer<PenjualanProvider>(
-                            builder: (_, prov, __) =>
-                                _buildRiwayatMitraSection(prov),
-                          ),
-                          const SizedBox(height: 10),
-                        ],
-                      ),
-
-                      Consumer<PenjualanProvider>(
-                        builder: (_, prov, __) {
-                          if (prov.riwayatStatus == FetchStatus.idle ||
-                              prov.riwayatStatus == FetchStatus.loading) {
-                            return const Padding(
-                              padding: EdgeInsets.only(top: 40),
-                              child: Center(
-                                child:
-                                    CircularProgressIndicator(color: _C.green),
-                              ),
-                            );
-                          }
-                          if (prov.riwayatStatus == FetchStatus.error) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 40),
-                              child: _buildError(
-                                  prov.riwayatError ?? 'Terjadi kesalahan'),
-                            );
-                          }
-
-                          final filtered =
-                              _getFilteredList(prov.riwayat, prov.rewards);
-
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // ── Section List (Putih) ─────────
-                              Container(
-                                width: double.infinity,
-                                constraints: BoxConstraints(
-                                  minHeight: MediaQuery.of(context).size.height,
+                          if (isBusy)
+                            const SliverToBoxAdapter(
+                              child: Padding(
+                                padding: EdgeInsets.only(top: 40),
+                                child: Center(
+                                  child: CircularProgressIndicator(color: _C.green),
                                 ),
-                                decoration: const BoxDecoration(
+                              ),
+                            )
+                          else if (isError)
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 40),
+                                child: _buildError(
+                                    prov.riwayatError ?? 'Terjadi kesalahan'),
+                              ),
+                            )
+                          else ...[
+                            // Sticky: "Riwayat Penjualan" + filter bulan + filter status,
+                            // pin di bawah TopBarBack
+                            SliverPersistentHeader(
+                              pinned: true,
+                              delegate: _StickyHeaderDelegate(
+                                height: 150,
+                                child: Container(
                                   color: Colors.white,
-                                ),
-                                padding: const EdgeInsets.only(top: 10, bottom: 100),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    // Tab Pending / Terdistribusi (Glassmorphism)
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 10),
-                                      child: MainNavbar(
-                                        selectedIndex: _tabIndex,
-                                        onTabChanged: (i) =>
-                                            setState(() => _tabIndex = i),
-                                        tabs: const ['Pending', 'Terdistribusi'],
-                                        backgroundColor: Colors.white.withValues(alpha: 0.6),
-                                        border: Border.all(
-                                          color: const Color(0xFF013236).withValues(alpha: 0.1),
-                                          width: 1,
+                                  padding: const EdgeInsets.only(top: 20, bottom: 12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 22),
+                                        child: Text(
+                                          'Riwayat Penjualan',
+                                          style: TextStyle(
+                                            fontFamily: 'Poppins',
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                            color: _C.dark,
+                                          ),
                                         ),
                                       ),
-                                    ),
-
-                                    // Filter Bulan & Reward
-                                    const SizedBox(height: 8),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 20),
-                                      child: MonthYearFilterRow(
-                                        filterStart: _filterStart,
-                                        filterEnd: _filterEnd,
-                                        onChanged: (start, end) =>
+                                      const SizedBox(height: 12),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                                        child: MonthYearFilterRow(
+                                          filterStart: _filterStart,
+                                          filterEnd: _filterEnd,
+                                          onChanged: (start, end) {
                                             setState(() {
-                                          _filterStart = start;
-                                          _filterEnd = end;
-                                        }),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    _buildFilterChips(
-                                        prov.riwayat, prov.rewards),
-                                    const SizedBox(height: 20),
-
-                                    if (filtered.isEmpty)
-                                      _buildEmpty()
-                                    else
-                                      ListView.separated(
-                                        shrinkWrap: true,
-                                        physics:
-                                            const NeverScrollableScrollPhysics(),
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 20),
-                                        itemCount: filtered.length,
-                                        separatorBuilder: (_, __) =>
-                                            const SizedBox(height: 12),
-                                        itemBuilder: (_, i) => _RiwayatCard(
-                                          item: filtered[i],
-                                          onTap: () =>
-                                              _openDetail(filtered[i]),
+                                              _filterStart = start;
+                                              _filterEnd = end;
+                                            });
+                                            _load();
+                                          },
                                         ),
                                       ),
-                                  ],
+                                      const SizedBox(height: 12),
+                                      FilterChipRow<String>(
+                                        items: _statusOptions
+                                            .map((v) => FilterChipItem<String>(value: v, label: v))
+                                            .toList(),
+                                        selectedValue: _statusFilter,
+                                        onSelected: (v) =>
+                                            setState(() => _statusFilter = v),
+                                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ],
-                          );
-                        },
-                      ),
-                    ],
+                            ),
+                            // List — cuma ini yang scroll di bawah sticky header
+                            SliverToBoxAdapter(
+                              child: Builder(builder: (context) {
+                                final filtered =
+                                    _getFilteredList(prov.riwayat, prov.rewards);
+                                return Container(
+                                  width: double.infinity,
+                                  constraints: BoxConstraints(
+                                    minHeight: MediaQuery.of(context).size.height,
+                                  ),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                  ),
+                                  padding: const EdgeInsets.only(top: 10, bottom: 100),
+                                  child: filtered.isEmpty
+                                      ? _buildEmpty()
+                                      : ListView.separated(
+                                          shrinkWrap: true,
+                                          physics:
+                                              const NeverScrollableScrollPhysics(),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 20),
+                                          itemCount: filtered.length,
+                                          separatorBuilder: (_, __) =>
+                                              const SizedBox(height: 12),
+                                          itemBuilder: (_, i) => _RiwayatCard(
+                                            item: filtered[i],
+                                            onTap: () =>
+                                                _openDetail(filtered[i]),
+                                          ),
+                                        ),
+                                );
+                              }),
+                            ),
+                          ],
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -252,138 +249,243 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
           DateTime(_filterEnd.year, _filterEnd.month + 1, 0, 23, 59, 59);
       if (d.isBefore(start) || d.isAfter(end)) return false;
 
-      // Filter tab: Pending (0) vs Terdistribusi (1)
+      // Filter status: Selesai vs Menunggu Bagi Hasil
       final sudah = item.statusBagiHasil.toLowerCase() == 'berhasil';
-      if (_tabIndex == 0 && sudah) return false;
-      if (_tabIndex == 1 && !sudah) return false;
+      if (_statusFilter == 'Selesai' && !sudah) return false;
+      if (_statusFilter == 'Menunggu Bagi Hasil' && sudah) return false;
 
-      // Filter jenis reward berdasarkan namaReward
-      if (_filterReward != 'Semua') {
-        if (item.namaReward != _filterReward) return false;
-      }
 
       return true;
     }).toList();
   }
 
-  Widget _buildRiwayatMitraSection(PenjualanProvider prov) {
-    if (prov.mitraStatus == FetchStatus.loading) {
-      return const SizedBox(
-        height: 100,
-        child: Center(child: CircularProgressIndicator(color: _C.green)),
-      );
-    }
-    if (prov.mitraList.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 27, vertical: 8),
-          child: Text(
-            'Mitra Pengepul Langganan',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: _C.dark,
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 90,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            scrollDirection: Axis.horizontal,
-            itemCount: prov.mitraList.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, i) {
-              final mitraName = prov.mitraList[i];
-              return Container(
-                width: 140,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border:
-                      Border.all(color: const Color(0xFFE6EDE9), width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(5),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+  Widget _buildJualCard() {
+    return Material(
+      color: _C.dark,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: () => _openForm(),
+        borderRadius: BorderRadius.circular(20),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 30),
+              SizedBox(width: 12),
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Jual Sampah',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'ke Pengepul',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Colors.white,
+                      ),
                     ),
                   ],
                 ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () => _openForm(initialMitraName: mitraName),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(
-                              color: _C.cardBg,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.storefront_rounded,
-                                size: 20, color: _C.green),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            mitraName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _C.dark,
-                            ),
-                          ),
-                        ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDaftarMitraCard(PenjualanProvider prov) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: () => _openMitraSheet(prov),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _C.green.withValues(alpha: 0.25), width: 1),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.groups_rounded, color: _C.dark, size: 30),
+              SizedBox(width: 12),
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Daftar Mitra',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                        color: _C.dark,
+                      ),
+                    ),
+                    Text(
+                      'Pengepul Langganan',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                        color: _C.dark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openMitraSheet(PenjualanProvider prov) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
+                  const Text(
+                    'Mitra Pengepul Langganan',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: _C.dark,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: Consumer<PenjualanProvider>(
+                      builder: (_, p, __) {
+                        if (p.mitraStatus == FetchStatus.loading) {
+                          return const Center(
+                            child: CircularProgressIndicator(color: _C.green),
+                          );
+                        }
+                        if (p.mitraList.isEmpty) {
+                          return Center(
+                            child: Text(
+                              'Belum ada mitra langganan',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 12.5,
+                                color: _C.muted,
+                              ),
+                            ),
+                          );
+                        }
+                        return ListView.separated(
+                          itemCount: p.mitraList.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          itemBuilder: (_, i) {
+                            final mitra = p.mitraList[i];
+                            return Material(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () {
+                                  Navigator.pop(sheetContext);
+                                  _openForm(initialMitra: mitra);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                        color: const Color(0xFFE6EDE9)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF94DF0C)
+                                              .withValues(alpha: 0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                            Icons.storefront_rounded,
+                                            size: 18,
+                                            color: Color(0xFF94DF0C)),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          mitra.namaMitra,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontFamily: 'Poppins',
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: _C.dark,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
-  Widget _buildFilterChips(
-      List<RiwayatPenjualanModel> riwayat, List<RewardModel> rewards) {
-    // Ambil namaReward unik dari data aktual
-    final uniqueNama = riwayat
-        .map((e) => e.namaReward)
-        .where((s) => s.isNotEmpty)
-        .toSet()
-        .toList();
-
-    if (_filterReward != 'Semua' && !uniqueNama.contains(_filterReward)) {
-      WidgetsBinding.instance.addPostFrameCallback(
-          (_) => setState(() => _filterReward = 'Semua'));
-    }
-
-    final items = <FilterChipItem<String>>[
-      const FilterChipItem(value: 'Semua', label: 'Semua'),
-      ...uniqueNama.map((nama) => FilterChipItem<String>(value: nama, label: nama)),
-    ];
-
-    return FilterChipRow<String>(
-      items: items,
-      selectedValue: _filterReward,
-      onSelected: (v) => setState(() => _filterReward = v),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-    );
-  }
 
   void _openDetail(RiwayatPenjualanModel item) {
     Navigator.push(
@@ -496,15 +598,15 @@ class _RiwayatCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: _C.cardBg,
-                  borderRadius: BorderRadius.circular(12),
+                  color: Color(0xFF013236).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(30),
                 ),
                 child: Icon(
                   item.satuanReward.toLowerCase() == 'rp' ||
                           item.satuanReward.toLowerCase() == 'rupiah'
                       ? Icons.payments_rounded
                       : Icons.shopping_basket_rounded,
-                  color: _C.green,
+                  color: Color(0xFF013236),
                   size: 22,
                 ),
               ),
@@ -517,13 +619,13 @@ class _RiwayatCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            item.identitasPembeli,
+                            item.namaMitra,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontFamily: 'Poppins',
                               fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                               color: _C.dark,
                             ),
                           ),
@@ -560,6 +662,32 @@ class _RiwayatCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ── Sticky header delegate ───────────────────────────────────────────────────
+// Bikin "Riwayat Penjualan" + filter bulan + filter status nempel (pinned) di
+// bawah TopBarBack saat di-scroll, sementara cuma list riwayat yang ikut bergerak.
+class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+
+  _StickyHeaderDelegate({required this.child, required this.height});
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) {
+    return oldDelegate.child != child || oldDelegate.height != height;
   }
 }
 

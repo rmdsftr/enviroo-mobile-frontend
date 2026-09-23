@@ -248,7 +248,7 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
                           ),
                           child: Column(
                             children: [
-                              _kv('Pembeli', prov.identitasPembeli),
+                              _kv('Pembeli', prov.namaMitra),
                               _kv(
                                   'Reward',
                                   prov.selectedReward

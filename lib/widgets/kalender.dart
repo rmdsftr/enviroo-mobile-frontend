@@ -30,12 +30,22 @@ class CalendarWidget extends StatefulWidget {
   /// Colour of the small event-dot under day numbers. Defaults to [AppColors.primary].
   final Color? eventDotColor;
 
+  /// Month to display initially. Defaults to the current month.
+  final DateTime? initialMonth;
+
+  /// Kalau false, strip event di bawah grid (badge tanggal terpilih)
+  /// disembunyikan — dipakai saat detail event udah ditampilin lewat cara
+  /// lain (mis. bottom sheet on tap) biar gak dobel.
+  final bool showEventBadge;
+
   const CalendarWidget({
     super.key,
     this.events = const {},
     this.onDaySelected,
     this.onPageChanged,
     this.eventDotColor,
+    this.initialMonth,
+    this.showEventBadge = true,
   });
 
   @override
@@ -63,7 +73,8 @@ class _CalendarWidgetState extends State<CalendarWidget>
   void initState() {
     super.initState();
     _today = DateTime.now();
-    _current = DateTime(_today.year, _today.month);
+    final init = widget.initialMonth;
+    _current = init != null ? DateTime(init.year, init.month) : DateTime(_today.year, _today.month);
     _selected = _today;
     _animCtrl = AnimationController(
       vsync: this,
@@ -126,6 +137,10 @@ class _CalendarWidgetState extends State<CalendarWidget>
         decoration: BoxDecoration(
           color: Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(28),
+          border : Border.all(
+            color: AppColors.dark.withOpacity(0.1),
+            width: 1,
+          )
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(28),
@@ -181,7 +196,7 @@ class _CalendarWidgetState extends State<CalendarWidget>
                       opacity: _fadeAnim,
                       child: _buildGrid(),
                     ),
-                    _buildEventBadge(),
+                    if (widget.showEventBadge) _buildEventBadge(),
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -391,26 +406,6 @@ class _CalendarWidgetState extends State<CalendarWidget>
                 ),
               ),
             ),
-    );
-  }
-
-  // ── Palette Strip ─────────────────────────────────────────────────────────
-  Widget _buildPaletteStrip() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(3, (i) {
-        final isActive = i == 1;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.symmetric(horizontal: 3),
-          width: isActive ? 20 : 8,
-          height: 4,
-          decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF94DF0C) : AppColors.dark,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        );
-      }),
     );
   }
 }

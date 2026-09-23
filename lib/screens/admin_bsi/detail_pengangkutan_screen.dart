@@ -1,74 +1,9 @@
+import 'package:enviroo/models/pengangkutan_bsi_model.dart';
 import 'package:enviroo/screens/admin_bsu/sesi_pengangkutan_screen.dart';
+import 'package:enviroo/screens/lihat_foto_screen.dart';
 import 'package:enviroo/services/pengangkutan_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-
-// ─── Models ─────────────────────────────────────────────────────────────────
-
-class _PengangkutanHeader {
-  final String paketId;
-  final String pengangkutanId;
-  final String namaBsi;
-  final String namaBsu;
-  final String namaAdminBsi;
-  final int totalItem;
-  final String statusSetoran;
-  final String createdAt;
-
-  _PengangkutanHeader({
-    required this.paketId,
-    required this.pengangkutanId,
-    required this.namaBsi,
-    required this.namaBsu,
-    required this.namaAdminBsi,
-    required this.totalItem,
-    required this.statusSetoran,
-    required this.createdAt,
-  });
-
-  factory _PengangkutanHeader.fromJson(Map<String, dynamic> json) {
-    String createdAt = '-';
-    if (json['created_at'] != null) {
-      try {
-        createdAt =
-            DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID').format(DateTime.parse(json['created_at'].toString()));
-      } catch (_) {
-        createdAt = json['created_at'].toString();
-      }
-    }
-    return _PengangkutanHeader(
-      paketId: json['paket_id'] ?? '',
-      pengangkutanId: json['pengangkutan_id'] ?? '',
-      namaBsi: json['nama_bsi'] ?? '-',
-      namaBsu: json['nama_bsu'] ?? '-',
-      namaAdminBsi: json['nama_admin_bsi'] ?? '-',
-      totalItem: (json['total_item'] ?? 0) as int,
-      statusSetoran: json['status_setoran'] ?? 'pending',
-      createdAt: createdAt,
-    );
-  }
-}
-
-class _PengangkutanItem {
-  final String namaSampah;
-  final String satuan;
-  final double qty;
-
-  _PengangkutanItem({
-    required this.namaSampah,
-    required this.satuan,
-    required this.qty,
-  });
-
-  factory _PengangkutanItem.fromJson(Map<String, dynamic> json) {
-    return _PengangkutanItem(
-      namaSampah: json['nama_sampah'] ?? '-',
-      satuan: json['satuan'] ?? '-',
-      qty: (json['qty'] as num?)?.toDouble() ?? 0.0,
-    );
-  }
-}
 
 // ─── Screen ─────────────────────────────────────────────────────────────────
 
@@ -90,8 +25,8 @@ class DetailPengangkutanScreen extends StatefulWidget {
 class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
   bool _isLoading = true;
   String? _errorMsg;
-  _PengangkutanHeader? _header;
-  List<_PengangkutanItem> _items = [];
+  PengangkutanHeader? _header;
+  List<PengangkutanItem> _items = [];
 
   @override
   void initState() {
@@ -119,11 +54,11 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
         return;
       }
       setState(() {
-        _header = _PengangkutanHeader.fromJson(
+        _header = PengangkutanHeader.fromJson(
             data['header'] as Map<String, dynamic>);
         final List rawItems = data['items'] as List? ?? [];
         _items = rawItems
-            .map((e) => _PengangkutanItem.fromJson(e as Map<String, dynamic>))
+            .map((e) => PengangkutanItem.fromJson(e as Map<String, dynamic>))
             .toList();
         _isLoading = false;
       });
@@ -138,45 +73,49 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
   // ── Status helpers ───────────────────────────────────────────────────────
   Color _statusColor(String status) {
     switch (status) {
-      case 'berhasil':
-        return const Color(0xFF4EA771);
-      case 'pending':
-        return const Color(0xFFFAA324);
-      default:
-        return Colors.red.shade400;
+      case 'completed': return const Color(0xFF4EA771);
+      case 'otw':       return const Color(0xFFFAA324);
+      case 'approved':  return const Color(0xFF06C0C9);
+      case 'requested': return const Color(0xFF94DF0C);
+      case 'canceled':
+      case 'rejected':  return Colors.red.shade400;
+      default:          return Colors.grey;
     }
   }
 
   Color _statusBg(String status) {
     switch (status) {
-      case 'berhasil':
-        return const Color(0xFFE8F5E9);
-      case 'pending':
-        return const Color(0xFFFFF8E1);
-      default:
-        return Colors.red.withOpacity(0.08);
+      case 'completed': return const Color(0xFFE8F5E9);
+      case 'otw':       return const Color(0xFFFFF8E1);
+      case 'approved':  return const Color(0xFFE0F7FA);
+      case 'requested': return const Color(0xFFF4FCE3);
+      case 'canceled':
+      case 'rejected':  return Colors.red.withOpacity(0.08);
+      default:          return Colors.grey.withOpacity(0.08);
     }
   }
 
   String _statusLabel(String status) {
     switch (status) {
-      case 'berhasil':
-        return 'Berhasil';
-      case 'pending':
-        return 'Pending';
-      default:
-        return 'Gagal';
+      case 'completed': return 'Selesai';
+      case 'otw':       return 'Dalam Perjalanan';
+      case 'approved':  return 'Disetujui';
+      case 'requested': return 'Diajukan';
+      case 'canceled':  return 'Dibatalkan';
+      case 'rejected':  return 'Ditolak';
+      default:          return status;
     }
   }
 
   IconData _statusIcon(String status) {
     switch (status) {
-      case 'berhasil':
-        return Icons.check_circle_rounded;
-      case 'pending':
-        return Icons.hourglass_empty_rounded;
-      default:
-        return Icons.cancel_rounded;
+      case 'completed': return Icons.check_circle_rounded;
+      case 'otw':       return Icons.local_shipping_rounded;
+      case 'approved':  return Icons.thumb_up_alt_rounded;
+      case 'requested': return Icons.hourglass_top_rounded;
+      case 'canceled':
+      case 'rejected':  return Icons.cancel_rounded;
+      default:          return Icons.info_outline_rounded;
     }
   }
 
@@ -239,8 +178,8 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
   // ── Hero Card ────────────────────────────────────────────────────────────
   Widget _buildHeroCard() {
     final h = _header!;
-    final statusColor = _statusColor(h.statusSetoran);
-    final statusBg = _statusBg(h.statusSetoran);
+    final statusColor = _statusColor(h.statusTerkini);
+    final statusBg = _statusBg(h.statusTerkini);
 
     return Container(
       width: double.infinity,
@@ -287,8 +226,7 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
           ),
           const SizedBox(width: 12),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: statusBg,
               borderRadius: BorderRadius.circular(20),
@@ -296,11 +234,10 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(_statusIcon(h.statusSetoran),
-                    size: 12, color: statusColor),
+                Icon(_statusIcon(h.statusTerkini), size: 12, color: statusColor),
                 const SizedBox(width: 4),
                 Text(
-                  _statusLabel(h.statusSetoran),
+                  _statusLabel(h.statusTerkini),
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 11,
@@ -319,6 +256,10 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
   // ── Info Card ────────────────────────────────────────────────────────────
   Widget _buildInfoCard() {
     final h = _header!;
+    final divider = const Padding(
+      padding: EdgeInsets.symmetric(vertical: 10),
+      child: Divider(height: 1, color: Color(0xFFF0F0F0)),
+    );
 
     return Container(
       width: double.infinity,
@@ -338,16 +279,22 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _infoRow(Icons.store_rounded, 'BSU', h.namaBsu),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
-            child: Divider(height: 1, color: Color(0xFFF0F0F0)),
-          ),
+          divider,
           _infoRow(Icons.account_balance_rounded, 'BSI', h.namaBsi),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
-            child: Divider(height: 1, color: Color(0xFFF0F0F0)),
-          ),
+          divider,
           _infoRow(Icons.badge_rounded, 'Petugas BSI', h.namaAdminBsi),
+          divider,
+          _infoRow(Icons.badge_outlined, 'Petugas BSU', h.namaAdminBsu),
+          divider,
+          _infoRow(
+            h.isMandiri ? Icons.directions_walk_rounded : Icons.local_shipping_rounded,
+            'Metode',
+            h.isMandiri ? 'Diantar BSU' : 'Dijemput BSI',
+          ),
+          if (h.buktiFoto != null) ...[
+            divider,
+            _buildBuktiFotoRow(h.buktiFoto!),
+          ],
           const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
@@ -378,6 +325,50 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBuktiFotoRow(String url) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF06C0C9).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.photo_camera_rounded, size: 15, color: Color(0xFF06C0C9)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text('Bukti Foto', style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: Colors.grey)),
+              SizedBox(height: 2),
+              Text('Tersedia', style: TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF013236))),
+            ],
+          ),
+        ),
+        GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => LihatFotoScreen(photoUrl: url, nama: 'Bukti Foto Pengangkutan')),
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFF06C0C9).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Text(
+              'Lihat',
+              style: TextStyle(fontFamily: 'Poppins', fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF06C0C9)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

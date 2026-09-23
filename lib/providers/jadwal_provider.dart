@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import '../models/jadwal_model.dart';
 import '../services/jadwal_service.dart';
 import '../providers/auth_provider.dart';
-import '../screens/admin_bsu/jadwal_screen.dart';
 
 class JadwalProvider with ChangeNotifier {
   List<JadwalModel> _penimbanganList = [];
@@ -16,7 +15,7 @@ class JadwalProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String get error => _error;
 
-  Future<void> fetchJadwal(AuthProvider authProvider) async {
+  Future<void> fetchJadwal(AuthProvider authProvider, {required int month, required int year}) async {
     if (authProvider.bankId == null) {
       _error = 'Anda belum login atau bank tidak ditemukan.';
       notifyListeners();
@@ -28,7 +27,7 @@ class JadwalProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await JadwalService.getJadwalByBankId(authProvider.bankId!);
+      final response = await JadwalService.getJadwalByBankId(authProvider.bankId!, month: month, year: year);
       if (response['success'] == true) {
         final Map<String, dynamic> data = response['data'];
         _penimbanganList = (data['penimbangan'] as List? ?? [])

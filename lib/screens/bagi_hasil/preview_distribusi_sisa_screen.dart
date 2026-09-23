@@ -29,9 +29,6 @@ class PreviewDistribusiSisaScreen extends StatefulWidget {
 
 class _PreviewDistribusiSisaScreenState
     extends State<PreviewDistribusiSisaScreen> {
-  // bankId → true berarti dicentang (antar mandiri / diantar_oleh = "bsu")
-  final Map<String, bool> _antarMandiri = {};
-
   @override
   void initState() {
     super.initState();
@@ -44,7 +41,6 @@ class _PreviewDistribusiSisaScreenState
 
     if (!mounted) return;
 
-    // Jika sudah pernah didistribusikan, langsung ke halaman detail
     if (prov.alreadyDistributed && prov.existingDistribusiId != null) {
       Navigator.pushReplacement(
         context,
@@ -54,29 +50,18 @@ class _PreviewDistribusiSisaScreenState
           ),
         ),
       );
-      return;
-    }
-
-    // Inisialisasi state checkbox dari data preview
-    if (prov.preview != null) {
-      setState(() {
-        for (final bsu in prov.preview!.bsuTerlibat) {
-          _antarMandiri.putIfAbsent(bsu.bankId, () => false);
-        }
-      });
     }
   }
 
   Future<void> _onSubmit() async {
     final auth = context.read<AuthProvider>();
     final prov = context.read<DistribusiSisaProvider>();
-    final adminId = auth.identityId ?? '';
 
     final confirmed = await showConfirmBottomSheet(
       context,
       icon: Icons.swap_horiz_rounded,
       title: 'Konfirmasi Distribusi Sisa',
-      message: 'Pastikan pilihan pengiriman sudah benar. Proses ini tidak dapat dibatalkan.',
+      message: 'Proses ini tidak dapat dibatalkan.',
       cancelLabel: 'Batal',
       confirmLabel: 'Ya, Lanjutkan',
       isDanger: true,
@@ -84,15 +69,8 @@ class _PreviewDistribusiSisaScreenState
 
     if (!confirmed || !mounted) return;
 
-    final pengirimanBsu = _antarMandiri.entries
-        .map((e) => {
-              'bank_id': e.key,
-              'diantar_oleh': e.value ? 'bsu' : 'bsi',
-            })
-        .toList();
-
     final ok = await prov.submitDistribusiSisa(
-        widget.bagiHasilId, adminId, pengirimanBsu);
+        widget.bagiHasilId, auth.identityId ?? '');
 
     if (!mounted) return;
 
@@ -134,8 +112,7 @@ class _PreviewDistribusiSisaScreenState
                   builder: (_, prov, __) {
                     if (prov.previewStatus == FetchStatus.loading) {
                       return const Center(
-                          child:
-                              CircularProgressIndicator(color: _C.green));
+                          child: CircularProgressIndicator(color: _C.green));
                     }
                     if (prov.previewStatus == FetchStatus.error &&
                         !prov.alreadyDistributed) {
@@ -144,14 +121,10 @@ class _PreviewDistribusiSisaScreenState
                     }
                     if (prov.previewStatus == FetchStatus.error &&
                         prov.alreadyDistributed) {
-                      // Sedang redirect, tampilkan loading
                       return const Center(
-                          child:
-                              CircularProgressIndicator(color: _C.green));
+                          child: CircularProgressIndicator(color: _C.green));
                     }
-                    if (prov.preview == null) {
-                      return const SizedBox.shrink();
-                    }
+                    if (prov.preview == null) return const SizedBox.shrink();
                     return _buildContent(prov.preview!, prov.submitting);
                   },
                 ),
@@ -172,15 +145,12 @@ class _PreviewDistribusiSisaScreenState
               Icon(Icons.wifi_off_rounded,
                   size: 40, color: _C.danger.withValues(alpha: 0.5)),
               const SizedBox(height: 12),
-              Text(
-                msg,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: _C.dark.withValues(alpha: 0.5),
-                ),
-              ),
+              Text(msg,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      color: _C.dark.withValues(alpha: 0.5))),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _load,
@@ -198,14 +168,15 @@ class _PreviewDistribusiSisaScreenState
         ),
       );
 
-  Widget _buildContent(
-      PreviewDistribusiSisaModel preview, bool submitting) {
+  Widget _buildContent(PreviewDistribusiSisaModel preview, bool submitting) {
     final fmtRp = NumberFormat('#,##0', 'id_ID');
     final fmtNum = NumberFormat('#,##0.##########', 'id_ID');
     final isRp = preview.satuan.toLowerCase() == 'rp';
 
-    String fmtSisa(double val) =>
+    String fmt(double val) =>
         isRp ? 'Rp ${fmtRp.format(val)}' : '${fmtNum.format(val)} ${preview.satuan}';
+
+    final totalBsu = preview.penerimaBsu.fold(0.0, (s, b) => s + b.nominal);
 
     return Stack(
       children: [
@@ -219,40 +190,32 @@ class _PreviewDistribusiSisaScreenState
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20)),
                 child: Column(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: _C.green.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
+                          color: _C.green.withValues(alpha: 0.12),
+                          shape: BoxShape.circle),
                       child: const Icon(Icons.account_balance_wallet_rounded,
                           color: _C.green, size: 36),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'Preview Distribusi Sisa',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w700,
-                        fontSize: 17,
-                        color: _C.green,
-                      ),
-                    ),
+                    const Text('Preview Distribusi Sisa',
+                        style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w700,
+                            fontSize: 17,
+                            color: _C.green)),
                     const SizedBox(height: 4),
-                    Text(
-                      'ID: ${preview.bagiHasilId}',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: _C.dark.withValues(alpha: 0.45),
-                      ),
-                    ),
+                    Text('ID: ${preview.bagiHasilId}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 11,
+                            color: _C.dark.withValues(alpha: 0.45))),
                   ],
                 ),
               ),
@@ -264,22 +227,18 @@ class _PreviewDistribusiSisaScreenState
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _cardHeader(Icons.pie_chart_rounded, 'Ringkasan Sisa'),
-                    _kvRow('Total Sisa', fmtSisa(preview.totalSisa),
+                    _kvRow('Total Sisa', fmt(preview.totalSisa),
                         highlight: true),
                     _divider(),
-                    _kvRow('Porsi BSI', '${fmtNum.format(preview.porsiBsi)}%'),
+                    _kvRow('Porsi BSI', fmt(preview.nominalBsi)),
                     _divider(),
-                    _kvRow('Porsi BSU', '${fmtNum.format(preview.porsiBsu)}%'),
-                    _divider(),
-                    _kvRow('Porsi Transport',
-                        '${fmtNum.format(preview.porsiTransport)}%'),
+                    _kvRow('Total ke BSU', fmt(totalBsu)),
                   ],
                 ),
               ),
@@ -291,74 +250,43 @@ class _PreviewDistribusiSisaScreenState
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _cardHeader(
                         Icons.account_balance_rounded, 'Bank Unit Penerima'),
-                    const SizedBox(height: 4),
-                    if (preview.bsuTerlibat.isEmpty)
+                    if (preview.penerimaBsu.isEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         child: Text(
                           'Tidak ada BSU yang terlibat dalam bagi hasil ini.',
                           style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 12,
-                            color: _C.dark.withValues(alpha: 0.45),
-                          ),
+                              fontFamily: 'Poppins',
+                              fontSize: 12,
+                              color: _C.dark.withValues(alpha: 0.45)),
                         ),
                       )
-                    else ...[
-                      // Header tabel
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Nama Bank Unit',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: _C.dark.withValues(alpha: 0.55),
-                                ),
-                              ),
-                            ),
-                            Text(
-                              'Antar Mandiri',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: _C.dark.withValues(alpha: 0.55),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      _divider(),
-                      ...preview.bsuTerlibat.asMap().entries.map((entry) {
+                    else
+                      ...preview.penerimaBsu.asMap().entries.map((entry) {
                         final bsu = entry.value;
                         final isLast =
-                            entry.key == preview.bsuTerlibat.length - 1;
+                            entry.key == preview.penerimaBsu.length - 1;
                         return Column(
                           children: [
                             Padding(
                               padding:
-                                  const EdgeInsets.symmetric(vertical: 4),
+                                  const EdgeInsets.symmetric(vertical: 12),
                               child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.all(6),
                                     decoration: BoxDecoration(
-                                      color: _C.dark.withValues(alpha: 0.06),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
+                                        color: _C.dark.withValues(alpha: 0.06),
+                                        borderRadius:
+                                            BorderRadius.circular(8)),
                                     child: const Icon(
                                         Icons.account_balance_rounded,
                                         size: 13,
@@ -370,38 +298,53 @@ class _PreviewDistribusiSisaScreenState
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          bsu.namaBank,
-                                          style: const TextStyle(
-                                            fontFamily: 'Poppins',
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: _C.dark,
-                                          ),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(bsu.namaBank,
+                                                style: const TextStyle(
+                                                    fontFamily: 'Poppins',
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: _C.dark)),
+                                            Text(
+                                              '${fmtNum.format(bsu.persenKontribusi)}%',
+                                              style: TextStyle(
+                                                  fontFamily: 'Poppins',
+                                                  fontSize: 11,
+                                                  color: _C.dark
+                                                      .withValues(alpha: 0.5)),
+                                            ),
+                                          ],
                                         ),
-                                        Text(
-                                          '${fmtNum.format(bsu.kontribusiPersen)}% kontribusi',
-                                          style: TextStyle(
-                                            fontFamily: 'Poppins',
-                                            fontSize: 10,
-                                            color: _C.dark
-                                                .withValues(alpha: 0.45),
-                                          ),
+                                        const SizedBox(height: 6),
+                                        _subRow('Pokok', fmt(bsu.pokok)),
+                                        if (bsu.transportasi > 0)
+                                          _subRow('Transportasi',
+                                              fmt(bsu.transportasi)),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text('Total',
+                                                style: TextStyle(
+                                                    fontFamily: 'Poppins',
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: _C.dark
+                                                        .withValues(alpha: 0.7))),
+                                            Text(fmt(bsu.nominal),
+                                                style: const TextStyle(
+                                                    fontFamily: 'Poppins',
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: _C.green)),
+                                          ],
                                         ),
                                       ],
                                     ),
-                                  ),
-                                  Checkbox(
-                                    value:
-                                        _antarMandiri[bsu.bankId] ?? false,
-                                    activeColor: _C.dark,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(4)),
-                                    onChanged: (val) => setState(() {
-                                      _antarMandiri[bsu.bankId] =
-                                          val ?? false;
-                                    }),
                                   ),
                                 ],
                               ),
@@ -410,34 +353,6 @@ class _PreviewDistribusiSisaScreenState
                           ],
                         );
                       }),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: _C.dark.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_outline_rounded,
-                                size: 14,
-                                color: _C.dark.withValues(alpha: 0.45)),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Centang "Antar Mandiri" jika BSU mengantarkan sampah mereka sendiri. '
-                                'Tidak perlu dicentang jika BSI yang mengangkuat sampah ke BSU.',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 10,
-                                  color: _C.dark.withValues(alpha: 0.5),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -446,7 +361,7 @@ class _PreviewDistribusiSisaScreenState
         ),
 
         // ── Submit Button ─────────────────────────────────────────────────
-        if (preview.bsuTerlibat.isNotEmpty)
+        if (preview.penerimaBsu.isNotEmpty)
           Positioned(
             left: 20,
             right: 20,
@@ -464,10 +379,9 @@ class _PreviewDistribusiSisaScreenState
               label: Text(
                 submitting ? 'Memproses...' : 'Submit Sisa Distribusi',
                 style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _C.dark,
@@ -493,15 +407,12 @@ Widget _cardHeader(IconData icon, String title) => Padding(
         children: [
           Icon(icon, size: 18, color: _C.green),
           const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-              color: _C.dark,
-            ),
-          ),
+          Text(title,
+              style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: _C.dark)),
         ],
       ),
     );
@@ -511,25 +422,38 @@ Widget _kvRow(String label, String value, {bool highlight = false}) => Padding(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: highlight ? 12 : 11.5,
-              color: _C.dark.withValues(alpha: highlight ? 0.85 : 0.55),
-              fontWeight:
-                  highlight ? FontWeight.w600 : FontWeight.normal,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: highlight ? 13 : 12,
-              fontWeight: FontWeight.w700,
-              color: highlight ? _C.dark : _C.green,
-            ),
-          ),
+          Text(label,
+              style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: highlight ? 12 : 11.5,
+                  color: _C.dark.withValues(alpha: highlight ? 0.85 : 0.55),
+                  fontWeight:
+                      highlight ? FontWeight.w600 : FontWeight.normal)),
+          Text(value,
+              style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: highlight ? 13 : 12,
+                  fontWeight: FontWeight.w700,
+                  color: highlight ? _C.dark : _C.green)),
+        ],
+      ),
+    );
+
+Widget _subRow(String label, String value) => Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 11,
+                  color: _C.dark.withValues(alpha: 0.45))),
+          Text(value,
+              style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 11,
+                  color: _C.dark.withValues(alpha: 0.65))),
         ],
       ),
     );

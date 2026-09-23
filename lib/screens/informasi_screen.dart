@@ -1,3 +1,4 @@
+import 'package:enviroo/screens/lihat_foto_screen.dart';
 import 'package:enviroo/services/konten_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
@@ -39,6 +40,15 @@ class _InformasiScreenState extends State<InformasiScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  void _openFoto(String url, String nama) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LihatFotoScreen(photoUrl: url, nama: nama),
+      ),
+    );
   }
 
   String _formatDate(DateTime date) {
@@ -118,25 +128,33 @@ class _InformasiScreenState extends State<InformasiScreen> {
 
           // Thumbnail
           const SizedBox(height: 20),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              width: double.infinity,
-              height: 200,
-              color: const Color(0xFF94DF0C).withValues(alpha: 0.12),
-              child: konten.thumbnail.isNotEmpty
-                  ? Image.network(
-                      konten.thumbnail,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildPlaceholderIcon(),
-                    )
-                  : _buildPlaceholderIcon(),
+          GestureDetector(
+            onTap: konten.thumbnail.isNotEmpty
+                ? () => _openFoto(konten.thumbnail, konten.judul)
+                : null,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                width: double.infinity,
+                height: 200,
+                color: const Color(0xFF94DF0C).withValues(alpha: 0.12),
+                child: konten.thumbnail.isNotEmpty
+                    ? Image.network(
+                        konten.thumbnail,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _buildPlaceholderIcon(),
+                      )
+                    : _buildPlaceholderIcon(),
+              ),
             ),
           ),
 
           // Body
           const SizedBox(height: 20),
-          EditorJsRenderer(jsonString: konten.body),
+          EditorJsRenderer(
+            jsonString: konten.body,
+            onImageTap: (url) => _openFoto(url, konten.judul),
+          ),
 
           // Footer
           const SizedBox(height: 16),

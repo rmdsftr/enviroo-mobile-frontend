@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:enviroo/models/sesi_pengangkutan_model.dart';
 import 'package:enviroo/providers/pengangkutan_provider.dart';
@@ -464,7 +463,7 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
                           child: ElevatedButton.icon(
                             onPressed: () => Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const QRAngkutSampahScreen()),
+                              MaterialPageRoute(builder: (_) => QRAngkutSampahScreen(pengangkutanId: widget.pengangkutanId)),
                             ),
                             icon: const Icon(Icons.qr_code_rounded, size: 16),
                             label: const Text(

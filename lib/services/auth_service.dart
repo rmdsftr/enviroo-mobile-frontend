@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
-import 'api_client.dart';
+import 'package:enviroo/core/config/api_config.dart';
+import 'package:enviroo/core/network/api_client.dart';
 
 class AuthService {
   /// Step 1: Cek user di mobile — mengembalikan role yang tersedia.
@@ -374,13 +374,20 @@ class AuthService {
   }
 
   /// Logout user
-  static Future<Map<String, dynamic>> logout() async {
+  ///
+  /// Token wajib dikirim: backend memakainya untuk mencocokkan `session_id`
+  /// sebelum mengosongkan slot sesi user. Tanpa token, sesi lama tetap
+  /// dianggap aktif di server sampai token expired sendiri.
+  static Future<Map<String, dynamic>> logout(
+      String accessToken, String refreshToken) async {
     try {
       final response = await http.post(
         Uri.parse(ApiConfig.logoutUrl),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+          'Cookie': 'refresh_token=$refreshToken',
         },
       ).timeout(const Duration(seconds: 10));
 
@@ -433,12 +440,13 @@ class AuthService {
   }
 
   /// Refresh access token
+  ///
+  /// Backend membaca refresh token lewat `c.Cookie()`, sementara http package
+  /// Flutter tidak punya cookie jar seperti browser — jadi header `Cookie`
+  /// dikirim manual. Token barunya dibaca dari JSON body (bukan `Set-Cookie`,
+  /// yang tidak reliable di HTTP client Dart).
   static Future<Map<String, dynamic>> refreshToken(String refreshToken) async {
     try {
-      // Pada mobile, kita mengirim refresh token melalui header atau body.
-      // Berdasarkan kode backend Anda, ia mengambil dari Cookie.
-      // Namun http package di Flutter tidak otomatis menangani cookie seperti browser.
-      // Jadi kita kirim di header Cookie secara manual.
       final response = await http.post(
         Uri.parse(ApiConfig.refreshUrl),
         headers: {
@@ -451,26 +459,26 @@ class AuthService {
       final Map<String, dynamic> body = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        // Backend Go Anda menggunakan utils.SetTokenCookies yang mengirim token via header 'Set-Cookie'
-        // Kita perlu mengekstrak token baru dari header tersebut jika backend tidak mengirimnya di body.
-        // Berdasarkan kode backend Anda, c.JSON(http.StatusOK, gin.H{"message": "Token berhasil diperbarui"})
-        // Jadi kita ambil dari header 'set-cookie'
-        String? setCookie = response.headers['set-cookie'];
-
         return {
           'success': true,
           'message': body['message'],
-          'set_cookie': setCookie,
+          'access_token': body['access_token'],
+          'refresh_token': body['refresh_token'],
         };
       } else {
         return {
           'success': false,
           'message': body['error'] ?? 'Gagal memperbarui token',
+          // SESSION_REVOKED → sesi digantikan login dari perangkat lain
+          'code': body['code'],
         };
       }
     } catch (e) {
+      // Dibedakan dari penolakan server: sesi belum tentu mati, jadi pemanggil
+      // tidak boleh menganggapnya sebagai alasan untuk logout.
       return {
         'success': false,
+        'network_error': true,
         'message': 'Gagal terhubung ke server: ${e.toString()}',
       };
     }

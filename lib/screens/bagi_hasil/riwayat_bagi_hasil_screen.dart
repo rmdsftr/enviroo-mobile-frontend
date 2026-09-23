@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../models/bagi_hasil_bank_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bagi_hasil_bank_provider.dart';
+import '../../widgets/filter_chip_row.dart';
 import '../../widgets/topbar_back.dart';
 import '../../widgets/filter_month_year.dart';
 import '../../screens/penjualan_eksternal/riwayat_penjualan_screen.dart';
@@ -25,6 +26,8 @@ class RiwayatBagiHasilScreen extends StatefulWidget {
 }
 
 class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
+  String _rewardFilter = 'semua';
+
   @override
   void initState() {
     super.initState();
@@ -36,7 +39,14 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
     final prov = context.read<BagiHasilBankProvider>();
     final bankId = auth.bankId ?? '';
     if (bankId.isEmpty) return;
-    prov.fetchList(bankId);
+    final now = DateTime.now();
+    final filterEnd = DateTime(now.year, now.month);
+    final startMonth = now.month - 2;
+    final filterStart = startMonth <= 0
+        ? DateTime(now.year - 1, 12 + startMonth)
+        : DateTime(now.year, startMonth);
+    prov.setDateFilter(filterStart, filterEnd, bankId);
+    prov.fetchPersenBagiHasil(bankId);
   }
 
   @override
@@ -46,7 +56,7 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/bg_struk.webp'),
+            image: AssetImage('assets/images/bg_struk2.webp'),
             fit: BoxFit.cover,
           ),
         ),
@@ -67,45 +77,149 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
   }
 
   Widget _buildBody(BagiHasilBankProvider prov) {
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        // Bagian atas — kena background
-        Padding(
-          padding: const EdgeInsets.fromLTRB(28, 8, 28, 12),
-          child: Text(
-            'Pada menu ini kamu bisa melihat semua riwayat bagi hasil yang pernah dilakukan bank sampah',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              color: Color(0xFF013236).withValues(alpha: 0.8),
-              height: 1.5,
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: _buildLakukanBagiHasilCard(),
-        ),
-        const SizedBox(height: 16),
-
-        // Container putih — filter + list sampai bawah
-        Container(
-          constraints: BoxConstraints(
-            minHeight: MediaQuery.of(context).size.height,
-          ),
-          decoration: const BoxDecoration(color: Colors.white),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+    return CustomScrollView(
+      slivers: [
+        // Bagian atas — kena background, scroll away normally
+        SliverToBoxAdapter(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildFilterRow(prov),
-              const SizedBox(height: 14),
-              _buildList(prov),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(28, 8, 28, 12),
+                child: Text(
+                  'Pada menu ini kamu bisa melihat semua riwayat bagi hasil yang pernah dilakukan bank sampah',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 13,
+                    color: Color(0xFF013236).withValues(alpha: 0.8),
+                    height: 1.5,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _buildLakukanBagiHasilCard(),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _buildPersenBagiHasilCard(prov),
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
+        // Sticky: "Riwayat Bagi Hasil" + filter bulan + filter reward,
+        // pin di bawah TopBarBack
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _StickyHeaderDelegate(
+            height: 145,
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                      padding : const EdgeInsets.symmetric(horizontal: 5),
+                      child : Text(
+                        "Riwayat Bagi Hasil",
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: _C.dark,
+                        ),
+                      )
+                  ),
+                  const SizedBox(height: 12),
+                  _buildFilterRow(prov),
+                  const SizedBox(height: 10),
+                  _buildRewardChipFilter(),
+                  const SizedBox(height: 10),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // List — cuma ini yang scroll di bawah sticky header
+        SliverToBoxAdapter(
+          child: Container(
+            width: double.infinity,
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height,
+            ),
+            decoration: const BoxDecoration(color: Colors.white),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 40),
+            child: _buildList(prov),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildPersenBagiHasilCard(BagiHasilBankProvider prov) {
+    if (prov.persenStatus == BhBankStatus.loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator(color: _C.green)),
+      );
+    }
+    if (prov.persenNasabah.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _C.dark.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Persentase bagi hasil untuk nasabah',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: _C.dark.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: prov.persenNasabah.map((r) {
+              return Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      '${r.persenBagiHasil.toStringAsFixed(0)}%',
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: _C.green,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      'Insentif ${r.namaReward}',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 9.5,
+                        color: _C.dark.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -115,7 +229,9 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => const RiwayatPenjualanScreen(),
+            builder: (_) => const RiwayatPenjualanScreen(
+              initialStatusFilter: 'Menunggu Bagi Hasil',
+            ),
           ),
         ).then((_) => _load());
       },
@@ -162,8 +278,6 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded,
-                size: 14, color: Colors.white60),
           ],
         ),
       ),
@@ -185,6 +299,19 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
     );
   }
 
+  Widget _buildRewardChipFilter() {
+    return FilterChipRow<String>(
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      items: const [
+        FilterChipItem(value: 'semua', label: 'Semua'),
+        FilterChipItem(value: 'uang', label: 'Uang'),
+        FilterChipItem(value: 'sembako', label: 'Barang'),
+      ],
+      selectedValue: _rewardFilter,
+      onSelected: (v) => setState(() => _rewardFilter = v),
+    );
+  }
+
   Widget _buildList(BagiHasilBankProvider prov) {
     if (prov.listStatus == BhBankStatus.loading) {
       return Column(
@@ -199,7 +326,16 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
       return _buildError(prov.listError ?? 'Gagal memuat data', _load);
     }
 
-    final items = prov.listData?.riwayatBagiHasil ?? [];
+    final raw = prov.listData?.riwayatBagiHasil ?? [];
+    final items = _rewardFilter == 'semua'
+        ? raw
+        : raw.where((item) {
+            final lower = item.namaReward.toLowerCase();
+            if (_rewardFilter == 'uang') return lower.contains('uang');
+            if (_rewardFilter == 'sembako') return lower.contains('barang');
+            return true;
+          }).toList();
+
     if (items.isEmpty) {
       return _buildEmpty();
     }
@@ -271,6 +407,32 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
   }
 }
 
+// ── Sticky header delegate ───────────────────────────────────────────────────
+// Bikin "Riwayat Bagi Hasil" + filter bulan + filter reward nempel (pinned) di
+// bawah TopBarBack saat di-scroll, sementara cuma list riwayat yang ikut bergerak.
+class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+
+  _StickyHeaderDelegate({required this.child, required this.height});
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) {
+    return oldDelegate.child != child || oldDelegate.height != height;
+  }
+}
+
 class _BagiHasilCard extends StatelessWidget {
   final BagiHasilBankItem item;
   final VoidCallback onTap;
@@ -318,10 +480,10 @@ class _BagiHasilCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: rewardColor.withValues(alpha: 0.12),
+                color: _C.dark.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(rewardIcon, color: rewardColor, size: 22),
+              child: Icon(rewardIcon, color: _C.dark, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -349,8 +511,6 @@ class _BagiHasilCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded,
-                size: 20, color: _C.muted),
           ],
         ),
       ),

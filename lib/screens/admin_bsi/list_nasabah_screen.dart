@@ -53,7 +53,7 @@ class _ListNasabahScreenState extends State<ListNasabahScreen> {
           SafeArea(
             child: Column(
               children: [
-                TopBarBack(title: 'Profil BSU'),
+                TopBarBack(title: 'Profil Bank Sampah'),
                 Expanded(
                   child: _isLoading
                       ? const Center(child: CircularProgressIndicator(color: Color(0xFF4EA771)))

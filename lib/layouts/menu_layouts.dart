@@ -1,5 +1,3 @@
-import 'package:enviroo/screens/admin_bsi/home_bsi_screen.dart';
-import 'package:enviroo/screens/admin_bsu/home_bsu_screen.dart';
 import 'package:enviroo/screens/info_bank_sampah_screen.dart';
 import 'package:enviroo/screens/katalog_screen.dart';
 import 'package:enviroo/screens/nasabah/list_bagi_hasil_nasabah_screen.dart';
@@ -7,8 +5,6 @@ import 'package:enviroo/screens/nasabah/riwayat_setoran_screen.dart';
 import 'package:enviroo/screens/nasabah/tabungan_sampah_screen.dart';
 import 'package:enviroo/screens/penarikan/penarikan_nasabah_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:enviroo/providers/auth_provider.dart';
 
 class MainMenu extends StatefulWidget {
   @override

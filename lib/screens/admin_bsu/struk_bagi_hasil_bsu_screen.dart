@@ -1,81 +1,8 @@
+import 'package:enviroo/models/bagi_hasil_bsu_model.dart';
 import 'package:enviroo/services/bagi_hasil_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-// ── Models ────────────────────────────────────────────────────────────────────
-
-class _PerhitunganSisaItem {
-  final String tabunganId;
-  final String namaSampah;
-  final double qtyDipakai;
-  final String satuan;
-
-  _PerhitunganSisaItem({
-    required this.tabunganId,
-    required this.namaSampah,
-    required this.qtyDipakai,
-    required this.satuan,
-  });
-
-  factory _PerhitunganSisaItem.fromJson(Map<String, dynamic> j) =>
-      _PerhitunganSisaItem(
-        tabunganId: j['tabungan_id'] ?? '',
-        namaSampah: j['nama_sampah'] ?? '',
-        qtyDipakai: (j['qty_dipakai'] as num?)?.toDouble() ?? 0.0,
-        satuan: j['satuan'] ?? '',
-      );
-}
-
-class _DistribusiSisaBsuDetail {
-  final String penerimaSisaId;
-  final String distribusiId;
-  final String bagiHasilId;
-  final String bankId;
-  final String namaBank;
-  final double nominalDiterima;
-  final double porsi;
-  final double transportasi;
-  final String satuanNominal;
-  final String diantarOleh;
-  final DateTime tanggalDistribusi;
-  final List<_PerhitunganSisaItem> perhitunganSisa;
-
-  _DistribusiSisaBsuDetail({
-    required this.penerimaSisaId,
-    required this.distribusiId,
-    required this.bagiHasilId,
-    required this.bankId,
-    required this.namaBank,
-    required this.nominalDiterima,
-    required this.porsi,
-    required this.transportasi,
-    required this.satuanNominal,
-    required this.diantarOleh,
-    required this.tanggalDistribusi,
-    required this.perhitunganSisa,
-  });
-
-  factory _DistribusiSisaBsuDetail.fromJson(Map<String, dynamic> j) =>
-      _DistribusiSisaBsuDetail(
-        penerimaSisaId: j['penerima_sisa_id'] ?? '',
-        distribusiId: j['distribusi_id'] ?? '',
-        bagiHasilId: j['bagi_hasil_id'] ?? '',
-        bankId: j['bank_id'] ?? '',
-        namaBank: j['nama_bank'] ?? '',
-        nominalDiterima: (j['nominal_diterima'] as num?)?.toDouble() ?? 0.0,
-        porsi: (j['porsi'] as num?)?.toDouble() ?? 0.0,
-        transportasi: (j['transportasi'] as num?)?.toDouble() ?? 0.0,
-        satuanNominal: j['satuan_nominal'] ?? '',
-        diantarOleh: j['diantar_oleh'] ?? '',
-        tanggalDistribusi:
-            DateTime.tryParse(j['tanggal_distribusi'] ?? '') ?? DateTime.now(),
-        perhitunganSisa: (j['perhitungan_sisa'] as List? ?? [])
-            .map((e) =>
-                _PerhitunganSisaItem.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
-}
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -92,7 +19,7 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
   static const _teal = Color(0xFF013236);
   static const _green = Color(0xFF4EA771);
 
-  _DistribusiSisaBsuDetail? _detail;
+  DistribusiSisaBsuDetail? _detail;
   bool _isLoading = true;
   String? _error;
 
@@ -112,7 +39,7 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
     if (!mounted) return;
     if (res['success'] == true) {
       setState(() {
-        _detail = _DistribusiSisaBsuDetail.fromJson(res['data'] as Map<String, dynamic>);
+        _detail = DistribusiSisaBsuDetail.fromJson(res['data'] as Map<String, dynamic>);
         _isLoading = false;
       });
     } else {
@@ -126,7 +53,7 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
   String _fmtNominal(double val, String satuan) {
     final s = satuan.toLowerCase();
     if (s == 'rp') return 'Rp ${NumberFormat('#,##0', 'id_ID').format(val)}';
-    return '${NumberFormat('#,##0.##', 'id_ID').format(val)} $satuan';
+    return '${NumberFormat('#,##0', 'id_ID').format(val)} $satuan';
   }
 
   String _fmtNum(double v) => NumberFormat('#,##0.##', 'id_ID').format(v);
@@ -188,7 +115,7 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
 
   // ── Hero Card ───────────────────────────────────────────────────────────────
 
-  Widget _buildHero(_DistribusiSisaBsuDetail d) {
+  Widget _buildHero(DistribusiSisaBsuDetail d) {
     final antarLabel =
         d.diantarOleh == 'bsu' ? 'Antar Mandiri' : 'Diantar BSI';
     final antarColor =
@@ -292,7 +219,7 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
 
   // ── Info Card ───────────────────────────────────────────────────────────────
 
-  Widget _buildInfoCard(_DistribusiSisaBsuDetail d) {
+  Widget _buildInfoCard(DistribusiSisaBsuDetail d) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -320,7 +247,7 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
 
   // ── Perhitungan Sisa Card ───────────────────────────────────────────────────
 
-  Widget _buildPerhitunganCard(_DistribusiSisaBsuDetail d) {
+  Widget _buildPerhitunganCard(DistribusiSisaBsuDetail d) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -360,7 +287,7 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
     );
   }
 
-  Widget _buildPerhitunganRow(_PerhitunganSisaItem item) {
+  Widget _buildPerhitunganRow(PerhitunganSisaItem item) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
       child: Row(

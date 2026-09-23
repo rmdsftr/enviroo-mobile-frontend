@@ -1,3 +1,9 @@
+import 'dart:io';
+
+import 'package:enviroo/core/messaging/fcm_messaging.dart';
+import 'package:enviroo/core/messaging/notif_payload.dart';
+import 'package:enviroo/core/network/http_overrides.dart';
+import 'package:enviroo/core/theme/app_theme.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/katalog_provider.dart';
 import 'package:enviroo/providers/sembako_provider.dart';
@@ -18,28 +24,21 @@ import 'package:enviroo/screens/splash_screen.dart';
 import 'package:enviroo/screens/admin_bsi/pengangkutan_bsi_screen.dart';
 import 'package:enviroo/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'dart:io';
-
-class MyHttpOverrides extends HttpOverrides {
-  @override
-  HttpClient createHttpClient(SecurityContext? context) {
-    return super.createHttpClient(context)
-      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
-  }
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Dipasang sebelum apa pun mengirim request agar seluruh jalur jaringan
+  // memakai allowlist sertifikat yang sama.
+  HttpOverrides.global = EnvirooHttpOverrides();
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await initializeDateFormatting('id_ID', null);
-  HttpOverrides.global = MyHttpOverrides();
   runApp(const EnvirooApp());
 }
 
@@ -60,6 +59,12 @@ class _EnvirooAppState extends State<EnvirooApp> with WidgetsBindingObserver {
   final _notif = NotifikasiProvider();
   final _pengangkutan = PengangkutanProvider();
 
+  late final FcmMessaging _fcm = FcmMessaging(
+    auth: _auth,
+    notif: _notif,
+    onDeepLink: _routeDeepLink,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -74,85 +79,30 @@ class _EnvirooAppState extends State<EnvirooApp> with WidgetsBindingObserver {
       );
     });
 
-    // Token refresh — kirim token baru ke backend kapanpun Firebase merotasinya.
-    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
-      _sendFcmToken(explicitToken: newToken);
-    });
-
-    // Foreground: notifikasi masuk saat app aktif di layar.
-    FirebaseMessaging.onMessage.listen((msg) {
-      debugPrint('[FCM] onMessage received: ${msg.notification?.title}');
-      _refreshNotifikasi();
-    });
-
-    // Background → foreground: user tap notifikasi dari system tray.
-    FirebaseMessaging.onMessageOpenedApp.listen((msg) {
-      debugPrint('[FCM] onMessageOpenedApp: ${msg.notification?.title}');
-      _refreshNotifikasi();
-      _handleNotifDeepLink(msg, navigate: true);
-    });
-
-    // Terminated → foreground: app dibuka dari notifikasi (cold start).
-    // Navigasi tidak dilakukan karena tree belum siap; highlight dikonsumsi
-    // saat user membuka PengangkutanBsiScreen secara manual.
-    FirebaseMessaging.instance.getInitialMessage().then((msg) {
-      if (msg != null) {
-        debugPrint('[FCM] getInitialMessage: ${msg.notification?.title}');
-        _refreshNotifikasi();
-        _handleNotifDeepLink(msg, navigate: false);
-      }
-    });
+    _fcm.start();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _fcm.dispose();
     super.dispose();
   }
 
   // App kembali ke foreground — proactive refresh token, FCM, notifikasi.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _auth.isLoggedIn) {
-      // Refresh proaktif: pastikan token masih valid sebelum user melakukan
-      // aksi apapun, terutama setelah idle > 10 menit di background.
-      _auth.refreshToken();
-      _sendFcmToken();
-      _refreshNotifikasi();
-    }
+    if (state == AppLifecycleState.resumed) _fcm.onAppResumed();
   }
 
-  void _refreshNotifikasi({int retryCount = 0}) {
-    if (!_auth.isLoggedIn) {
-      debugPrint('[Notif] _refreshNotifikasi: user belum login, skip.');
-      return;
-    }
-    final token = _auth.currentUser?.accessToken ?? '';
-    if (token.isEmpty) {
-      // Token belum ter-restore dari secure storage — coba lagi setelah 500ms
-      if (retryCount < 3) {
-        debugPrint('[Notif] _refreshNotifikasi: token kosong, retry ke-${retryCount + 1}...');
-        Future.delayed(const Duration(milliseconds: 500), () {
-          _refreshNotifikasi(retryCount: retryCount + 1);
-        });
-      } else {
-        debugPrint('[Notif] _refreshNotifikasi: token tetap kosong setelah 3x retry, abort.');
-      }
-      return;
-    }
-    debugPrint('[Notif] _refreshNotifikasi: fetching untuk userId=${_auth.userId}');
-    _notif.fetchNotifikasi(
-      userId: _auth.userId,
-    );
-  }
+  /// Menentukan aksi untuk payload deep-link yang sudah didekode FcmMessaging.
+  ///
+  /// Sengaja tinggal di sini, bukan di `core/messaging/`, supaya `core/` tidak
+  /// perlu mengimpor screen — pemisahan "decode" (core) dari "act" (app).
+  void _routeDeepLink(NotifPayload payload, {required bool navigate}) {
+    if (payload.refType != 'pengajuan_pengangkutan') return;
 
-  void _handleNotifDeepLink(dynamic msg, {required bool navigate}) {
-    final data = msg.data as Map<String, dynamic>? ?? {};
-    final refType = data['ref_type'] as String?;
-    final refId   = data['ref_id']   as String?;
-    if (refType != 'pengajuan_pengangkutan' || refId == null || refId.isEmpty) return;
-
-    _pengangkutan.setHighlight(refId);
+    _pengangkutan.setHighlight(payload.refId);
 
     if (!navigate) return;
     _navigatorKey.currentState?.push(
@@ -165,16 +115,6 @@ class _EnvirooAppState extends State<EnvirooApp> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _sendFcmToken({String? explicitToken}) async {
-    if (!_auth.isLoggedIn) return;
-    final fcmToken =
-        explicitToken ?? await FirebaseMessaging.instance.getToken();
-    if (fcmToken == null) return;
-    _notif.registerFcmToken(
-      fcmToken: fcmToken,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -182,6 +122,9 @@ class _EnvirooAppState extends State<EnvirooApp> with WidgetsBindingObserver {
         // Auth & notifikasi pakai .value karena instance dibuat di initState
         ChangeNotifierProvider.value(value: _auth),
         ChangeNotifierProvider.value(value: _notif),
+        // Provider biasa, bukan ChangeNotifier — FcmMessaging tidak menyimpan
+        // state yang perlu diobservasi UI.
+        Provider<FcmMessaging>.value(value: _fcm),
         ChangeNotifierProvider(create: (_) => KatalogProvider()),
         ChangeNotifierProvider(create: (_) => KontenProvider()),
         ChangeNotifierProvider(create: (_) => NasabahProvider()),
@@ -200,18 +143,13 @@ class _EnvirooAppState extends State<EnvirooApp> with WidgetsBindingObserver {
       child: MaterialApp(
         navigatorKey: _navigatorKey,
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: false,
-          scaffoldBackgroundColor: Colors.white,
-          canvasColor: Colors.white,
-          cardColor: Colors.white,
-          colorScheme: const ColorScheme.light(
-            primary: Color(0xFF013236),
-            secondary: Color(0xFF94DF0C),
-            surface: Colors.white,
-            onSurface: Color(0xFF013236),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: MediaQuery.of(context).textScaler.clamp(maxScaleFactor: 1.0),
           ),
+          child: child!,
         ),
+        theme: AppTheme.light,
         home: SplashScreen(),
       ),
     );

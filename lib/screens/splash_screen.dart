@@ -104,7 +104,7 @@ class _SplashScreenState extends State<SplashScreen>
   void _navigateToHome(String role) {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     Provider.of<NotifikasiProvider>(context, listen: false).fetchNotifikasi(
-      userId: auth.userId,
+      role: auth.role,
     );
 
     Widget destination;

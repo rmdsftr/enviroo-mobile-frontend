@@ -31,7 +31,7 @@ class StrukDetailBagiHasilScreen extends StatelessWidget {
 
     String tanggalFmt() {
       try {
-        final dt = DateTime.parse(detail.tanggal);
+        final dt = DateTime.parse(detail.tanggal).toLocal();
         return DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(dt);
       } catch (_) {
         return detail.tanggal;
@@ -285,29 +285,29 @@ class _PenerimaBankCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _cardHeader(Icons.people_rounded, 'Penerima Nasabah'),
+            _cardHeader(Icons.group_rounded, 'Penerima Nasabah'),
             ...detail.penerima.asMap().entries.map((bankEntry) {
               final isLastBank = bankEntry.key == detail.penerima.length - 1;
               final bank = bankEntry.value;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            bank.namaBank,
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: _C.dark.withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ),
-                      ],
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    margin: const EdgeInsets.only(bottom: 6),
+                    decoration: BoxDecoration(
+                      color: _C.dark.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      bank.namaBank,
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _C.dark.withValues(alpha: 0.6),
+                      ),
                     ),
                   ),
                   ...bank.nasabahPenerima.asMap().entries.map((e) {
@@ -367,7 +367,7 @@ class _PenerimaLangsungCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _cardHeader(Icons.person_rounded, 'Nasabah Langsung'),
+            _cardHeader(Icons.group_rounded, 'Nasabah Langsung'),
             ...detail.nasabahLangsung.asMap().entries.map((e) => Column(
                   children: [
                     if (e.key > 0) _divider(),
@@ -408,16 +408,16 @@ class _NasabahTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: _C.green.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.person_rounded,
-                    size: 15, color: _C.green),
-              ),
-              const SizedBox(width: 12),
+              // Container(
+              //   padding: const EdgeInsets.all(7),
+              //   decoration: BoxDecoration(
+              //     color: _C.green.withValues(alpha: 0.08),
+              //     borderRadius: BorderRadius.circular(10),
+              //   ),
+              //   child: const Icon(Icons.person_rounded,
+              //       size: 15, color: _C.green),
+              // ),
+              // const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,12 +466,11 @@ class _NasabahTile extends StatelessWidget {
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
-Widget _cardHeader(IconData icon, String title) => Padding(
+Widget _cardHeader(IconData? icon, String title) => Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: _C.green),
-          const SizedBox(width: 8),
+          if (icon != null) ...[Icon(icon, size: 18, color: _C.green), const SizedBox(width: 8)],
           Text(
             title,
             style: const TextStyle(

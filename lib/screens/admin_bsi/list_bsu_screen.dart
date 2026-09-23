@@ -100,7 +100,7 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
         children: [
           Positioned.fill(
             child: Image.asset(
-              'assets/images/bg_struk.webp',
+              'assets/images/bg_struk2.webp',
               fit: BoxFit.cover,
             ),
           ),
@@ -109,33 +109,46 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TopBarBack(title: "Daftar BSU"),
-                _buildHeader(),
-                _buildStatCards(),
-                const SizedBox(height: 10),
                 Expanded(
-                  child: Container(
-                    decoration: const BoxDecoration(color: Colors.white),
-                    child: _isLoading
-                        ? const Center(child: CircularProgressIndicator(color: _C.midGreen))
-                        : _error.isNotEmpty
-                            ? _buildError()
-                            : RefreshIndicator(
-                                color: _C.midGreen,
-                                onRefresh: _fetchBsu,
-                                child: SingleChildScrollView(
-                                  physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      _buildSearchBar(),
-                                      _buildFilterChips(),
-                                      const SizedBox(height: 15),
-                                      _buildListBsu(),
-                                      const SizedBox(height: 30),
-                                    ],
-                                  ),
-                                ),
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator(color: _C.midGreen))
+                      : _error.isNotEmpty
+                      ? _buildError()
+                      : RefreshIndicator(
+                    color: _C.midGreen,
+                    onRefresh: _fetchBsu,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                          parent: BouncingScrollPhysics()),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(),        // ← pindah ke sini
+                          _buildStatCards(),     // ← pindah ke sini
+                          const SizedBox(height: 16),
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: MediaQuery.of(context).size.height,
+                            ),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
                               ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildSearchBar(),
+                                  _buildFilterChips(),
+                                  const SizedBox(height: 15),
+                                  _buildListBsu(),
+                                  const SizedBox(height: 30),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -274,7 +287,7 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: CustomSearchBar(
         controller: _searchController,
         hintText: 'Cari nama BSU...',
@@ -411,8 +424,8 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
                     ? ClipOval(
                         child: Image.network(
                           bsu.photoUrl,
-                          width: 52,
-                          height: 52,
+                          width: 50,
+                          height: 50,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => _buildInitialsAvatar(initials),
                         ),
@@ -447,11 +460,11 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  _buildInfoRow(Icons.badge, "ID : ${bsu.bankId}"),
+                  _buildInfoRow(Icons.badge, "${bsu.bankId}"),
                   const SizedBox(height: 2),
                   _buildInfoRow(
-                    Icons.location_on_outlined,
-                    bsu.alamatLengkap.isNotEmpty ? bsu.alamatLengkap : 'Alamat belum diisi',
+                    Icons.people,
+                    bsu.jumlahNasabah.toString() + ' Nasabah',
                   ),
                 ],
               ),
@@ -484,8 +497,8 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
 
   Widget _buildInitialsAvatar(String initials) {
     return Container(
-      width: 52,
-      height: 52,
+      width: 50,
+      height: 50,
       decoration: const BoxDecoration(
         color: _C.softGreen,
         shape: BoxShape.circle,

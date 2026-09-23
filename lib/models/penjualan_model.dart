@@ -23,13 +23,13 @@ class RewardModel {
     );
   }
 
-  bool get isSembako => namaReward.toLowerCase() == 'sembako';
+  bool get isSembako => namaReward.toLowerCase() == 'barang';
 }
 
 // ─── Riwayat Penjualan (List Item) ──────────────────────────────────────────
 class RiwayatPenjualanModel {
   final String penjualanId;
-  final String identitasPembeli;
+  final String namaMitra;
   final String namaReward;
   final String satuanReward;
   final int totalItem;
@@ -41,7 +41,7 @@ class RiwayatPenjualanModel {
 
   RiwayatPenjualanModel({
     required this.penjualanId,
-    required this.identitasPembeli,
+    required this.namaMitra,
     required this.namaReward,
     required this.satuanReward,
     required this.totalItem,
@@ -55,14 +55,14 @@ class RiwayatPenjualanModel {
   factory RiwayatPenjualanModel.fromJson(Map<String, dynamic> json) {
     return RiwayatPenjualanModel(
       penjualanId: json['penjualan_id'] ?? '',
-      identitasPembeli: json['identitas_pembeli'] ?? '',
+      namaMitra: json['nama_mitra'] ?? '',
       namaReward: json['nama_reward'] ?? '',
       satuanReward: json['satuan_reward'] ?? '',
       totalItem: json['total_item'] ?? 0,
       totalPenjualan: (json['total_penjualan'] ?? 0).toDouble(),
       buktiFoto: json['bukti_foto'] ?? '',
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
+          ? DateTime.tryParse(json['created_at'])?.toLocal() ?? DateTime.now()
           : DateTime.now(),
       adminName: json['admin_name'] ?? '',
       statusBagiHasil: json['status_bagi_hasil'] ?? 'pending',
@@ -77,6 +77,7 @@ class RiwayatPenjualanModel {
 class DetailSampahPenjualanModel {
   final String sampahId;
   final String namaSampah;
+  final String satuan;
   final double qty;
   final double hargaJual;
   final double subtotalPenjualan;
@@ -85,6 +86,7 @@ class DetailSampahPenjualanModel {
   DetailSampahPenjualanModel({
     required this.sampahId,
     required this.namaSampah,
+    required this.satuan,
     required this.qty,
     required this.hargaJual,
     required this.subtotalPenjualan,
@@ -95,6 +97,7 @@ class DetailSampahPenjualanModel {
     return DetailSampahPenjualanModel(
       sampahId: json['sampah_id'] ?? '',
       namaSampah: json['nama_sampah'] ?? '',
+      satuan: json['satuan'] ?? '',
       qty: (json['qty'] ?? 0).toDouble(),
       hargaJual: (json['harga_jual'] ?? 0).toDouble(),
       subtotalPenjualan: (json['subtotal_penjualan'] ?? 0).toDouble(),
@@ -105,7 +108,8 @@ class DetailSampahPenjualanModel {
 
 class DetailPenjualanModel {
   final String penjualanId;
-  final String identitasPembeli;
+  final String namaBank;
+  final String namaMitra;
   final String namaReward;
   final String satuanReward;
   final int totalItem;
@@ -118,7 +122,8 @@ class DetailPenjualanModel {
 
   DetailPenjualanModel({
     required this.penjualanId,
-    required this.identitasPembeli,
+    required this.namaBank,
+    required this.namaMitra,
     required this.namaReward,
     required this.satuanReward,
     required this.totalItem,
@@ -133,14 +138,15 @@ class DetailPenjualanModel {
   factory DetailPenjualanModel.fromJson(Map<String, dynamic> json) {
     return DetailPenjualanModel(
       penjualanId: json['penjualan_id'] ?? '',
-      identitasPembeli: json['identitas_pembeli'] ?? '',
+      namaBank: json['nama_bank'] ?? '',
+      namaMitra: json['nama_mitra'] ?? '',
       namaReward: json['nama_reward'] ?? '',
       satuanReward: json['satuan_reward'] ?? '',
       totalItem: json['total_item'] ?? 0,
       totalPenjualan: (json['total_penjualan'] ?? 0).toDouble(),
       buktiFoto: json['bukti_foto'] ?? '',
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
+          ? DateTime.tryParse(json['created_at'])?.toLocal() ?? DateTime.now()
           : DateTime.now(),
       adminName: json['admin_name'] ?? '',
       statusBagiHasil: json['status_bagi_hasil'] ?? 'pending',
@@ -205,6 +211,35 @@ class PreviewPenjualanModel {
       detailItems: (json['detail_items'] as List? ?? [])
           .map((e) => DetailKalkulasiItem.fromJson(e as Map<String, dynamic>))
           .toList(),
+    );
+  }
+}
+
+// ─── Mitra (Master Data) ─────────────────────────────────────────────────────
+class MitraModel {
+  final String mitraId;
+  final String namaMitra;
+  final String bankId;
+  final bool isActive;
+  final DateTime? createdAt;
+
+  MitraModel({
+    required this.mitraId,
+    required this.namaMitra,
+    required this.bankId,
+    required this.isActive,
+    this.createdAt,
+  });
+
+  factory MitraModel.fromJson(Map<String, dynamic> json) {
+    return MitraModel(
+      mitraId: json['mitra_id'] ?? '',
+      namaMitra: json['nama_mitra'] ?? '',
+      bankId: json['bank_id'] ?? '',
+      isActive: json['is_active'] ?? true,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'])?.toLocal()
+          : null,
     );
   }
 }

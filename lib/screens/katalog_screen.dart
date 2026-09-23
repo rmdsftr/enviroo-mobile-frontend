@@ -2,6 +2,7 @@ import 'package:enviroo/models/katalog_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/katalog_provider.dart';
 import 'package:enviroo/widgets/detail_sampah_sheet.dart';
+import 'package:enviroo/widgets/pagination.dart';
 import 'package:enviroo/widgets/search.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +26,7 @@ class KatalogScreen extends StatefulWidget {
 
 class _KatalogScreenState extends State<KatalogScreen> {
   final TextEditingController _searchController = TextEditingController();
-  int _selectedFilter = 0;
+  String _selectedFilter = 'semua';
   String _searchQuery = '';
 
   @override
@@ -47,10 +48,16 @@ class _KatalogScreenState extends State<KatalogScreen> {
     super.dispose();
   }
 
+  // Jenis reward: 'poin' jika satuan reward == 'poin', selainnya 'uang'
+  String _rewardType(KatalogSampahModel item) {
+    final satuan = item.reward?.satuan.toLowerCase() ?? '';
+    return satuan == 'poin' ? 'poin' : 'uang';
+  }
+
   List<KatalogSampahModel> _getFilteredSampah(KatalogProvider katalog) {
     return katalog.katalogSampah.where((item) {
       final matchesFilter =
-          _selectedFilter == 0 || item.kategoriId == _selectedFilter;
+          _selectedFilter == 'semua' || _rewardType(item) == _selectedFilter;
       final matchesSearch =
           item.namaSampah.toLowerCase().contains(_searchQuery.toLowerCase());
       return matchesFilter && matchesSearch;
@@ -81,7 +88,18 @@ class _KatalogScreenState extends State<KatalogScreen> {
 
         return Scaffold(
           backgroundColor: Colors.white,
-          body: SafeArea(
+          body: Stack(
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Image.asset(
+                  'assets/images/bg_struk2.webp',
+                  fit: BoxFit.fitWidth,
+                ),
+              ),
+              SafeArea(
             child: Column(
               children: [
                 TopBarBack(title: "Katalog"),
@@ -94,87 +112,126 @@ class _KatalogScreenState extends State<KatalogScreen> {
                         await katalog.fetchAll(auth.bankId!);
                       }
                     },
-                    child: ListView(
-                      padding: EdgeInsets.zero,
+                    child: CustomScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(28, 0, 28, 0),
-                          child: Text(
-                            "Katalog ini berisi item-item sampah yang dapat kamu setorkan ke bank sampah",
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 12.5,
-                              height: 1.6,
-                              color: _C.dark.withValues(alpha:0.65),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        _buildSearchBar(),
-
-                        const SizedBox(height: 14),
-                        _buildFilterChips(katalog),
-
-                        const SizedBox(height: 18),
-
-                        Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 28),
-                          child: Row(
+                      slivers: [
+                        // Deskripsi + search + filter chip — scroll away normally
+                        SliverToBoxAdapter(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Katalog Sampah',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                  color: _C.dark,
-                                ),
-                              ),
-                              const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: _C.accent.withValues(alpha:0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(28, 0, 28, 0),
                                 child: Text(
-                                  '${filtered.length} item',
-                                  style: const TextStyle(
+                                  "Katalog ini berisi item-item sampah yang dapat kamu setorkan ke bank sampah dan bisa dipantau perubahan harganya",
+                                  style: TextStyle(
                                     fontFamily: 'Poppins',
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: _C.accent,
+                                    fontSize: 12.5,
+                                    height: 1.6,
+                                    color: _C.dark.withValues(alpha:0.65),
                                   ),
                                 ),
                               ),
+                              const SizedBox(height: 20),
+                              _buildSearchBar(),
+                              const SizedBox(height: 14),
+                              _buildFilterChips(),
+                              const SizedBox(height: 18),
                             ],
                           ),
                         ),
-
-                        const SizedBox(height: 12),
-
-                        if (katalog.isLoading)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 100),
-                            child: Center(
-                                child: CircularProgressIndicator(
-                                    color: _C.accent)),
-                          )
-                        else
-                          _buildGrid(filtered),
-
-                        const SizedBox(height: 30),
+                        // Sticky: "Daftar Item Sampah" + jumlah item
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: _StickyHeaderDelegate(
+                            height: 56,
+                            child: Container(
+                              color: Colors.white,
+                              padding: const EdgeInsets.only(top: 15, bottom: 12),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 28),
+                                child: Row(
+                                  children: [
+                                    const Text(
+                                      'Daftar Item Sampah',
+                                      style: TextStyle(
+                                        fontFamily: 'Poppins',
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                        color: _C.dark,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: _C.accent.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        '${filtered.length} item',
+                                        style: const TextStyle(
+                                          fontFamily: 'Poppins',
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: _C.accent,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Grid item — cuma ini yang scroll di bawah sticky header
+                        SliverToBoxAdapter(
+                          child: Container(
+                            width: double.infinity,
+                            constraints: BoxConstraints(
+                              minHeight: MediaQuery.of(context).size.height,
+                            ),
+                            decoration: const BoxDecoration(color: Colors.white),
+                            padding: const EdgeInsets.only(bottom: 40),
+                            child: katalog.isLoading
+                                ? const Padding(
+                                    padding: EdgeInsets.only(top: 100),
+                                    child: Center(
+                                        child: CircularProgressIndicator(
+                                            color: _C.accent)),
+                                  )
+                                : Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _buildGrid(filtered),
+                                      if (katalog.totalPages > 1) ...[
+                                        const SizedBox(height: 24),
+                                        Pagination(
+                                          currentPage: katalog.currentPage,
+                                          totalPages: katalog.totalPages,
+                                          onPageChanged: (page) {
+                                            final auth = Provider.of<AuthProvider>(
+                                                context,
+                                                listen: false);
+                                            if (auth.bankId != null) {
+                                              katalog.goToPage(auth.bankId!, page);
+                                            }
+                                          },
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
               ],
             ),
+          ),
+            ],
           ),
         );
       },
@@ -186,18 +243,32 @@ class _KatalogScreenState extends State<KatalogScreen> {
     return CustomSearchBar(
       controller: _searchController,
       hintText: "Cari jenis sampah...",
-      onChanged: (v) => setState(() => _searchQuery = v),
+      onChanged: (v) {
+        setState(() => _searchQuery = v);
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        final katalog = Provider.of<KatalogProvider>(context, listen: false);
+        if (auth.bankId != null) {
+          if (v.isNotEmpty) {
+            katalog.fetchSampah(auth.bankId!);
+          } else {
+            katalog.fetchSampah(auth.bankId!, page: 1);
+          }
+        }
+      },
       searchQuery: _searchQuery,
       onClear: () {
         _searchController.clear();
         setState(() => _searchQuery = '');
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        final katalog = Provider.of<KatalogProvider>(context, listen: false);
+        if (auth.bankId != null) katalog.fetchSampah(auth.bankId!, page: 1);
       },
       padding: const EdgeInsets.symmetric(horizontal: 24),
     );
   }
 
   // ── Filter chips ──────────────────────────────────────────────────────────
-  Widget _buildFilterChips(KatalogProvider katalog) {
+  Widget _buildFilterChips() {
     return SizedBox(
       height: 34,
       child: ListView(
@@ -205,15 +276,15 @@ class _KatalogScreenState extends State<KatalogScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 24),
         physics: const BouncingScrollPhysics(),
         children: [
-          _buildFilterChip(0, 'Semua'),
-          ...katalog.categories
-              .map((cat) => _buildFilterChip(cat.kategoriId, cat.kategori)),
+          _buildFilterChip('semua', 'Semua'),
+          _buildFilterChip('uang', 'Uang'),
+          _buildFilterChip('poin', 'Poin'),
         ],
       ),
     );
   }
 
-  Widget _buildFilterChip(int value, String label) {
+  Widget _buildFilterChip(String value, String label) {
     final isSelected = _selectedFilter == value;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
@@ -288,6 +359,10 @@ class _KatalogScreenState extends State<KatalogScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
+          border : Border.all(
+            width : 1,
+            color : const Color(0xFF013236).withOpacity(0.1),
+          ),
           boxShadow: [
             BoxShadow(
               color: _C.dark.withValues(alpha:0.06),
@@ -459,5 +534,31 @@ class _KatalogScreenState extends State<KatalogScreen> {
         .replaceAll(RegExp(r'0*$'), '')
         .replaceAll(RegExp(r'\.$'), '')
         .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
+  }
+}
+
+// ── Sticky header delegate ───────────────────────────────────────────────────
+// Bikin "Daftar Item Sampah" nempel (pinned) di bawah TopBarBack saat
+// di-scroll, sementara cuma grid item yang ikut bergerak.
+class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+
+  _StickyHeaderDelegate({required this.child, required this.height});
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) {
+    return oldDelegate.child != child || oldDelegate.height != height;
   }
 }

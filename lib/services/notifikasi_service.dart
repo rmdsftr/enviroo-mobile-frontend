@@ -1,7 +1,7 @@
 import 'dart:convert';
-import '../config/api_config.dart';
+import 'package:enviroo/core/config/api_config.dart';
 import '../models/notifikasi_model.dart';
-import 'api_client.dart';
+import 'package:enviroo/core/network/api_client.dart';
 
 class NotifikasiService {
   static Future<Map<String, dynamic>> registerFcmToken(String fcmToken) async {
@@ -19,18 +19,26 @@ class NotifikasiService {
     }
   }
 
-  static Future<Map<String, dynamic>> getNotifikasi(String userId) async {
+  static Future<Map<String, dynamic>> getNotifikasi(
+    String roleTarget, {
+    int page = 1,
+    int limit = 20,
+  }) async {
     try {
-      final response = await ApiClient.get(
-        Uri.parse('${ApiConfig.getNotifikasiUrl}/$userId'),
-        timeout: const Duration(seconds: 10),
+      final uri = Uri.parse(ApiConfig.getNotifikasiUrl).replace(
+        queryParameters: {
+          'role_target': roleTarget,
+          'page': page.toString(),
+          'limit': limit.toString(),
+        },
       );
+      final response = await ApiClient.get(uri, timeout: const Duration(seconds: 10));
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) {
         final list = (body['data'] as List? ?? [])
             .map((e) => NotifikasiModel.fromJson(e))
             .toList();
-        return {'success': true, 'data': list};
+        return {'success': true, 'data': list, 'meta': body['meta']};
       }
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil notifikasi'};
     } catch (e) {
@@ -52,10 +60,10 @@ class NotifikasiService {
     }
   }
 
-  static Future<Map<String, dynamic>> markAllAsRead(String userId) async {
+  static Future<Map<String, dynamic>> markAllAsRead() async {
     try {
       final response = await ApiClient.patch(
-        Uri.parse('${ApiConfig.markAllReadUrl}/$userId'),
+        Uri.parse(ApiConfig.markAllReadUrl),
         timeout: const Duration(seconds: 10),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;

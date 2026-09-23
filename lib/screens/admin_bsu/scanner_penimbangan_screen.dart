@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:enviroo/models/nasabah_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/screens/admin_bsu/input_setoran_screen.dart';
@@ -48,19 +49,18 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
     super.dispose();
   }
 
-  Future<void> _verifikasiNasabah(String nasabahId, bool dariQr, {String? nasabahName}) async {
+  Future<void> _verifikasiNasabah(String qrData, bool dariQr, {String? nasabahName}) async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final adminId = auth.identityId ?? '';
 
-    final res = await SetoranService.verifikasiSetoran(
-        widget.penimbanganId, nasabahId, adminId);
+    final res = await SetoranService.verifikasiSetoran(qrData, adminId);
 
     if (!mounted) return;
 
     if (res['success'] == true && res['status'] == 'verified') {
       final data = res['data'] ?? {};
       _navigateToSetoran(
-        nasabahId: data['nasabah_id']?.toString() ?? nasabahId,
+        nasabahId: data['nasabah_id']?.toString() ?? '',
         nasabahName: data['nama_nasabah']?.toString() ?? nasabahName ?? 'Nasabah via QR',
         photoUrl: data['photo_url']?.toString() ?? '',
         dariQr: dariQr,
@@ -83,16 +83,18 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
 
     final String rawValue = barcode.rawValue!;
 
-    if (!rawValue.startsWith('ENVIROO-SETORAN-')) return;
+    try {
+      final decoded = jsonDecode(rawValue) as Map<String, dynamic>;
+      if (decoded['type'] != 'ENVIROO-SETORAN') return;
+    } catch (_) {
+      return;
+    }
 
     setState(() => _isProcessing = true);
     _scannerController.stop();
     HapticFeedback.mediumImpact();
 
-    final parts = rawValue.split('-');
-    final String nasabahId = parts.length >= 3 ? parts[2] : rawValue;
-
-    await _verifikasiNasabah(nasabahId, true);
+    await _verifikasiNasabah(rawValue, true);
   }
 
   void _navigateToSetoran({
@@ -118,25 +120,24 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
     });
   }
 
-  // ── Buka dialog pilih nasabah manual ─────────────────────────────────────────
+  // ── Buka bottom sheet pilih nasabah manual ───────────────────────────────────
   void _showManualPickerDialog() {
     _scannerController.stop();
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.black.withOpacity(0.5),
-      builder: (ctx) => _ManualPickerDialog(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _ManualPickerSheet(
         onSelected: (nasabah) async {
           Navigator.pop(ctx);
           setState(() => _isProcessing = true);
-          await _verifikasiNasabah(nasabah.nasabahId, false, nasabahName: nasabah.user.nama);
-        },
-        onDismiss: () {
-          Navigator.pop(ctx);
-          _scannerController.start();
+          final qrData = '{"type":"ENVIROO-SETORAN","nasabah_id":"${nasabah.nasabahId}","penimbangan_id":"${widget.penimbanganId}"}';
+          await _verifikasiNasabah(qrData, false, nasabahName: nasabah.user.nama);
         },
       ),
-    );
+    ).then((_) {
+      if (mounted && !_isProcessing) _scannerController.start();
+    });
   }
 
   @override
@@ -565,25 +566,17 @@ class _OverlayPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-class _ManualPickerDialog extends StatefulWidget {
+class _ManualPickerSheet extends StatefulWidget {
   final Function(NasabahModel) onSelected;
-  final VoidCallback onDismiss;
 
-  const _ManualPickerDialog({
-    required this.onSelected,
-    required this.onDismiss,
-  });
+  const _ManualPickerSheet({required this.onSelected});
 
   @override
-  State<_ManualPickerDialog> createState() => _ManualPickerDialogState();
+  State<_ManualPickerSheet> createState() => _ManualPickerSheetState();
 }
 
-class _ManualPickerDialogState extends State<_ManualPickerDialog>
-    with SingleTickerProviderStateMixin {
+class _ManualPickerSheetState extends State<_ManualPickerSheet> {
   final TextEditingController _searchCtrl = TextEditingController();
-  late AnimationController _animCtrl;
-  late Animation<double> _scaleAnim;
-  late Animation<double> _fadeAnim;
   String _query = '';
   List<NasabahModel> _nasabahList = [];
   bool _isLoading = true;
@@ -591,7 +584,8 @@ class _ManualPickerDialogState extends State<_ManualPickerDialog>
   List<NasabahModel> get _filtered => _nasabahList
       .where((n) {
         final isActive = n.statusNasabah.toLowerCase() == 'aktif';
-        final matchesQuery = n.user.nama.toLowerCase().contains(_query.toLowerCase()) ||
+        final matchesQuery =
+            n.user.nama.toLowerCase().contains(_query.toLowerCase()) ||
             n.nasabahId.toLowerCase().contains(_query.toLowerCase()) ||
             n.nomorRekening.toLowerCase().contains(_query.toLowerCase());
         return isActive && matchesQuery;
@@ -601,28 +595,14 @@ class _ManualPickerDialogState extends State<_ManualPickerDialog>
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 280),
-    );
-    _scaleAnim = Tween<double>(begin: 0.93, end: 1.0).animate(
-      CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutBack),
-    );
-    _fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut),
-    );
-    _animCtrl.forward();
-
     _fetchNasabah();
   }
 
   Future<void> _fetchNasabah() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final bankId = auth.bankId ?? '';
-
     final res = await NasabahService.getNasabahByBankId(bankId);
     if (!mounted) return;
-
     if (res['success'] == true) {
       final List data = res['data'] ?? [];
       setState(() {
@@ -631,115 +611,103 @@ class _ManualPickerDialogState extends State<_ManualPickerDialog>
       });
     } else {
       setState(() => _isLoading = false);
-      // fallback handling
     }
   }
 
   @override
   void dispose() {
-    _animCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animCtrl,
-      builder: (_, child) => FadeTransition(
-        opacity: _fadeAnim,
-        child: ScaleTransition(scale: _scaleAnim, child: child),
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      child: Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 36),
-        child: Container(
-          padding: EdgeInsets.only(bottom: 20),
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.82,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF013236).withOpacity(0.2),
-                blurRadius: 40,
-                offset: const Offset(0, 20),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildHeader(),
-              _buildSearchBar(),
-              Flexible(child: _isLoading ? const Center(child: CircularProgressIndicator(color: Color(0xFF4EA771))) : _buildNasabahList()),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(30, 20, 20, 0),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          // Drag handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 4),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFF013236).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 10, 20, 0),
+            child: Row(
               children: [
-                const Text(
-                  'Pilih Nasabah',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: Color(0xFF013236),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Pilih Nasabah',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: Color(0xFF013236),
+                        ),
+                      ),
+                      Text(
+                        'Pilih nasabah untuk memulai setoran',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11,
+                          color: const Color(0xFF013236).withOpacity(0.5),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  'Pilih nasabah untuk memulai setoran',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    color: const Color(0xFF013236).withOpacity(0.5),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2F2F2),
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF013236)),
                   ),
                 ),
               ],
             ),
           ),
-          // Tombol tutup
-          GestureDetector(
-            onTap: widget.onDismiss,
-            child: Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF2F2F2),
-                borderRadius: BorderRadius.circular(50),
-              ),
-              child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF013236)),
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+            child: CustomSearchBar(
+              controller: _searchCtrl,
+              hintText: 'Cari nama, ID, atau no rekening...',
+              searchQuery: _query,
+              onChanged: (v) => setState(() => _query = v),
+              onClear: () {
+                _searchCtrl.clear();
+                setState(() => _query = '');
+              },
             ),
           ),
+          // List
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF4EA771)))
+                : _buildNasabahList(),
+          ),
+          SizedBox(height: bottomPad + 8),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
-      child: CustomSearchBar(
-        controller: _searchCtrl,
-        hintText: 'Cari nama, ID, atau no rekening...',
-        searchQuery: _query,
-        onChanged: (v) => setState(() => _query = v),
-        onClear: () {
-          _searchCtrl.clear();
-          setState(() => _query = '');
-        },
       ),
     );
   }
@@ -748,41 +716,30 @@ class _ManualPickerDialogState extends State<_ManualPickerDialog>
     final list = _filtered;
 
     if (list.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFFFFF),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.manage_search_rounded,
-                size: 28,
-                color: const Color(0xFF013236).withOpacity(0.35),
-              ),
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.manage_search_rounded,
+            size: 36,
+            color: const Color(0xFF013236).withOpacity(0.25),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Nasabah tidak ditemukan',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w500,
+              fontSize: 12,
+              color: const Color(0xFF013236).withOpacity(0.5),
             ),
-            const SizedBox(height: 12),
-            Text(
-              'Nasabah tidak ditemukan',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w500,
-                fontSize: 12,
-                color: const Color(0xFF013236).withOpacity(0.5),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      shrinkWrap: true,
       itemCount: list.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (ctx, i) => _NasabahTile(
@@ -791,7 +748,6 @@ class _ManualPickerDialogState extends State<_ManualPickerDialog>
       ),
     );
   }
-
 }
 
 class _NasabahTile extends StatelessWidget {

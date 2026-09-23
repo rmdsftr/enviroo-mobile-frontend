@@ -1,3 +1,4 @@
+import 'package:enviroo/models/pengangkutan_bsi_model.dart';
 import 'package:enviroo/screens/admin_bsi/detail_pengangkutan_screen.dart';
 import 'package:enviroo/screens/admin_bsi/preview_setoran_bsu_screen.dart';
 import 'package:enviroo/services/pengangkutan_service.dart';
@@ -7,37 +8,6 @@ import 'package:enviroo/widgets/search.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-// ─── Model ──────────────────────────────────────────────────────────────────
-
-class SampahPengangkutan {
-  final String sampahId;
-  final String namaSampah;
-  final String fotoSampah;
-  final String satuan;
-  final String namaReward;
-  final double stok;
-
-  SampahPengangkutan({
-    required this.sampahId,
-    required this.namaSampah,
-    required this.fotoSampah,
-    required this.satuan,
-    required this.namaReward,
-    required this.stok,
-  });
-
-  factory SampahPengangkutan.fromJson(Map<String, dynamic> json) {
-    return SampahPengangkutan(
-      sampahId: json['sampah_id'] ?? '',
-      namaSampah: json['nama_sampah'] ?? '-',
-      fotoSampah: json['foto_sampah'] ?? '',
-      satuan: json['satuan'] ?? '-',
-      namaReward: json['nama_reward'] ?? '',
-      stok: (json['stok'] as num? ?? 0).toDouble(),
-    );
-  }
-}
 
 // ─── Screen ─────────────────────────────────────────────────────────────────
 
@@ -88,15 +58,6 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
   TextEditingController _controllerAt(int index) =>
       _inputControllers.putIfAbsent(index, () => TextEditingController());
 
-  int get _selectedCount {
-    int count = 0;
-    for (int i = 0; i < _filtered.length; i++) {
-      final ctrl = _inputControllers[i];
-      if (ctrl == null) continue;
-      if ((double.tryParse(ctrl.text) ?? 0) > 0) count++;
-    }
-    return count;
-  }
 
   bool get _adaInput => _inputControllers.values
       .any((c) => c.text.isNotEmpty && (double.tryParse(c.text) ?? 0) > 0);
@@ -372,7 +333,7 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
       items: const [
         FilterChipItem(value: 'Semua', label: 'Semua'),
         FilterChipItem(value: 'Uang', label: 'Uang'),
-        FilterChipItem(value: 'Sembako', label: 'Sembako'),
+        FilterChipItem(value: 'Barang', label: 'Barang'),
       ],
     );
   }

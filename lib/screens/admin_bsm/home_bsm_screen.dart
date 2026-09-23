@@ -9,12 +9,11 @@ import 'package:provider/provider.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/dashboard_provider.dart';
 import 'package:enviroo/widgets/bottom_bar_custom.dart';
+import 'package:enviroo/screens/admin_bsm/navigasi_jadwal_screen.dart';
 import 'package:enviroo/screens/admin_bsu/harga_screen.dart';
-import 'package:enviroo/screens/admin_bsu/jadwal_screen.dart';
 import 'package:enviroo/screens/profil_bank_screen.dart';
 import 'package:enviroo/providers/katalog_provider.dart';
 import 'package:enviroo/providers/konten_provider.dart';
-import 'package:enviroo/providers/jadwal_provider.dart';
 
 class HomeBsmScreen extends StatefulWidget {
   const HomeBsmScreen({Key? key}) : super(key: key);
@@ -102,6 +101,7 @@ class _HomeBsmScreenState extends State<HomeBsmScreen> {
   void _onNavTap(int i) {
     if (i == 0 && i != _currentIndex) {
       final auth = context.read<AuthProvider>();
+      context.read<DashboardProvider>().fetchDashboardPetugas(auth);
       if (auth.bankId != null) {
         context.read<KontenProvider>().fetchKonten(
           auth.bankId!,
@@ -116,10 +116,6 @@ class _HomeBsmScreenState extends State<HomeBsmScreen> {
           auth.bankId!,
         );
       }
-    }
-    if (i == 2 && i != _currentIndex) {
-      final auth = context.read<AuthProvider>();
-      context.read<JadwalProvider>().fetchJadwal(auth);
     }
     setState(() => _currentIndex = i);
   }
@@ -138,7 +134,7 @@ class _HomeBsmScreenState extends State<HomeBsmScreen> {
       PopScope(
         canPop: false,
         onPopInvoked: (_) => _goHome(),
-        child: JadwalScreen(onBack: _goHome),
+        child: NavigasiJadwalScreen(onBack: _goHome),
       ),
       PopScope(
         canPop: false,

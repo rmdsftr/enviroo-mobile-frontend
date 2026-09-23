@@ -10,11 +10,23 @@ class MonthYearFilterRow extends StatelessWidget {
   final DateTime filterEnd;
   final void Function(DateTime start, DateTime end) onChanged;
 
+  /// Kalau true, bulan-bulan setelah bulan berjalan gak di-disable di bottom
+  /// sheet — dipakai untuk fitur yang justru butuh milih jadwal mendatang
+  /// (misal pembatalan jadwal), bukan riwayat yang cuma masuk akal ke masa lalu.
+  final bool allowFutureMonths;
+
+  /// Kalau false, bulan-bulan sebelum bulan berjalan di-disable — dipakai
+  /// untuk fitur yang cuma masuk akal ke jadwal mendatang (misal pembatalan
+  /// jadwal), bukan riwayat yang justru butuh milih bulan-bulan lalu.
+  final bool allowPastMonths;
+
   const MonthYearFilterRow({
     super.key,
     required this.filterStart,
     required this.filterEnd,
     required this.onChanged,
+    this.allowFutureMonths = false,
+    this.allowPastMonths = true,
   });
 
   Future<void> _pick(BuildContext context, {required bool isStart}) async {
@@ -26,6 +38,8 @@ class MonthYearFilterRow extends StatelessWidget {
       builder: (_) => MonthYearPickerSheet(
         initialYear: current.year,
         initialMonth: current.month,
+        allowFutureMonths: allowFutureMonths,
+        allowPastMonths: allowPastMonths,
       ),
     );
     if (result == null) return;
@@ -48,7 +62,6 @@ class MonthYearFilterRow extends StatelessWidget {
       children: [
         Expanded(
           child: _FilterChip(
-            label: 'Dari',
             value: filterStart,
             onTap: () => _pick(context, isStart: true),
           ),
@@ -56,7 +69,6 @@ class MonthYearFilterRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _FilterChip(
-            label: 'Sampai',
             value: filterEnd,
             onTap: () => _pick(context, isStart: false),
           ),
@@ -67,12 +79,10 @@ class MonthYearFilterRow extends StatelessWidget {
 }
 
 class _FilterChip extends StatelessWidget {
-  final String label;
   final DateTime value;
   final VoidCallback onTap;
 
   const _FilterChip({
-    required this.label,
     required this.value,
     required this.onTap,
   });
@@ -84,45 +94,29 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          color: Color(0xFF4EA771).withOpacity(0.075),
+          borderRadius: BorderRadius.circular(15),
           border: Border.all(
-              color: const Color(0xFF013236).withOpacity(0.1),
+              color: const Color(0xFF4EA771).withOpacity(0.75),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    color: Colors.grey[500],
-                  ),
+            Expanded(
+              child: Text(
+                DateFormat('MMMM yyyy', 'id_ID').format(value),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF4EA771),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  DateFormat('MMMM yyyy', 'id_ID').format(value),
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF013236),
-                  ),
-                ),
-              ],
+              ),
             ),
+            const SizedBox(width: 4),
             const Icon(Icons.expand_more_rounded,
                 size: 18, color: Color(0xFF4EA771)),
           ],
@@ -137,10 +131,20 @@ class MonthYearPickerSheet extends StatefulWidget {
   final int initialYear;
   final int initialMonth;
 
+  /// Kalau true, tahun & bulan setelah saat ini tetap bisa dipilih (gak ada
+  /// yang di-disable). Dipakai untuk fitur yang butuh milih jadwal mendatang.
+  final bool allowFutureMonths;
+
+  /// Kalau false, tahun & bulan sebelum saat ini di-disable. Dipakai untuk
+  /// fitur yang cuma masuk akal ke jadwal mendatang.
+  final bool allowPastMonths;
+
   const MonthYearPickerSheet({
     super.key,
     required this.initialYear,
     required this.initialMonth,
+    this.allowFutureMonths = false,
+    this.allowPastMonths = true,
   });
 
   @override
@@ -186,9 +190,15 @@ class _MonthYearPickerSheetState extends State<MonthYearPickerSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton(
-                icon: const Icon(Icons.chevron_left_rounded,
-                    color: Color(0xFF013236)),
-                onPressed: () => setState(() => _year--),
+                icon: Icon(
+                  Icons.chevron_left_rounded,
+                  color: (!widget.allowPastMonths && _year <= now.year)
+                      ? Colors.grey[300]
+                      : const Color(0xFF013236),
+                ),
+                onPressed: (!widget.allowPastMonths && _year <= now.year)
+                    ? null
+                    : () => setState(() => _year--),
               ),
               Text(
                 '$_year',
@@ -202,12 +212,13 @@ class _MonthYearPickerSheetState extends State<MonthYearPickerSheet> {
               IconButton(
                 icon: Icon(
                   Icons.chevron_right_rounded,
-                  color: _year >= now.year
+                  color: (!widget.allowFutureMonths && _year >= now.year)
                       ? Colors.grey[300]
                       : const Color(0xFF013236),
                 ),
-                onPressed:
-                    _year >= now.year ? null : () => setState(() => _year++),
+                onPressed: (!widget.allowFutureMonths && _year >= now.year)
+                    ? null
+                    : () => setState(() => _year++),
               ),
             ],
           ),
@@ -224,11 +235,17 @@ class _MonthYearPickerSheetState extends State<MonthYearPickerSheet> {
             itemCount: 12,
             itemBuilder: (_, i) {
               final month = i + 1;
-              final isFuture = _year == now.year && month > now.month;
+              final isFuture = !widget.allowFutureMonths &&
+                  _year == now.year &&
+                  month > now.month;
+              final isPast = !widget.allowPastMonths &&
+                  _year == now.year &&
+                  month < now.month;
+              final isDisabled = isFuture || isPast;
               final isSelected =
                   month == widget.initialMonth && _year == widget.initialYear;
               return GestureDetector(
-                onTap: isFuture
+                onTap: isDisabled
                     ? null
                     : () => Navigator.pop(context, DateTime(_year, month)),
                 child: AnimatedContainer(
@@ -236,7 +253,7 @@ class _MonthYearPickerSheetState extends State<MonthYearPickerSheet> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? const Color(0xFF4EA771)
-                        : isFuture
+                        : isDisabled
                             ? Colors.grey[100]
                             : const Color(0xFFF0F9F4),
                     borderRadius: BorderRadius.circular(10),
@@ -251,7 +268,7 @@ class _MonthYearPickerSheetState extends State<MonthYearPickerSheet> {
                           isSelected ? FontWeight.w700 : FontWeight.w500,
                       color: isSelected
                           ? Colors.white
-                          : isFuture
+                          : isDisabled
                               ? Colors.grey[400]
                               : const Color(0xFF013236),
                     ),

@@ -5,10 +5,8 @@ import 'package:enviroo/layouts/jadwal_layouts.dart';
 import 'package:enviroo/layouts/menu_layouts.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/konten_provider.dart';
-import 'package:enviroo/screens/katalog_screen.dart';
 import 'package:enviroo/services/reward_overview_service.dart';
 import 'package:enviroo/layouts/transaksi_layouts.dart';
-import 'package:enviroo/widgets/filter_chip_row.dart';
 import 'package:enviroo/widgets/navbar.dart';
 import 'package:enviroo/widgets/topbar_custom.dart';
 import 'package:flutter/material.dart';
@@ -149,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final data = result['data'] as Map<String, dynamic>;
       setState(() {
         _rewardUang = List<Map<String, dynamic>>.from(data['uang'] ?? []);
-        _rewardSembako = List<Map<String, dynamic>>.from(data['sembako'] ?? []);
+        _rewardSembako = List<Map<String, dynamic>>.from(data['barang'] ?? []);
         _rewardLoading = false;
         _rewardFetched = true;
       });
@@ -206,48 +204,63 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 10),
-            child: Text(
-              'Program Bagi Hasil',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF013236),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(30, 20, 30, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Program Bagi Hasil',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF013236),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Pilih reward yang ingin kamu lihat riwayat bagi hasilnya.',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 12,
+                  color: const Color(0xFF013236).withValues(alpha: 0.55),
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        // Panel putih yang manjang sampai bawah layar
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ..._rewardUang.isNotEmpty
+                      ? _rewardUang.map((r) => _RewardCard(rewardData: r, type: _RewardType.uang))
+                      : [const _RewardCard(rewardData: {}, type: _RewardType.uang, notAvailable: true)],
+                  ..._rewardSembako.isNotEmpty
+                      ? _rewardSembako.map((r) => _RewardCard(rewardData: r, type: _RewardType.sembako))
+                      : [const _RewardCard(rewardData: {}, type: _RewardType.sembako, notAvailable: true)],
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Text(
-              'Pilih reward yang ingin kamu lihat riwayat bagi hasilnya.',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: const Color(0xFF013236).withOpacity(0.55),
-                height: 1.5,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          ..._rewardUang.isNotEmpty
-              ? _rewardUang.map((r) => _RewardCard(rewardData: r, type: _RewardType.uang))
-              : [const _RewardCard(rewardData: {}, type: _RewardType.uang, notAvailable: true)],
-          ..._rewardSembako.isNotEmpty
-              ? _rewardSembako.map((r) => _RewardCard(rewardData: r, type: _RewardType.sembako))
-              : [const _RewardCard(rewardData: {}, type: _RewardType.sembako, notAvailable: true)],
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -269,37 +282,19 @@ class _RewardCard extends StatelessWidget {
   Color get _accent {
     switch (type) {
       case _RewardType.uang:
-        return const Color(0xFF2D7DD2);
+        return const Color(0xFF88CC0C);
       case _RewardType.sembako:
         return const Color(0xFF3A8C5C);
     }
   }
 
-  IconData get _icon {
-    switch (type) {
-      case _RewardType.uang:
-        return Icons.account_balance_wallet_outlined;
-      case _RewardType.sembako:
-        return Icons.shopping_basket_outlined;
-    }
-  }
-
-  String _formatRupiah(int v) {
-    final s = v.toString().split('').reversed.toList();
-    final buf = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      if (i > 0 && i % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString().split('').reversed.join('');
-  }
 
   String get _typeName {
     switch (type) {
       case _RewardType.uang:
         return 'Reward Uang';
       case _RewardType.sembako:
-        return 'Reward Sembako';
+        return 'Reward Barang';
     }
   }
 
@@ -325,146 +320,146 @@ class _RewardCard extends StatelessWidget {
               ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: const Color(0xFFEDEDED), width: 1.5),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Row 1: Icon + Name/Desc
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Premium Icon Container
-                Container(
-                  width: 46,
-                  height: 46,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(19),
+          child: Stack(
+            children: [
+              // Satu blob halus di pojok kanan card
+              Positioned(
+                top: -45,
+                right: -45,
+                child: Container(
+                  width: 130,
+                  height: 120,
                   decoration: BoxDecoration(
-                    color: _accent.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(15),
+                    shape: BoxShape.circle,
+                    color: (notAvailable ? const Color(0xFFCCCCCC) : _accent)
+                        .withValues(alpha: 0.07),
                   ),
-                  child: Icon(_icon, color: _accent, size: 22),
-                ),
-                const SizedBox(width: 16),
-                // Texts
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        nama,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1A1A1A),
-                        ),
-                      ),
-                      if (deskripsi.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          deskripsi,
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 12,
-                            color: Color(0xFF888888),
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // Row 2: The Sentence (Premium Info Box)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: notAvailable
-                    ? const Color(0xFFF8F8F8)
-                    : const Color(0xFFF8F9FA),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: notAvailable
-                      ? const Color(0xFFE8E8E8)
-                      : const Color(0xFFF0F0F0),
                 ),
               ),
-              child: notAvailable
-                  ? Row(
-                      children: [
-                        Icon(Icons.info_outline_rounded,
-                            size: 14, color: Colors.grey[400]),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Bank sampah kamu belum menerapkan sistem reward ini untuk nasabah',
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Tab/label berwarna di pojok kiri atas
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: (notAvailable ? const Color(0xFF9E9E9E) : _accent)
+                            .withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            notAvailable ? Icons.lock_outline_rounded : Icons.auto_awesome_rounded,
+                            size: 13,
+                            color: notAvailable ? const Color(0xFF9E9E9E) : _accent,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            notAvailable
+                                ? 'Belum tersedia'
+                                : 'Bagi hasil ${_formatPersen(persen)}%',
                             style: TextStyle(
                               fontFamily: 'Poppins',
                               fontSize: 11,
-                              color: Colors.grey[500],
-                              height: 1.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: Color(0xFF555555),
-                          height: 1.5,
-                        ),
-                        children: [
-                          const TextSpan(text: 'Tiap kali bagi hasil, kamu bakal dapat '),
-                          TextSpan(
-                            text: '${_formatPersen(persen)}%',
-                            style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: _accent,
-                              fontSize: 11,
+                              color: notAvailable ? const Color(0xFF9E9E9E) : _accent,
                             ),
                           ),
-                          const TextSpan(text: ' dari tiap item sampah yang terjual.'),
                         ],
                       ),
                     ),
-            ),
 
-            if (!notAvailable) ...[
-              const SizedBox(height: 18),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+                    const SizedBox(height: 14),
+
+                    // Judul reward
                     Text(
-                      'Lihat riwayat bagi hasil',
-                      style: TextStyle(
+                      nama,
+                      style: const TextStyle(
                         fontFamily: 'Poppins',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _accent,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF013236),
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    Icon(Icons.arrow_forward_ios_rounded,
-                        size: 10, color: _accent),
+
+                    if (deskripsi.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        deskripsi,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11.5,
+                          color: Color(0xFF888888),
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 16),
+
+                    if (notAvailable)
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded,
+                              size: 14, color: Colors.grey[400]),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Bank sampah kamu belum menerapkan sistem reward ini untuk nasabah',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11,
+                                color: Colors.grey[500],
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else ...[
+                      Divider(height: 1, color: Colors.grey.shade100),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Text(
+                            'Lihat riwayat bagi hasil',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: _accent,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            width: 26,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              color: _accent.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.arrow_forward_rounded,
+                                size: 15, color: _accent),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
-          ],
+          ),
         ),
       ),
     );

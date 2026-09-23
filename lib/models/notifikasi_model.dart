@@ -29,6 +29,11 @@ class NotifikasiModel {
     );
   }
 
+  // ref_type ini gak clickable buat lihat detail di NotifikasiScreen — jadi
+  // dipindahin ke ChatInfoBankSampahScreen (dibuka lewat icon chat di
+  // JadwalLayouts) dan gak lagi ditampilin di NotifikasiScreen.
+  bool get isChatInfoBank => refType == 'penimbangan' || refType == 'jadwal_penimbangan';
+
   NotifikasiModel copyWith({bool? isRead}) {
     return NotifikasiModel(
       id: id,

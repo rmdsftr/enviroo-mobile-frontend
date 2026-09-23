@@ -1,22 +1,27 @@
 class BsuPreviewItem {
   final String bankId;
   final String namaBank;
-  final double totalKontribusiNasabah;
-  final double kontribusiPersen;
+  final double persenKontribusi;
+  final double pokok;
+  final double transportasi;
+  final double nominal;
 
   BsuPreviewItem({
     required this.bankId,
     required this.namaBank,
-    required this.totalKontribusiNasabah,
-    required this.kontribusiPersen,
+    required this.persenKontribusi,
+    required this.pokok,
+    required this.transportasi,
+    required this.nominal,
   });
 
   factory BsuPreviewItem.fromJson(Map<String, dynamic> json) => BsuPreviewItem(
         bankId: json['bank_id'] ?? '',
         namaBank: json['nama_bank'] ?? '',
-        totalKontribusiNasabah:
-            (json['total_kontribusi_nasabah'] ?? 0).toDouble(),
-        kontribusiPersen: (json['kontribusi_persen'] ?? 0).toDouble(),
+        persenKontribusi: (json['persen_kontribusi'] ?? 0).toDouble(),
+        pokok: (json['pokok'] ?? 0).toDouble(),
+        transportasi: (json['transportasi'] ?? 0).toDouble(),
+        nominal: (json['nominal'] ?? 0).toDouble(),
       );
 }
 
@@ -24,19 +29,15 @@ class PreviewDistribusiSisaModel {
   final String bagiHasilId;
   final double totalSisa;
   final String satuan;
-  final double porsiBsi;
-  final double porsiBsu;
-  final double porsiTransport;
-  final List<BsuPreviewItem> bsuTerlibat;
+  final double nominalBsi;
+  final List<BsuPreviewItem> penerimaBsu;
 
   PreviewDistribusiSisaModel({
     required this.bagiHasilId,
     required this.totalSisa,
     required this.satuan,
-    required this.porsiBsi,
-    required this.porsiBsu,
-    required this.porsiTransport,
-    required this.bsuTerlibat,
+    required this.nominalBsi,
+    required this.penerimaBsu,
   });
 
   factory PreviewDistribusiSisaModel.fromJson(Map<String, dynamic> json) =>
@@ -44,12 +45,29 @@ class PreviewDistribusiSisaModel {
         bagiHasilId: json['bagi_hasil_id'] ?? '',
         totalSisa: (json['total_sisa'] ?? 0).toDouble(),
         satuan: json['satuan']?.toString() ?? '',
-        porsiBsi: (json['porsi_bsi'] ?? 0).toDouble(),
-        porsiBsu: (json['porsi_bsu'] ?? 0).toDouble(),
-        porsiTransport: (json['porsi_transport'] ?? 0).toDouble(),
-        bsuTerlibat: (json['bsu_terlibat'] as List? ?? [])
+        nominalBsi: (json['nominal_bsi'] ?? 0).toDouble(),
+        penerimaBsu: (json['penerima_bsu'] as List? ?? [])
             .map((e) => BsuPreviewItem.fromJson(e as Map<String, dynamic>))
             .toList(),
+      );
+}
+
+class TransportDetailItem {
+  final String bsuId;
+  final String namaBsu;
+  final double transport;
+
+  TransportDetailItem({
+    required this.bsuId,
+    required this.namaBsu,
+    required this.transport,
+  });
+
+  factory TransportDetailItem.fromJson(Map<String, dynamic> json) =>
+      TransportDetailItem(
+        bsuId: json['bsu_id'] ?? '',
+        namaBsu: json['nama_bsu'] ?? '',
+        transport: (json['transport'] ?? 0).toDouble(),
       );
 }
 
@@ -62,6 +80,7 @@ class PenerimaDistribusiSisaItem {
   final double transportasi;
   final String satuanNominal;
   final String? diantarOleh;
+  final List<TransportDetailItem> transportDetail;
 
   PenerimaDistribusiSisaItem({
     required this.penerimaSisaId,
@@ -72,6 +91,7 @@ class PenerimaDistribusiSisaItem {
     required this.transportasi,
     required this.satuanNominal,
     this.diantarOleh,
+    this.transportDetail = const [],
   });
 
   factory PenerimaDistribusiSisaItem.fromJson(Map<String, dynamic> json) =>
@@ -84,6 +104,9 @@ class PenerimaDistribusiSisaItem {
         transportasi: (json['transportasi'] ?? 0).toDouble(),
         satuanNominal: json['satuan_nominal'] ?? '',
         diantarOleh: json['diantar_oleh']?.toString(),
+        transportDetail: (json['transport_detail'] as List? ?? [])
+            .map((e) => TransportDetailItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 }
 

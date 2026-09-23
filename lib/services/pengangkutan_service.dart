@@ -1,16 +1,22 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
+import 'package:enviroo/core/config/api_config.dart';
 import '../models/sesi_pengangkutan_model.dart';
-import 'api_client.dart';
+import 'package:enviroo/core/network/api_client.dart';
 
 class PengangkutanService {
-  static Future<Map<String, dynamic>> checkJadwal(String bsiId, String bsuId) async {
+  static Future<Map<String, dynamic>> checkJadwalHariIni(String bsiId) async {
     try {
-      final response = await ApiClient.get(Uri.parse('${ApiConfig.checkPengangkutanUrl}/$bsiId/$bsuId'));
+      final response = await ApiClient.get(Uri.parse('${ApiConfig.checkPengangkutanUrl}/$bsiId'));
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) return {'success': true, 'status': body['status'] ?? 'dadakan'};
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'total_jadwal_hari_ini': body['total_jadwal_hari_ini'] ?? 0,
+          'jadwal_hari_ini': body['jadwal_hari_ini'] ?? [],
+        };
+      }
       return {'success': false, 'message': body['error'] ?? 'Gagal mengecek jadwal'};
     } catch (e) {
       return {'success': false, 'message': 'Gagal terhubung ke server: $e'};
@@ -21,7 +27,8 @@ class PengangkutanService {
     String bsiId,
     String bsuId,
     String adminBsiId, {
-    bool statusDadakan = false,
+    bool isMandiri = false,
+    String jadwalId = '',
   }) async {
     try {
       final response = await ApiClient.post(
@@ -30,7 +37,8 @@ class PengangkutanService {
           'bsi_id': bsiId,
           'bsu_id': bsuId,
           'admin_bsi_id': adminBsiId,
-          'status_dadakan': statusDadakan,
+          'is_mandiri': isMandiri,
+          'jadwal_id': jadwalId,
         }),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -43,9 +51,16 @@ class PengangkutanService {
     }
   }
 
-  static Future<Map<String, dynamic>> getAllPengangkutan(String bankId) async {
+  static Future<Map<String, dynamic>> getAllPengangkutan(String bankId, {String? startDate, String? endDate}) async {
     try {
-      final response = await ApiClient.get(Uri.parse('${ApiConfig.getAllPengangkutanUrl}/$bankId'));
+      final base = Uri.parse('${ApiConfig.getAllPengangkutanUrl}/$bankId');
+      final uri = (startDate != null || endDate != null)
+          ? base.replace(queryParameters: {
+              if (startDate != null) 'start_date': startDate,
+              if (endDate != null) 'end_date': endDate,
+            })
+          : base;
+      final response = await ApiClient.get(uri);
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) return {'success': true, 'data': body['data']};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil data pengangkutan'};
@@ -123,24 +138,23 @@ class PengangkutanService {
   }
 
   static Future<Map<String, dynamic>> inputSampah(
-    String pengangkutanId,
+    String qrData,
     String adminBsiId,
-    String adminBsuId,
     List<Map<String, dynamic>> items, {
     File? buktiFoto,
   }) async {
     try {
-      final uri = Uri.parse('${ApiConfig.inputSampahPengangkutanUrl}/$pengangkutanId/$adminBsiId/$adminBsuId');
-      final request = http.MultipartRequest('POST', uri);
-      request.headers['Authorization'] = 'Bearer ${ApiClient.currentToken}';
-      request.headers['Accept'] = 'application/json';
-      request.fields['items'] = jsonEncode(items);
-      if (buktiFoto != null) {
-        request.files.add(await http.MultipartFile.fromPath('bukti_foto', buktiFoto.path));
-      }
-      final streamedResponse = await request.send()
-          .timeout(const Duration(seconds: 30));
-      final response = await http.Response.fromStream(streamedResponse);
+      final uri = Uri.parse(ApiConfig.inputSampahPengangkutanUrl);
+      final response = await ApiClient.sendMultipart(() async {
+        final request = http.MultipartRequest('POST', uri);
+        request.fields['qr_data'] = qrData;
+        request.fields['admin_bsi_id'] = adminBsiId;
+        request.fields['items'] = jsonEncode(items);
+        if (buktiFoto != null) {
+          request.files.add(await http.MultipartFile.fromPath('bukti_foto', buktiFoto.path));
+        }
+        return request;
+      });
 
       // Cek content-type sebelum jsonDecode — respons redirect atau error
       // non-JSON (misal 301/404 HTML dari Gin) akan melempar FormatException
@@ -169,14 +183,13 @@ class PengangkutanService {
   ) async {
     try {
       final uri = Uri.parse('${ApiConfig.previewPengangkutanUrl}/$pengangkutanId');
-      final request = http.MultipartRequest('POST', uri);
-      request.headers['Authorization'] = 'Bearer ${ApiClient.currentToken}';
-      request.headers['Accept'] = 'application/json';
-      request.fields['items'] = jsonEncode(
-        items.map((e) => {'sampah_id': e['sampah_id'], 'qty': e['qty']}).toList(),
-      );
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final response = await ApiClient.sendMultipart(() async {
+        final request = http.MultipartRequest('POST', uri);
+        request.fields['items'] = jsonEncode(
+          items.map((e) => {'sampah_id': e['sampah_id'], 'qty': e['qty']}).toList(),
+        );
+        return request;
+      });
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) return {'success': true, 'data': body['data']};
       return {'success': false, 'message': body['error'] ?? 'Gagal memuat preview pengangkutan'};

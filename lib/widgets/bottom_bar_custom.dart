@@ -45,7 +45,7 @@ class BottomBarCustom extends StatelessWidget {
     this.primaryColor = const Color(0xFF013236),
     this.backgroundColor = Colors.white,
     this.margin = const EdgeInsets.fromLTRB(15, 0, 15, 15),
-    this.height = 68,
+    this.height = 66,
     this.iconSize = 23,
   })  : assert(items.length >= 2, 'Minimal harus ada 2 item'),
         assert(currentIndex >= 0, 'currentIndex tidak valid');
@@ -61,13 +61,10 @@ class BottomBarCustom extends StatelessWidget {
           decoration: BoxDecoration(
             color: backgroundColor,
             borderRadius: BorderRadius.circular(height / 2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            border : Border.all(
+              color: const Color(0xFF013236).withOpacity(0.1),
+              width: 1,
+            )
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
@@ -127,7 +124,7 @@ class _BottomBarItemWidget extends StatelessWidget {
             color: isActive ? activeBg : Colors.transparent,
             borderRadius: BorderRadius.circular(40),
           ),
-          padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
@@ -137,7 +134,7 @@ class _BottomBarItemWidget extends StatelessWidget {
                 size: iconSize,
                 color: color,
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 1),
               Text(
                 item.label,
                 maxLines: 1,

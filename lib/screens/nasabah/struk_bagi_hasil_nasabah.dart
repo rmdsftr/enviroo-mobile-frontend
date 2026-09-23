@@ -1,65 +1,8 @@
+import 'package:enviroo/models/bagi_hasil_nasabah_model.dart';
 import 'package:enviroo/services/bagi_hasil_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-// ── Models ────────────────────────────────────────────────────────────────────
-
-class _DetailItem {
-  final String namaSampah;
-  final double qty;
-  final double hargaItem;
-  final double subtotalHarga;
-
-  _DetailItem({
-    required this.namaSampah,
-    required this.qty,
-    required this.hargaItem,
-    required this.subtotalHarga,
-  });
-
-  factory _DetailItem.fromJson(Map<String, dynamic> j) => _DetailItem(
-        namaSampah: j['nama_sampah'] ?? '',
-        qty: (j['qty'] as num?)?.toDouble() ?? 0.0,
-        hargaItem: (j['harga_item'] as num?)?.toDouble() ?? 0.0,
-        subtotalHarga: (j['subtotal_harga'] as num?)?.toDouble() ?? 0.0,
-      );
-}
-
-class _BagiHasilDetail {
-  final String penerimaId;
-  final String namaNasabah;
-  final String reward;
-  final DateTime tanggal;
-  final double totalDiterima;
-  final String satuanDiterima;
-  final List<_DetailItem> items;
-
-  _BagiHasilDetail({
-    required this.penerimaId,
-    required this.namaNasabah,
-    required this.reward,
-    required this.tanggal,
-    required this.totalDiterima,
-    required this.satuanDiterima,
-    required this.items,
-  });
-
-  factory _BagiHasilDetail.fromJson(Map<String, dynamic> j) {
-    final rawItems = j['detail_item'] as List? ?? [];
-    return _BagiHasilDetail(
-      penerimaId: j['penerima_id'] ?? '',
-      namaNasabah: j['nama_nasabah'] ?? '',
-      reward: j['reward'] ?? '',
-      tanggal: DateTime.tryParse(j['tanggal'] ?? '') ?? DateTime.now(),
-      totalDiterima: (j['total_diterima'] as num?)?.toDouble() ?? 0.0,
-      satuanDiterima: j['satuan_diterima'] ?? '',
-      items: rawItems
-          .map((e) => _DetailItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
-  }
-}
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -75,7 +18,7 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
   static const _teal = Color(0xFF013236);
   static const _green = Color(0xFF4EA771);
 
-  _BagiHasilDetail? _detail;
+  BagiHasilNasabahDetail? _detail;
   bool _isLoading = true;
   String? _error;
 
@@ -95,7 +38,7 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
     if (!mounted) return;
     if (res['success'] == true) {
       setState(() {
-        _detail = _BagiHasilDetail.fromJson(res['data'] as Map<String, dynamic>);
+        _detail = BagiHasilNasabahDetail.fromJson(res['data'] as Map<String, dynamic>);
         _isLoading = false;
       });
     } else {
@@ -265,7 +208,7 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
     );
   }
 
-  Widget _buildInfoCard(_BagiHasilDetail d) {
+  Widget _buildInfoCard(BagiHasilNasabahDetail d) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -293,7 +236,7 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
     );
   }
 
-  Widget _buildItemsCard(_BagiHasilDetail d, String satuan) {
+  Widget _buildItemsCard(BagiHasilNasabahDetail d, String satuan) {
     final totalSubtotal =
         d.items.fold(0.0, (sum, item) => sum + item.subtotalHarga);
 
@@ -375,7 +318,7 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
     );
   }
 
-  Widget _buildItemRow(_DetailItem item, String satuan) {
+  Widget _buildItemRow(BagiHasilNasabahDetailItem item, String satuan) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
       child: Row(

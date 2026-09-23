@@ -10,6 +10,9 @@ import 'package:enviroo/screens/nasabah/detail_setoran_screen.dart';
 import 'package:enviroo/screens/penarikan/detail_penarikan_screen.dart';
 import 'package:enviroo/screens/penarikan/detail_transaksi_penarikan_screen.dart';
 import 'package:enviroo/screens/nasabah/struk_bagi_hasil_nasabah.dart';
+import 'package:enviroo/screens/petugas/list_setoran_nasabah.dart';
+import 'package:enviroo/widgets/filter_chip_row.dart';
+import 'package:enviroo/widgets/pagination.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +26,7 @@ class NotifikasiScreen extends StatefulWidget {
 }
 
 class _NotifikasiScreenState extends State<NotifikasiScreen> {
+  String _filterType = 'semua';
   @override
   void initState() {
     super.initState();
@@ -32,15 +36,12 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
   void _fetch() {
     final auth = context.read<AuthProvider>();
     context.read<NotifikasiProvider>().fetchNotifikasi(
-          userId: auth.userId,
+          role: auth.role,
         );
   }
 
   void _markAllRead() {
-    final auth = context.read<AuthProvider>();
-    context.read<NotifikasiProvider>().markAllAsRead(
-          userId: auth.userId,
-        );
+    context.read<NotifikasiProvider>().markAllAsRead();
   }
 
   Future<void> _onTapNotif(NotifikasiModel notif) async {
@@ -60,10 +61,19 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
     final refId = notif.refId!;
 
     switch (notif.refType) {
-      case 'jadwal_penimbangan':
       case 'jadwal_pengangkutan':
         // Hanya tandai dibaca, tidak navigasi ke screen lain
         return;
+      case 'jadwal_penimbangan':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ListSetoranNasabahScreen(
+              penimbanganId: refId,
+              tanggalPenimbangan: '',
+            ),
+          ),
+        );
       case 'setoran':
         Navigator.push(
           context,
@@ -89,7 +99,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
             ),
           ),
         );
-      case 'distribusi_sembako':
+      case 'distribusi_barang':
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -138,6 +148,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
   bool _isJadwal(String? refType) =>
       refType == 'jadwal_penimbangan' || refType == 'jadwal_pengangkutan';
 
+
   IconData _getIcon(String? refType) {
     switch (refType) {
       case 'setoran':             return CupertinoIcons.arrow_up_circle_fill;
@@ -147,7 +158,8 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
       case 'pengajuan':           return CupertinoIcons.doc_text_fill;
       case 'pengangkutan':           return CupertinoIcons.cube_box_fill;
       case 'pengajuan_pengangkutan': return CupertinoIcons.cube_box_fill;
-      case 'distribusi_sembako':  return CupertinoIcons.cart_fill;
+      case 'distribusi_barang':   return CupertinoIcons.cart_fill;
+      case 'penimbangan':         return Icons.scale_rounded;
       case 'jadwal_penimbangan':  return Icons.scale_rounded;
       case 'jadwal_pengangkutan': return Icons.local_shipping_rounded;
       default:                    return CupertinoIcons.bell_fill;
@@ -163,25 +175,32 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
       case 'pengajuan':           return const Color(0xFF546E7A);
       case 'pengangkutan':           return const Color(0xFF0D8A8A);
       case 'pengajuan_pengangkutan': return const Color(0xFF0D8A8A);
-      case 'distribusi_sembako':  return const Color(0xFFE07B39);
+      case 'distribusi_barang':   return const Color(0xFFE07B39);
+      case 'penimbangan':         return const Color(0xFFF59E0B);
       case 'jadwal_penimbangan':  return const Color(0xFFF59E0B);
       case 'jadwal_pengangkutan': return const Color(0xFF0EA5E9);
       default:                    return const Color(0xFF013236);
     }
   }
 
+  // Khusus role petugas_bsm: filter "Penimbangan" gabungin 2 ref_type
+  // (jadwal_penimbangan + penimbangan), filter "Penarikan" cuma ref_type
+  // penarikan.
+  bool _isPenimbanganBsm(String? refType) =>
+      refType == 'jadwal_penimbangan' || refType == 'penimbangan';
+
   bool _isTappable(String? refType, String? refId) {
     if (refId == null) return false;
     return refType == 'setoran' ||
         refType == 'pengangkutan' ||
         refType == 'pengajuan_pengangkutan' ||
-        refType == 'distribusi_sembako' ||
+        refType == 'distribusi_barang' ||
         refType == 'bagi_hasil' ||
         refType == 'penarikan';
   }
 
   String _formatWaktu(String createdAt) {
-    final dt = DateTime.tryParse(createdAt);
+    final dt = DateTime.tryParse(createdAt)?.toLocal();
     if (dt == null) return '';
     final diff = DateTime.now().difference(dt);
     if (diff.inMinutes < 1) return 'Baru saja';
@@ -246,13 +265,62 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                     );
                   }
 
-                  final notifs = provider.notifikasi;
-                  final unread = provider.unreadCount;
+                  final role = context.watch<AuthProvider>().role;
+                  final isNasabah = role == 'nasabah';
+                  final isPetugasBsm = role == 'petugas_bsm';
+
+                  // Migrasi ref_type penimbangan/jadwal_penimbangan ke chat
+                  // cuma berlaku buat nasabah (notifikasi role_target=nasabah
+                  // yang dipindah ke ChatInfoBankSampahScreen). Punya
+                  // petugas_bsm sendiri (role_target=admin) tetap tampil di
+                  // sini dengan filter "Penimbangan".
+                  final allNotifs = isNasabah
+                      ? provider.notifikasi.where((n) => !n.isChatInfoBank).toList()
+                      : provider.notifikasi;
+                  final notifs = _filterType == 'semua'
+                      ? allNotifs
+                      : isNasabah
+                          ? allNotifs.where((n) => n.refType == _filterType).toList()
+                          : isPetugasBsm
+                              ? (_filterType == 'penimbangan'
+                                  ? allNotifs.where((n) => _isPenimbanganBsm(n.refType)).toList()
+                                  : allNotifs.where((n) => n.refType == 'penarikan').toList())
+                              : _filterType == 'jadwal'
+                                  ? allNotifs.where((n) => _isJadwal(n.refType)).toList()
+                                  : allNotifs.where((n) => !_isJadwal(n.refType)).toList();
+                  final unread = allNotifs.where((n) => !n.isRead).length;
 
                   return Column(
                     children: [
+                      // ── Filter chips ─────────────────────────────────────
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 8, 0, 4),
+                        child: FilterChipRow<String>(
+                          items: isNasabah
+                              ? const [
+                                  FilterChipItem(value: 'semua', label: 'Semua'),
+                                  FilterChipItem(value: 'setoran', label: 'Setoran'),
+                                  FilterChipItem(value: 'bagi_hasil', label: 'Bagi Hasil'),
+                                  FilterChipItem(value: 'penarikan', label: 'Penarikan'),
+                                ]
+                              : isPetugasBsm
+                                  ? const [
+                                      FilterChipItem(value: 'semua', label: 'Semua'),
+                                      FilterChipItem(value: 'penimbangan', label: 'Penimbangan'),
+                                      FilterChipItem(value: 'penarikan', label: 'Penarikan'),
+                                    ]
+                                  : const [
+                                      FilterChipItem(value: 'semua', label: 'Semua'),
+                                      FilterChipItem(value: 'transaksi', label: 'Transaksi'),
+                                      FilterChipItem(value: 'jadwal', label: 'Jadwal'),
+                                    ],
+                          selectedValue: _filterType,
+                          onSelected: (v) => setState(() => _filterType = v),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                      ),
                       // ── Header row ──────────────────────────────────────
-                      if (notifs.isNotEmpty)
+                      if (allNotifs.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 6, 20, 4),
                         child: Row(
@@ -300,7 +368,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                           ],
                         ),
                       ),
-                      if (notifs.isNotEmpty) const SizedBox(height: 10),
+                      if (allNotifs.isNotEmpty) const SizedBox(height: 10),
                       // ── List ────────────────────────────────────────────
                       Expanded(
                         child: notifs.isEmpty
@@ -324,13 +392,27 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                                   ],
                                 ),
                               )
-                            : ListView.builder(
-                                physics: const BouncingScrollPhysics(),
-                                padding:
-                                    const EdgeInsets.fromLTRB(16, 6, 16, 24),
-                                itemCount: notifs.length,
-                                itemBuilder: (context, index) =>
-                                    _buildNotifCard(notifs[index]),
+                            : Column(
+                                children: [
+                                  Expanded(
+                                    child: ListView.builder(
+                                      physics: const BouncingScrollPhysics(),
+                                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+                                      itemCount: notifs.length,
+                                      itemBuilder: (context, index) =>
+                                          _buildNotifCard(notifs[index]),
+                                    ),
+                                  ),
+                                  if (provider.totalPages > 1) ...[
+                                    const SizedBox(height: 12),
+                                    Pagination(
+                                      currentPage: provider.currentPage,
+                                      totalPages: provider.totalPages,
+                                      onPageChanged: (page) => provider.goToPage(page),
+                                    ),
+                                    const SizedBox(height: 12),
+                                  ],
+                                ],
                               ),
                       ),
                     ],
@@ -400,7 +482,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                           style: TextStyle(
                             fontFamily: 'Poppins',
                             fontWeight: notif.isRead
-                                ? FontWeight.w500
+                                ? FontWeight.w600
                                 : FontWeight.w700,
                             fontSize: 13,
                             color: const Color(0xFF013236),
@@ -471,8 +553,15 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
 
   Widget _buildJadwalCard(NotifikasiModel notif) {
     final color = _getColor(notif.refType);
+    // Badge cuma valid kalau judulnya emang literally bilang gitu ("Jadwal
+    // ... Hari Ini" / "... Besok"). Sebelumnya default ke 'Besok' apa pun
+    // judulnya — makanya notifikasi 3 hari lalu bisa kebaca "Besok", padahal
+    // footer waktu (createdAt) udah bener. Kalau judul gak nyebut
+    // salah satu, jangan nampilin badge sama sekali — biar gak dobel &
+    // kontradiksi sama waktu aslinya.
     final isHariIni = notif.judul.contains('Hari Ini');
-    final badgeLabel = isHariIni ? 'Hari Ini' : 'Besok';
+    final isBesok = notif.judul.contains('Besok');
+    final badgeLabel = isHariIni ? 'Hari Ini' : (isBesok ? 'Besok' : null);
 
     return GestureDetector(
       onTap: () => _onTapNotif(notif),
@@ -543,25 +632,27 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 6),
-                                  // Badge hari ini / besok
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: color.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      badgeLabel,
-                                      style: TextStyle(
-                                        fontFamily: 'Poppins',
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w700,
-                                        color: color,
+                                  if (badgeLabel != null) ...[
+                                    const SizedBox(width: 6),
+                                    // Badge hari ini / besok
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: color.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        badgeLabel,
+                                        style: TextStyle(
+                                          fontFamily: 'Poppins',
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: color,
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                  ],
                                 ],
                               ),
                               const SizedBox(height: 5),

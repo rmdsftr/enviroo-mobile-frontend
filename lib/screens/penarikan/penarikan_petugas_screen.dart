@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/penarikan_petugas_provider.dart';
 import '../../widgets/filter_chip_row.dart';
 import '../../widgets/filter_month_year.dart';
-import '../../widgets/navbar.dart';
+import '../../widgets/penarikan_petugas_card.dart';
 import '../../widgets/topbar_back.dart';
 import 'detail_transaksi_penarikan_screen.dart';
+import 'penarikan_waiting_screen.dart';
 
 class PenarikanPetugasScreen extends StatefulWidget {
   const PenarikanPetugasScreen({super.key});
@@ -22,9 +21,7 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
   static const Color primary = Color(0xFF4EA771);
   static const Color dark = Color(0xFF013236);
 
-  int _tabIndex = 0;
-
-  static const _rewardOptions = ['Semua', 'Uang', 'Sembako'];
+  static const _rewardOptions = ['Semua', 'Uang', 'Barang'];
 
   @override
   void initState() {
@@ -32,8 +29,86 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final prov = context.read<PenarikanPetugasProvider>();
       prov.bind(context.read<AuthProvider>());
-      prov.loadList();
+      final now = DateTime.now();
+      final filterEnd = DateTime(now.year, now.month);
+      final startMonth = now.month - 2;
+      final filterStart = startMonth <= 0
+          ? DateTime(now.year - 1, 12 + startMonth)
+          : DateTime(now.year, startMonth);
+      prov.setDateFilter(filterStart, filterEnd);
     });
+  }
+
+  void _openWaiting(int initialTab) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PenarikanWaitingScreen(initialTab: initialTab),
+      ),
+    ).then((_) => context.read<PenarikanPetugasProvider>().loadList());
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required int jumlah,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: primary.withValues(alpha: 0.25), width: 1),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: Icon(icon, color: color, size: 20),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$jumlah',
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
+                      color: dark,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w500,
+                  fontSize: 11,
+                  color: dark.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -43,79 +118,138 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/bg_struk.webp'),
+            image: AssetImage('assets/images/bg_struk2.webp'),
             fit: BoxFit.cover,
           ),
         ),
         child: SafeArea(
           child: Consumer<PenarikanPetugasProvider>(
             builder: (_, prov, __) {
-              final displayList = _tabIndex == 0 ? prov.pengajuanList : prov.selesaiList;
+              final displayList = prov.selesaiList;
 
               return Column(
                 children: [
                   const TopBarBack(title: 'Penarikan Nasabah'),
-                  // Tab (glassmorphism)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: MainNavbar(
-                      selectedIndex: _tabIndex,
-                      onTabChanged: (i) => setState(() => _tabIndex = i),
-                      tabs: const ['Pengajuan', 'Selesai'],
-                      backgroundColor: Colors.white.withValues(alpha: 0.6),
-                      border: Border.all(
-                        color: const Color(0xFF013236).withValues(alpha: 0.1),
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  // White container: filter + list
                   Expanded(
-                    child: Container(
-                      color: Colors.white,
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 12),
-                          // Date filter
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: MonthYearFilterRow(
-                              filterStart: prov.filterStart,
-                              filterEnd: prov.filterEnd,
-                              onChanged: (s, e) => prov.setDateFilter(s, e),
+                    child: RefreshIndicator(
+                      color: primary,
+                      onRefresh: prov.loadList,
+                      child: CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          // Kartu statistik: pending & approved — scroll away normally
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                              child: IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Expanded(
+                                      child: _buildStatCard(
+                                        icon: Icons.pending_actions_rounded,
+                                        jumlah: prov.pendingList.length,
+                                        color : Color(0xFF94DF0C) ,
+                                        label: 'Penarikan menunggu persetujuan',
+                                        onTap: () => _openWaiting(0),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _buildStatCard(
+                                        icon: Icons.inventory_2_rounded,
+                                        jumlah: prov.approvedList.length,
+                                        color : Color(0xFF4EA771),
+                                        label: 'Penarikan menunggu penjemputan',
+                                        onTap: () => _openWaiting(1),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          // Reward filter chips
-                          FilterChipRow<String>(
-                            items: _rewardOptions
-                                .map((v) => FilterChipItem<String>(value: v, label: v))
-                                .toList(),
-                            selectedValue: prov.rewardFilter,
-                            onSelected: prov.setRewardFilter,
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                          ),
-                          const SizedBox(height: 12),
-                          // List
-                          Expanded(
-                            child: prov.loadingList
-                                ? const Center(child: CircularProgressIndicator(color: primary))
-                                : prov.errorList != null && _allEmpty(prov)
-                                    ? _ErrorState(
-                                        message: prov.errorList!,
-                                        onRetry: prov.loadList,
+                          // Sticky: "Riwayat Penarikan" + filter bulan + filter reward,
+                          // pin di bawah TopBarBack
+                          SliverPersistentHeader(
+                            pinned: true,
+                            delegate: _StickyHeaderDelegate(
+                              height: 150,
+                              child: Container(
+                                color: Colors.white,
+                                padding: const EdgeInsets.only(top: 20, bottom: 12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Padding(
+                                      padding : const EdgeInsets.symmetric(horizontal: 22),
+                                      child : Text(
+                                        "Riwayat Penarikan",
+                                        style: TextStyle(
+                                          fontFamily: 'Poppins',
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                          color: dark,
+                                        ),
                                       )
-                                    : displayList.isEmpty
-                                        ? _EmptyState(tabIndex: _tabIndex)
-                                        : RefreshIndicator(
-                                            color: primary,
-                                            onRefresh: prov.loadList,
-                                            child: ListView.builder(
-                                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    // Date filter
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                                      child: MonthYearFilterRow(
+                                        filterStart: prov.filterStart,
+                                        filterEnd: prov.filterEnd,
+                                        onChanged: (s, e) => prov.setDateFilter(s, e),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    // Reward filter chips
+                                    FilterChipRow<String>(
+                                      items: _rewardOptions
+                                          .map((v) => FilterChipItem<String>(value: v, label: v))
+                                          .toList(),
+                                      selectedValue: prov.rewardFilter,
+                                      onSelected: prov.setRewardFilter,
+                                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          // List — cuma ini yang scroll di bawah sticky header
+                          SliverToBoxAdapter(
+                            child: Container(
+                              width: double.infinity,
+                              constraints: BoxConstraints(
+                                minHeight: MediaQuery.of(context).size.height,
+                              ),
+                              color: Colors.white,
+                              padding: const EdgeInsets.only(top: 10, bottom: 32),
+                              child: prov.loadingList
+                                  ? const Padding(
+                                      padding: EdgeInsets.only(top: 40),
+                                      child: Center(child: CircularProgressIndicator(color: primary)),
+                                    )
+                                  : prov.errorList != null && displayList.isEmpty
+                                      ? Padding(
+                                          padding: const EdgeInsets.only(top: 40),
+                                          child: _ErrorState(
+                                            message: prov.errorList!,
+                                            onRetry: prov.loadList,
+                                          ),
+                                        )
+                                      : displayList.isEmpty
+                                          ? const _EmptyState()
+                                          : ListView.builder(
+                                              shrinkWrap: true,
+                                              physics: const NeverScrollableScrollPhysics(),
+                                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                                               itemCount: displayList.length,
                                               itemBuilder: (ctx, i) {
                                                 final item = displayList[i];
-                                                return _PenarikanPetugasCard(
+                                                return PenarikanPetugasCard(
                                                   item: item,
                                                   onTap: () async {
                                                     await Navigator.push(
@@ -133,7 +267,7 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
                                                 );
                                               },
                                             ),
-                                          ),
+                            ),
                           ),
                         ],
                       ),
@@ -147,170 +281,43 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
       ),
     );
   }
-
-  bool _allEmpty(PenarikanPetugasProvider prov) =>
-      prov.pengajuanList.isEmpty && prov.selesaiList.isEmpty;
 }
 
-// ── Card ──────────────────────────────────────────────────────────────────────
+// ── Sticky header delegate ───────────────────────────────────────────────────
+// Bikin "Riwayat Penarikan" + filter bulan + filter reward nempel (pinned) di
+// bawah TopBarBack saat di-scroll, sementara cuma list riwayat yang ikut bergerak.
+class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
 
-class _PenarikanPetugasCard extends StatelessWidget {
-  final PenarikanItem item;
-  final VoidCallback onTap;
+  _StickyHeaderDelegate({required this.child, required this.height});
 
-  const _PenarikanPetugasCard({required this.item, required this.onTap});
+  @override
+  double get minExtent => height;
 
-  static const Color dark = Color(0xFF013236);
+  @override
+  double get maxExtent => height;
 
-  Color get _statusColor {
-    switch (item.status) {
-      case StatusPenarikan.pending:
-        return const Color(0xFFF59E0B);
-      case StatusPenarikan.berhasil:
-        return const Color(0xFF4EA771);
-      case StatusPenarikan.dibatalkan:
-        return const Color(0xFFEF4444);
-      case StatusPenarikan.kadaluarsa:
-        return const Color(0xFF9CA3AF);
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String get _statusLabel {
-    switch (item.status) {
-      case StatusPenarikan.pending:
-        return 'Menunggu';
-      case StatusPenarikan.berhasil:
-        return 'Berhasil';
-      case StatusPenarikan.dibatalkan:
-        return 'Dibatalkan';
-      case StatusPenarikan.kadaluarsa:
-        return 'Kadaluarsa';
-      default:
-        return 'Unknown';
-    }
-  }
-
-  IconData get _rewardIcon {
-    final lower = item.namaReward.toLowerCase();
-    if (lower.contains('uang')) return Icons.payments_rounded;
-    return Icons.shopping_basket_rounded;
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
   }
 
   @override
-  Widget build(BuildContext context) {
-    final dateStr = DateFormat('dd MMM yyyy, HH:mm', 'id_ID')
-        .format(item.createdAt);
-    final nasabah = item.namaNasabah?.isNotEmpty == true
-        ? item.namaNasabah!
-        : item.nasabahId ?? '-';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          width: 1,
-          color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: _statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(_rewardIcon, color: _statusColor, size: 22),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        nasabah,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: dark,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item.namaReward.isEmpty
-                            ? '-'
-                            : _capitalize(item.namaReward),
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: Colors.black.withValues(alpha: 0.5),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        dateStr,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: Colors.black.withValues(alpha: 0.4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  child: Text(
-                    _statusLabel,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: _statusColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) {
+    return oldDelegate.child != child || oldDelegate.height != height;
   }
-
-  String _capitalize(String s) =>
-      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}';
 }
 
 // ── Empty ─────────────────────────────────────────────────────────────────────
 
 class _EmptyState extends StatelessWidget {
-  final int tabIndex;
-  const _EmptyState({required this.tabIndex});
+  const _EmptyState();
 
   @override
   Widget build(BuildContext context) {
     const dark = Color(0xFF013236);
-    final label = tabIndex == 0
-        ? 'Belum ada pengajuan menunggu'
-        : 'Belum ada riwayat selesai';
+    const label = 'Belum ada riwayat selesai';
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),

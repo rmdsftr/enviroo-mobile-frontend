@@ -51,7 +51,7 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 4),
                 child: Text(
-                  "Kamu bisa lihat ada bank sampah apa aja yang ada di sekitarmu beserta alamat lengkap dan jadwal penimbangannya",
+                  "Kamu bisa lihat ada bank sampah apa aja yang ada di sekitarmu beserta alamat lengkapnya",
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 13,
@@ -229,6 +229,34 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
     }).toList();
   }
 
+  Widget _buildLocationRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            size: 15,
+            color: const Color(0xFF4EA771),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF013236).withOpacity(0.75),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showBankDetailBottomSheet(BankSampahModel bank) {
     showModalBottomSheet(
       context: context,
@@ -320,48 +348,14 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
               // Nama BSU
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            bank.namaBank,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF013236),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.location_on_outlined,
-                                size: 14,
-                                color: const Color(0xFF013236).withOpacity(0.5),
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  bank.alamatLengkap,
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 12,
-                                    color: const Color(0xFF013236).withOpacity(0.6),
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  bank.namaBank,
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF013236),
+                  ),
                 ),
               ),
 
@@ -374,13 +368,13 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
                 ),
               ),
 
-              // Jadwal Penimbangan header
+              // Lokasi header
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   children: [
                     const Text(
-                      'Jadwal Penimbangan',
+                      'Lokasi',
                       style: TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 13,
@@ -394,52 +388,28 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
 
               const SizedBox(height: 12),
 
-              // Jadwal list
+              // Lokasi detail
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
-                  children: bank.jadwalPenimbangan.map((jadwal) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.calendar_today_outlined,
-                            size: 15,
-                            color: Color(0xFF4EA771),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            jadwal.hari,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF013236),
-                            ),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF4EA771).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              '${jadwal.jamMulai} - ${jadwal.jamSelesai}',
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF4EA771),
-                              ),
-                            ),
-                          ),
-                        ],
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (bank.alamatBank.isNotEmpty)
+                      _buildLocationRow(
+                          Icons.signpost_outlined, bank.alamatBank),
+                    if (bank.kelurahan.isNotEmpty)
+                      _buildLocationRow(
+                          Icons.holiday_village_outlined, bank.kelurahan),
+                    if (bank.kecamatan.isNotEmpty)
+                      _buildLocationRow(Icons.map_outlined, bank.kecamatan),
+                    if (bank.kabupatenKota.isNotEmpty || bank.provinsi.isNotEmpty)
+                      _buildLocationRow(
+                        Icons.public_outlined,
+                        [bank.kabupatenKota, bank.provinsi]
+                            .where((s) => s.isNotEmpty)
+                            .join(', '),
                       ),
-                    );
-                  }).toList(),
+                  ],
                 ),
               ),
 

@@ -1,18 +1,70 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../widgets/topbar_back.dart';
 
-class QrPenarikanScreen extends StatelessWidget {
+class QrPenarikanScreen extends StatefulWidget {
   final String transaksiId;
-  const QrPenarikanScreen({super.key, required this.transaksiId});
+  final String nasabahId;
+  final DateTime deadline;
 
+  const QrPenarikanScreen({
+    super.key,
+    required this.transaksiId,
+    required this.nasabahId,
+    required this.deadline,
+  });
+
+  @override
+  State<QrPenarikanScreen> createState() => _QrPenarikanScreenState();
+}
+
+class _QrPenarikanScreenState extends State<QrPenarikanScreen> {
   static const Color primary = Color(0xFF4EA771);
   static const Color dark = Color(0xFF013236);
 
+  Timer? _ticker;
+  late Duration _remaining;
+  late final String _qrData;
+
+  @override
+  void initState() {
+    super.initState();
+    _qrData = '{"type":"ENVIROO-PENARIKAN",'
+        '"nasabah_id":"${widget.nasabahId}",'
+        '"penarikan_id":"${widget.transaksiId}"}';
+    _remaining = widget.deadline.difference(DateTime.now());
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() => _remaining = widget.deadline.difference(DateTime.now()));
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  /// >= 1 hari -> "2 hari 5 jam" (kasar, gak perlu real-time sampai detik).
+  /// Kurang dari 1 hari -> "05:23:41" (hh:mm:ss, ngitung mundur real-time).
+  String _formatCountdown(Duration d) {
+    if (d.inDays >= 1) {
+      final hours = d.inHours % 24;
+      return '${d.inDays} hari $hours jam';
+    }
+    final hours = d.inHours.toString().padLeft(2, '0');
+    final minutes = (d.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$hours:$minutes:$seconds';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final expired = _remaining.isNegative;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -20,144 +72,116 @@ class QrPenarikanScreen extends StatelessWidget {
           children: [
             const TopBarBack(title: 'QR Penarikan'),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Tunjukkan QR ini ke petugas bank',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        color: Colors.black.withOpacity(0.7),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(
-                          color: primary.withOpacity(0.3),
-                          width: 1,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // ── Instruksi ─────────────────────────────────
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0x1B4EA771),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: primary.withValues(alpha: 0.4)),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: primary.withOpacity(0.12),
-                            blurRadius: 20,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline_rounded,
+                                color: primary, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Tunjukkan QR code berikut kepada petugas bank sampah pada saat '
+                                'pengambilan insentif. Petugas akan memindai QR code sebagai '
+                                'penyelesaian proses penarikan',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 12,
+                                  color: Colors.black.withValues(alpha: 0.7),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF4FBF4),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: QrImageView(
-                              data: transaksiId,
-                              version: QrVersions.auto,
-                              size: 240,
-                              backgroundColor: Colors.white,
-                              errorCorrectionLevel: QrErrorCorrectLevel.H,
-                              eyeStyle: const QrEyeStyle(
-                                eyeShape: QrEyeShape.square,
-                                color: dark,
-                              ),
-                              dataModuleStyle: const QrDataModuleStyle(
-                                dataModuleShape: QrDataModuleShape.square,
-                                color: dark,
-                              ),
-                            ),
+                      const SizedBox(height: 24),
+                      // ── QR code ───────────────────────────────────
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(
+                            color: primary.withValues(alpha: 0.3),
+                            width: 1,
                           ),
-                          const SizedBox(height: 18),
-                          Text(
-                            'ID Transaksi',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 11,
-                              color: Colors.black.withOpacity(0.55),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primary.withValues(alpha: 0.12),
+                              blurRadius: 20,
+                              offset: const Offset(0, 6),
                             ),
+                          ],
+                        ),
+                        child: QrImageView(
+                          data: _qrData,
+                          version: QrVersions.auto,
+                          size: 275,
+                          backgroundColor: Colors.white,
+                          errorCorrectionLevel: QrErrorCorrectLevel.H,
+                          eyeStyle: const QrEyeStyle(
+                            eyeShape: QrEyeShape.square,
+                            color: dark,
                           ),
-                          const SizedBox(height: 4),
-                          SelectableText(
-                            transaksiId,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: dark,
-                              letterSpacing: 0.5,
-                            ),
+                          dataModuleStyle: const QrDataModuleStyle(
+                            dataModuleShape: QrDataModuleShape.square,
+                            color: dark,
                           ),
-                          const SizedBox(height: 12),
-                          OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: primary,
-                              side: BorderSide(color: primary.withOpacity(0.4)),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(50)),
-                            ),
-                            onPressed: () async {
-                              await Clipboard.setData(
-                                  ClipboardData(text: transaksiId));
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    behavior: SnackBarBehavior.floating,
-                                    content: Text('ID Transaksi disalin'),
-                                  ),
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.copy_rounded, size: 16),
-                            label: const Text(
-                              'Salin ID',
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // ── Countdown ─────────────────────────────────
+                      expired
+                          ? const Text(
+                              'Kode sudah kadaluarsa',
+                              textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontFamily: 'Poppins',
-                                fontSize: 12,
+                                fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
+                                color: Color(0xFFEF4444),
+                              ),
+                            )
+                          : RichText(
+                              textAlign: TextAlign.center,
+                              text: TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: 'Kode akan kadaluarsa dalam ',
+                                    style: TextStyle(
+                                      fontFamily: 'Poppins',
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w400,
+                                      color: Colors.black.withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: _formatCountdown(_remaining),
+                                    style: const TextStyle(
+                                      fontFamily: 'Poppins',
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: primary,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFBF1),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                            color: const Color(0xFFFAA324).withOpacity(0.4)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.info_outline_rounded,
-                              color: Color(0xFFB07906), size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Petugas bank dapat memindai QR ini atau menginput ID transaksi secara manual.',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 12,
-                                color: Colors.black.withOpacity(0.7),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

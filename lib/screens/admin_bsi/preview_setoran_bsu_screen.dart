@@ -1,9 +1,10 @@
+import 'package:enviroo/models/pengangkutan_bsi_model.dart';
 import 'package:enviroo/screens/admin_bsi/scan_petugas_bsu_screen.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// ─── Color palette (shared with bagi_hasil & setoran screens) ────────────────
+// ─── Color palette ────────────────────────────────────────────────────────────
 
 class _C {
   static const dark    = Color(0xFF013236);
@@ -15,82 +16,6 @@ class _C {
   static const danger  = Color(0xFFD94848);
   static const border  = Color(0xFFE6EDE9);
   static const warning = Color(0xFFF59E0B);
-}
-
-// ─── Models ──────────────────────────────────────────────────────────────────
-
-class PreviewItemPengangkutan {
-  final String sampahId;
-  final String namaSampah;
-  final String namaReward;
-  final double qty;
-  final double stokBsuSebelum;
-  final double stokBsuSetelah;
-  final double stokBsiSebelum;
-  final double stokBsiSetelah;
-  final bool cukupUntukKirim;
-
-  PreviewItemPengangkutan({
-    required this.sampahId,
-    required this.namaSampah,
-    required this.namaReward,
-    required this.qty,
-    required this.stokBsuSebelum,
-    required this.stokBsuSetelah,
-    required this.stokBsiSebelum,
-    required this.stokBsiSetelah,
-    required this.cukupUntukKirim,
-  });
-
-  factory PreviewItemPengangkutan.fromJson(Map<String, dynamic> json) =>
-      PreviewItemPengangkutan(
-        sampahId: json['sampah_id'] ?? '',
-        namaSampah: json['nama_sampah'] ?? '-',
-        namaReward: json['nama_reward'] ?? '',
-        qty: (json['qty'] as num? ?? 0).toDouble(),
-        stokBsuSebelum: (json['stok_bsu_sebelum'] as num? ?? 0).toDouble(),
-        stokBsuSetelah: (json['stok_bsu_setelah'] as num? ?? 0).toDouble(),
-        stokBsiSebelum: (json['stok_bsi_sebelum'] as num? ?? 0).toDouble(),
-        stokBsiSetelah: (json['stok_bsi_setelah'] as num? ?? 0).toDouble(),
-        cukupUntukKirim: json['cukup_untuk_kirim'] as bool? ?? true,
-      );
-}
-
-class PreviewPengangkutanData {
-  final String pengangkutanId;
-  final String bsiId;
-  final String namaBsi;
-  final String bsuId;
-  final String namaBsu;
-  final int totalItem;
-  final bool adaStokKurang;
-  final List<PreviewItemPengangkutan> items;
-
-  PreviewPengangkutanData({
-    required this.pengangkutanId,
-    required this.bsiId,
-    required this.namaBsi,
-    required this.bsuId,
-    required this.namaBsu,
-    required this.totalItem,
-    required this.adaStokKurang,
-    required this.items,
-  });
-
-  factory PreviewPengangkutanData.fromJson(Map<String, dynamic> json) =>
-      PreviewPengangkutanData(
-        pengangkutanId: json['pengangkutan_id'] ?? '',
-        bsiId: json['bsi_id'] ?? '',
-        namaBsi: json['nama_bsi'] ?? '-',
-        bsuId: json['bsu_id'] ?? '',
-        namaBsu: json['nama_bsu'] ?? '-',
-        totalItem: (json['total_item'] as num? ?? 0).toInt(),
-        adaStokKurang: json['ada_stok_kurang'] as bool? ?? false,
-        items: (json['items'] as List? ?? [])
-            .map((e) =>
-                PreviewItemPengangkutan.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
 }
 
 // ─── Screen ──────────────────────────────────────────────────────────────────

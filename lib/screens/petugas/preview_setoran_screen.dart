@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/katalog_provider.dart';
+import 'package:enviroo/screens/admin_bsu/inapp_camera_screen.dart';
+import 'package:enviroo/screens/lihat_foto_screen.dart';
 import 'package:enviroo/services/setoran_service.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
@@ -15,7 +17,6 @@ class PreviewSetoranScreen extends StatefulWidget {
   final String photoUrl;
   final bool dariQr;
   final List<Map<String, dynamic>> items;
-  final File? fotoFile;
 
   const PreviewSetoranScreen({
     super.key,
@@ -25,7 +26,6 @@ class PreviewSetoranScreen extends StatefulWidget {
     required this.photoUrl,
     required this.dariQr,
     required this.items,
-    this.fotoFile,
   });
 
   @override
@@ -33,10 +33,16 @@ class PreviewSetoranScreen extends StatefulWidget {
 }
 
 class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
+  static const Color _dark = Color(0xFF013236);
+
   bool _isLoading = true;
   bool _isSaving = false;
   String? _errorMsg;
   Map<String, dynamic>? _previewData;
+  File? _fotoBukti;
+
+  // Setoran manual (!dariQr) wajib ada foto bukti sebelum bisa disimpan.
+  bool get _bisaSimpan => widget.dariQr || _fotoBukti != null;
 
   @override
   void initState() {
@@ -71,8 +77,37 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
     }
   }
 
+  // ── Foto bukti (khusus setoran manual) ────────────────────────────────────
+  Future<void> _ambilFoto() async {
+    final file = await Navigator.push<File?>(
+      context,
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const InAppCameraScreen(
+          hint: 'Ambil foto nasabah sebagai bukti kehadiran',
+        ),
+      ),
+    );
+    if (file == null || !mounted) return;
+    setState(() => _fotoBukti = file);
+  }
+
+  void _lihatFotoFull() {
+    final foto = _fotoBukti;
+    if (foto == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LihatFotoScreen(
+          photoFile: foto,
+          nama: 'Bukti Foto Nasabah',
+        ),
+      ),
+    );
+  }
+
   Future<void> _simpanSetoran() async {
-    if (_isSaving) return;
+    if (_isSaving || !_bisaSimpan) return;
     setState(() => _isSaving = true);
     HapticFeedback.mediumImpact();
 
@@ -85,7 +120,7 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
       adminId,
       widget.items,
       viaManual: !widget.dariQr,
-      fotoFile: widget.fotoFile,
+      fotoFile: _fotoBukti,
     );
 
     if (!mounted) return;
@@ -141,9 +176,9 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
           _buildNasabahCard(),
           const SizedBox(height: 16),
           _buildPreviewCard(items, totalItem),
-          if (widget.fotoFile != null) ...[
+          if (!widget.dariQr) ...[
             const SizedBox(height: 16),
-            _buildFotoCard(),
+            _buildFotoSection(),
           ],
         ],
       ),
@@ -239,8 +274,10 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
     );
   }
 
-  Widget _buildFotoCard() {
+  Widget _buildFotoSection() {
     return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
@@ -249,21 +286,20 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF013236).withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.camera_alt_rounded,
-                      color: Color(0xFF013236), size: 16),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF013236).withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(width: 12),
-                const Text(
+                child: const Icon(Icons.camera_alt_rounded,
+                    color: Color(0xFF013236), size: 16),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
                   'Bukti Foto Nasabah',
                   style: TextStyle(
                     fontFamily: 'Poppins',
@@ -272,19 +308,95 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
                     color: Color(0xFF013236),
                   ),
                 ),
-              ],
-            ),
+              ),
+              if (_fotoBukti == null)
+                const Text(
+                  'Wajib',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.red,
+                  ),
+                ),
+            ],
           ),
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
-            child: Image.file(
-              widget.fotoFile!,
-              width: double.infinity,
-              height: 220,
-              fit: BoxFit.cover,
-            ),
-          ),
+          const SizedBox(height: 12),
+          _buildFotoContainer(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFotoContainer() {
+    return GestureDetector(
+      onTap: _fotoBukti == null ? _ambilFoto : null,
+      child: AspectRatio(
+        aspectRatio: 4 / 3,
+        child: Container(
+          decoration: BoxDecoration(
+            color: _fotoBukti == null ? const Color(0xFFF5F7F5) : Colors.black,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _fotoBukti == null
+                  ? _dark.withValues(alpha: 0.15)
+                  : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: _fotoBukti == null
+              ? Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.camera_alt_rounded,
+                        size: 32, color: _dark.withValues(alpha: 0.35)),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Ambil Foto Bukti Nasabah',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: _dark.withValues(alpha: 0.45),
+                      ),
+                    ),
+                  ],
+                )
+              : Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.file(_fotoBukti!, fit: BoxFit.cover),
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Row(
+                        children: [
+                          _overlayIconButton(
+                              Icons.fullscreen_rounded, _lihatFotoFull),
+                          const SizedBox(width: 8),
+                          _overlayIconButton(
+                              Icons.replay_rounded, _ambilFoto),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _overlayIconButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.45),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white, size: 18),
       ),
     );
   }
@@ -299,7 +411,7 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
       switch (jenis.toLowerCase()) {
         case 'uang':
           return const Color(0xFF27AE60);
-        case 'sembako':
+        case 'barang':
           return const Color(0xFF2F80ED);
         default:
           return const Color(0xFF013236);
@@ -600,6 +712,7 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
   }
 
   Widget _buildBottomBar() {
+    final disabled = _isSaving || !_bisaSimpan;
     return Container(
       padding: EdgeInsets.fromLTRB(
           20, 14, 20, MediaQuery.of(context).padding.bottom + 14),
@@ -614,42 +727,61 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
           ),
         ],
       ),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Color(0xFF4EA771),
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: ElevatedButton(
-          onPressed: _isSaving ? null : _simpanSetoran,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            disabledBackgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            foregroundColor: Colors.white,
-            disabledForegroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30)),
-          ),
-          child: _isSaving
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2.5),
-                )
-              : const Text(
-                  'Simpan Setoran Nasabah',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    letterSpacing: 0.2,
-                    color: Colors.white
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!widget.dariQr && _fotoBukti == null) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                'Ambil foto bukti nasabah dulu sebelum menyimpan setoran.',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 11,
+                  color: const Color(0xFF013236).withValues(alpha: 0.5),
                 ),
-        ),
+              ),
+            ),
+          ],
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: disabled ? Colors.grey.shade300 : const Color(0xFF4EA771),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: ElevatedButton(
+              onPressed: disabled ? null : _simpanSetoran,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                disabledBackgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                disabledForegroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30)),
+              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2.5),
+                    )
+                  : const Text(
+                      'Simpan Setoran Nasabah',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        letterSpacing: 0.2,
+                        color: Colors.white
+                      ),
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,10 +1,43 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
-class LihatFotoScreen extends StatelessWidget {
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+class LihatFotoScreen extends StatefulWidget {
   final String? photoUrl;
+  final File? photoFile;
   final String nama;
 
-  const LihatFotoScreen({Key? key, this.photoUrl, required this.nama}) : super(key: key);
+  const LihatFotoScreen({
+    super.key,
+    this.photoUrl,
+    this.photoFile,
+    required this.nama,
+  });
+
+  @override
+  State<LihatFotoScreen> createState() => _LihatFotoScreenState();
+}
+
+class _LihatFotoScreenState extends State<LihatFotoScreen> {
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+  }
+
+  @override
+  void dispose() {
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,39 +52,56 @@ class LihatFotoScreen extends StatelessWidget {
               scaleEnabled: true,
               minScale: 0.8,
               maxScale: 5.0,
-              child: (photoUrl != null && photoUrl!.isNotEmpty)
-                  ? Image.network(
-                      photoUrl!,
+              child: widget.photoFile != null
+                  ? Image.file(
+                      widget.photoFile!,
                       fit: BoxFit.contain,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                                : null,
-                            color: const Color(0xFF4EA771),
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) => Column(
+                      errorBuilder: (context, error, stackTrace) => const Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.broken_image_rounded,
+                          Icon(Icons.broken_image_rounded,
                               color: Colors.white54, size: 64),
-                          const SizedBox(height: 12),
-                          const Text(
+                          SizedBox(height: 12),
+                          Text(
                             'Gagal memuat foto',
                             style: TextStyle(color: Colors.white54, fontFamily: 'Poppins'),
                           ),
                         ],
                       ),
                     )
-                  : Image.asset(
-                      'assets/images/profile.png',
-                      fit: BoxFit.contain,
-                    ),
+                  : (widget.photoUrl != null && widget.photoUrl!.isNotEmpty)
+                      ? Image.network(
+                          widget.photoUrl!,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: const Color(0xFF4EA771),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) => Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.broken_image_rounded,
+                                  color: Colors.white54, size: 64),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Gagal memuat foto',
+                                style: TextStyle(color: Colors.white54, fontFamily: 'Poppins'),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Image.asset(
+                          'assets/images/profile.png',
+                          fit: BoxFit.contain,
+                        ),
             ),
           ),
 
@@ -70,7 +120,7 @@ class LihatFotoScreen extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.45),
+                          color: Colors.black.withValues(alpha: 0.45),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -81,13 +131,17 @@ class LihatFotoScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 14),
-                    Text(
-                      nama,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                    Expanded(
+                      child: Text(
+                        widget.nama,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],

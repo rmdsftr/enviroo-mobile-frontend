@@ -1,3 +1,4 @@
+import 'package:enviroo/models/bagi_hasil_nasabah_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/services/bagi_hasil_service.dart';
 import 'package:enviroo/screens/nasabah/struk_bagi_hasil_nasabah.dart';
@@ -7,35 +8,6 @@ import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-
-// ── Model ─────────────────────────────────────────────────────────────────────
-
-class _BagiHasilItem {
-  final String penerimaId;
-  final String bagiHasilId;
-  final String reward;
-  final DateTime tanggal;
-  final double totalDiterima;
-  final String satuanDiterima;
-
-  _BagiHasilItem({
-    required this.penerimaId,
-    required this.bagiHasilId,
-    required this.reward,
-    required this.tanggal,
-    required this.totalDiterima,
-    required this.satuanDiterima,
-  });
-
-  factory _BagiHasilItem.fromJson(Map<String, dynamic> j) => _BagiHasilItem(
-        penerimaId: j['penerima_id'] ?? '',
-        bagiHasilId: j['bagi_hasil_id'] ?? '',
-        reward: j['reward'] ?? '',
-        tanggal: DateTime.tryParse(j['tanggal'] ?? '') ?? DateTime.now(),
-        totalDiterima: (j['total_diterima'] as num?)?.toDouble() ?? 0.0,
-        satuanDiterima: j['satuan_diterima'] ?? '',
-      );
-}
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -53,14 +25,14 @@ class _ListBagiHasilNasabahScreenState
   static const _teal = Color(0xFF013236);
   static const _green = Color(0xFF4EA771);
 
-  static const _tabs = ['Uang', 'Sembako'];
+  static const _tabs = ['Uang', 'Barang'];
   static const _tabIcons = [
     Icons.account_balance_wallet_rounded,
     Icons.shopping_basket_rounded,
   ];
   static const _tabColors = [
     Color(0xFF4EA771),
-    Color(0xFF2D9CDB),
+    Color(0xFF79B60B),
   ];
 
   int _selectedTab = 0;
@@ -68,7 +40,7 @@ class _ListBagiHasilNasabahScreenState
   late DateTime _filterStart;
   late DateTime _filterEnd;
 
-  List<_BagiHasilItem> _allItems = [];
+  List<BagiHasilNasabahItem> _allItems = [];
   bool _isLoading = true;
   String? _error;
 
@@ -93,12 +65,20 @@ class _ListBagiHasilNasabahScreenState
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final nasabahId = auth.identityId ?? '';
 
-    final res = await BagiHasilService.getListBagiHasilNasabah(nasabahId);
+    final fmt = DateFormat('yyyy-MM-dd');
+    final start = DateTime(_filterStart.year, _filterStart.month, 1);
+    final end = DateTime(_filterEnd.year, _filterEnd.month + 1, 0);
+
+    final res = await BagiHasilService.getListBagiHasilNasabah(
+      nasabahId,
+      startDate: fmt.format(start),
+      endDate: fmt.format(end),
+    );
     if (!mounted) return;
     if (res['success'] == true) {
       final body = res['data'] as Map<String, dynamic>? ?? {};
       final list = (body['riwayat_bagi_hasil'] as List? ?? [])
-          .map((e) => _BagiHasilItem.fromJson(e as Map<String, dynamic>))
+          .map((e) => BagiHasilNasabahItem.fromJson(e as Map<String, dynamic>))
           .toList();
       setState(() {
         _allItems = list;
@@ -112,17 +92,11 @@ class _ListBagiHasilNasabahScreenState
     }
   }
 
-  List<_BagiHasilItem> get _filtered {
+  List<BagiHasilNasabahItem> get _filtered {
     final tabLabel = _tabs[_selectedTab].toLowerCase();
     return _allItems.where((item) {
-      final matchesTab = item.reward.toLowerCase().contains(tabLabel) ||
+      return item.reward.toLowerCase().contains(tabLabel) ||
           item.satuanDiterima.toLowerCase().contains(tabLabel);
-      if (!matchesTab) return false;
-
-      final itemMonth = DateTime(item.tanggal.year, item.tanggal.month);
-      final start = DateTime(_filterStart.year, _filterStart.month);
-      final end = DateTime(_filterEnd.year, _filterEnd.month);
-      return !itemMonth.isBefore(start) && !itemMonth.isAfter(end);
     }).toList();
   }
 
@@ -143,61 +117,99 @@ class _ListBagiHasilNasabahScreenState
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/bg_struk.webp'),
+            image: AssetImage('assets/images/bg_struk2.webp'),
             fit: BoxFit.cover,
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
-              const TopBarBack(title: 'Riwayat Bagi Hasil'),
+              const TopBarBack(title: 'Bagi Hasil'),
               Expanded(
                 child: RefreshIndicator(
                   color: _green,
                   onRefresh: _fetchData,
-                  child: SingleChildScrollView(
+                  child: CustomScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 12),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Text(
-                            'Pada menu ini kamu bisa melihat semua detail bagi hasil yang sudah masuk ke saldo rekeningmu',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 12,
-                              color: _teal.withValues(alpha: 0.65),
-                              height: 1.5,
+                    slivers: [
+                      // Deskripsi + tab navbar — scroll away normally
+                      SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 12),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              child: Text(
+                                'Pada menu ini kamu bisa melihat semua detail bagi hasil yang sudah masuk ke saldo rekeningmu',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 12,
+                                  color: _teal.withValues(alpha: 0.65),
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            MainNavbar(
+                              selectedIndex: _selectedTab,
+                              onTabChanged: (i) => setState(() => _selectedTab = i),
+                              tabs: _tabs,
+                              backgroundColor: Colors.white.withOpacity(0.6),
+                              border: Border.all(
+                                color: const Color(0xFF013236).withOpacity(0.1),
+                                width: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                        ),
+                      ),
+                      // Sticky: "Riwayat Bagi Hasil" + filter bulan
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _StickyHeaderDelegate(
+                          height: 108,
+                          child: Container(
+                            color: Colors.white,
+                            padding: const EdgeInsets.only(top: 10, bottom: 14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+                                  child : Text(
+                                      'Riwayat Bagi Hasil',
+                                      style: TextStyle(
+                                        fontFamily: 'Poppins',
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: _teal,
+                                      ),
+                                  )
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                                  child: MonthYearFilterRow(
+                                    filterStart: _filterStart,
+                                    filterEnd: _filterEnd,
+                                    onChanged: (s, e) {
+                                      setState(() {
+                                        _filterStart = s;
+                                        _filterEnd = e;
+                                      });
+                                      _fetchData();
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                        const SizedBox(height: 14),
-                        MainNavbar(
-                          selectedIndex: _selectedTab,
-                          onTabChanged: (i) => setState(() => _selectedTab = i),
-                          tabs: _tabs,
-                          backgroundColor: Colors.white.withOpacity(0.6),
-                          border: Border.all(
-                            color: const Color(0xFF013236).withOpacity(0.1),
-                            width: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: MonthYearFilterRow(
-                            filterStart: _filterStart,
-                            filterEnd: _filterEnd,
-                            onChanged: (s, e) => setState(() {
-                              _filterStart = s;
-                              _filterEnd = e;
-                            }),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
+                      ),
+                      // List / Empty — cuma ini yang scroll di bawah sticky header
+                      SliverToBoxAdapter(
+                        child: Container(
                           width: double.infinity,
                           constraints: BoxConstraints(
                             minHeight: MediaQuery.of(context).size.height,
@@ -205,16 +217,19 @@ class _ListBagiHasilNasabahScreenState
                           decoration: const BoxDecoration(
                             color: Colors.white,
                           ),
-                          padding: const EdgeInsets.only(top: 10, bottom: 40),
+                          padding: const EdgeInsets.only(bottom: 40),
                           child: _isLoading
-                              ? const Center(
-                                  child: CircularProgressIndicator(color: _green))
+                              ? const Padding(
+                                  padding: EdgeInsets.only(top: 40),
+                                  child: Center(
+                                      child: CircularProgressIndicator(color: _green)),
+                                )
                               : _error != null
                                   ? _buildError()
                                   : _buildList(),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -258,7 +273,7 @@ class _ListBagiHasilNasabahScreenState
     );
   }
 
-  Widget _buildCard(_BagiHasilItem item) {
+  Widget _buildCard(BagiHasilNasabahItem item) {
     final color = _tabColors[_selectedTab];
     final icon = _tabIcons[_selectedTab];
     final dateStr =
@@ -290,10 +305,10 @@ class _ListBagiHasilNasabahScreenState
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
+                color: Color(0xFF013236).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 22),
+              child: Icon(icon, color: Color(0xFF013236), size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -301,7 +316,7 @@ class _ListBagiHasilNasabahScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.reward,
+                    dateStr,
                     style: const TextStyle(
                       fontFamily: 'Poppins',
                       fontWeight: FontWeight.w600,
@@ -313,10 +328,10 @@ class _ListBagiHasilNasabahScreenState
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    dateStr,
+                    item.bagiHasilId,
                     style: TextStyle(
                       fontFamily: 'Poppins',
-                      fontSize: 11,
+                      fontSize: 10,
                       color: _teal.withValues(alpha: 0.45),
                     ),
                   ),
@@ -333,7 +348,7 @@ class _ListBagiHasilNasabahScreenState
                     fontFamily: 'Poppins',
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
-                    color: color,
+                    color: Color(0xFF4EA771),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -387,5 +402,31 @@ class _ListBagiHasilNasabahScreenState
         ],
       ),
     );
+  }
+}
+
+// ── Sticky header delegate ───────────────────────────────────────────────────
+// Bikin "Riwayat Bagi Hasil" + filter bulan nempel (pinned) di bawah
+// TopBarBack saat di-scroll, sementara cuma ListView card yang ikut bergerak.
+class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+
+  _StickyHeaderDelegate({required this.child, required this.height});
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) {
+    return oldDelegate.child != child || oldDelegate.height != height;
   }
 }

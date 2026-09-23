@@ -18,6 +18,13 @@ class TransaksiLayouts extends StatefulWidget {
 }
 
 class _TransaksiLayoutsState extends State<TransaksiLayouts> {
+  // Akumulasi jarak drag dalam 1 gesture + guard biar _openFullScreen()
+  // cuma ke-trigger sekali per gesture (sebelumnya fire tiap frame delta
+  // < -6px, jadi Navigator.push numpuk berkali-kali dalam 1 drag — itu
+  // penyebab animasinya keliatan patah-patah/gak smooth).
+  double _dragAccum = 0;
+  bool _opening = false;
+
   @override
   void initState() {
     super.initState();
@@ -27,6 +34,32 @@ class _TransaksiLayoutsState extends State<TransaksiLayouts> {
       prov.bind(context.read<AuthProvider>());
       prov.load();
     });
+  }
+
+  // Drag ke atas pada handle → buka versi full-screen (slide up, nutupin
+  // TopBarCustom + MainNavbar). Drag ke bawah pada handle di versi
+  // full-screen akan nutup lagi baliknya ke sini.
+  void _openFullScreen() {
+    if (_opening) return;
+    _opening = true;
+    Navigator.of(context)
+        .push(
+          PageRouteBuilder(
+            opaque: false,
+            barrierColor: Colors.transparent,
+            transitionDuration: const Duration(milliseconds: 280),
+            reverseTransitionDuration: const Duration(milliseconds: 240),
+            pageBuilder: (_, __, ___) => const _TransaksiFullScreen(),
+            transitionsBuilder: (_, animation, __, child) {
+              final offset = Tween<Offset>(
+                begin: const Offset(0, 1),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+              return SlideTransition(position: offset, child: child);
+            },
+          ),
+        )
+        .whenComplete(() => _opening = false);
   }
 
   @override
@@ -46,124 +79,239 @@ class _TransaksiLayoutsState extends State<TransaksiLayouts> {
               ),
             ],
           ),
-          child: Builder(
-            builder: (ctx) {
-              return CustomScrollView(
-                physics: const BouncingScrollPhysics(),
-                slivers: [
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
-                  // Date filter
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-                      child: MonthYearFilterRow(
-                        filterStart: prov.filterStart,
-                        filterEnd: prov.filterEnd,
-                        onChanged: prov.setDateFilter,
+          child: Column(
+            children: [
+              // Drag handle — tarik ke atas buat lihat full screen
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onVerticalDragStart: (_) => _dragAccum = 0,
+                onVerticalDragUpdate: (d) {
+                  _dragAccum += d.delta.dy;
+                  if (_dragAccum < -40) _openFullScreen();
+                },
+                onVerticalDragEnd: (d) {
+                  if ((d.primaryVelocity ?? 0) < -300) _openFullScreen();
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF013236).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
-                  // Reward filter chips
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: FilterChipRow<int>(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        selectedValue: prov.rewardId,
-                        onSelected: prov.setRewardFilter,
-                        items: const [
-                          FilterChipItem(value: 1, label: 'Uang'),
-                          FilterChipItem(value: 2, label: 'Sembako'),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
-                  // Chart section
-                  SliverToBoxAdapter(
-                    child: prov.loading
-                        ? const _SkeletonChart()
-                        : prov.data != null
-                            ? _ChartSection(
-                                data: prov.data!,
-                                rewardId: prov.rewardId,
-                              )
-                            : const SizedBox.shrink(),
-                  ),
-                  // List header
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                      child: Row(
-                        children: [
-                          const Text(
-                            'Mutasi Saldo',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF013236),
-                            ),
-                          ),
-                          const Spacer(),
-                          if (!prov.loading && prov.data != null)
-                            Text(
-                              '${prov.data!.mutasiItems.length} transaksi',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 11,
-                                color: const Color(0xFF013236)
-                                    .withValues(alpha: 0.4),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                  // List content
-                  if (prov.loading)
-                    SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (_, __) => const _SkeletonItem(),
-                        childCount: 6,
-                      ),
-                    )
-                  else if (prov.error != null)
-                    SliverToBoxAdapter(
-                      child: _ErrorState(
-                        message: prov.error!,
-                        onRetry: prov.load,
-                      ),
-                    )
-                  else if (prov.data == null ||
-                      prov.data!.mutasiItems.isEmpty)
-                    const SliverToBoxAdapter(child: _EmptyState())
-                  else
-                    SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (_, i) {
-                          final items = prov.data!.mutasiItems;
-                          return _MutasiItemTile(
-                            item: items[i],
-                            rewardId: prov.rewardId,
-                            showDivider: i < items.length - 1,
-                          );
-                        },
-                        childCount: prov.data!.mutasiItems.length,
-                      ),
-                    ),
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: MediaQuery.of(ctx).padding.bottom + 32,
-                    ),
-                  ),
-                ],
-              );
-            },
+                ),
+              ),
+              Expanded(child: _MutasiScrollView(prov: prov)),
+            ],
           ),
         );
       },
+    );
+  }
+}
+
+// ── Full-screen version ──────────────────────────────────────────────────────
+// Dibuka lewat drag-up dari handle TransaksiLayouts. Isinya sama persis,
+// cuma nutupin seluruh layar (termasuk TopBarCustom + MainNavbar).
+class _TransaksiFullScreen extends StatefulWidget {
+  const _TransaksiFullScreen();
+
+  @override
+  State<_TransaksiFullScreen> createState() => _TransaksiFullScreenState();
+}
+
+class _TransaksiFullScreenState extends State<_TransaksiFullScreen> {
+  double _dragAccum = 0;
+  bool _closing = false;
+
+  void _close() {
+    if (_closing) return;
+    _closing = true;
+    Navigator.of(context).maybePop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Consumer<MutasiProvider>(
+        builder: (_, prov, __) {
+          return Container(
+            width: double.infinity,
+            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                // Drag handle — tarik ke bawah buat nutup, balik ke docked view
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onVerticalDragStart: (_) => _dragAccum = 0,
+                  onVerticalDragUpdate: (d) {
+                    _dragAccum += d.delta.dy;
+                    if (_dragAccum > 40) _close();
+                  },
+                  onVerticalDragEnd: (d) {
+                    if ((d.primaryVelocity ?? 0) > 300) _close();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF013236).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(child: _MutasiScrollView(prov: prov)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── Shared scrollable content (chart + sticky filter + mutasi list) ─────────
+// Dipakai baik di docked TransaksiLayouts maupun di _TransaksiFullScreen.
+class _MutasiScrollView extends StatelessWidget {
+  final MutasiProvider prov;
+
+  const _MutasiScrollView({required this.prov});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        // Sticky: filter bulan + filter chip reward
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _StickyHeaderDelegate(
+            height: 112,
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                    child: MonthYearFilterRow(
+                      filterStart: prov.filterStart,
+                      filterEnd: prov.filterEnd,
+                      onChanged: prov.setDateFilter,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: FilterChipRow<int>(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      selectedValue: prov.rewardId,
+                      onSelected: prov.setRewardFilter,
+                      items: const [
+                        FilterChipItem(value: 1, label: 'Uang'),
+                        FilterChipItem(value: 2, label: 'Barang'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        // Chart section
+        SliverToBoxAdapter(
+          child: prov.loading
+              ? const _SkeletonChart()
+              : prov.data != null
+                  ? _ChartSection(
+                      data: prov.data!,
+                      rewardId: prov.rewardId,
+                    )
+                  : const SizedBox.shrink(),
+        ),
+        // List header
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Row(
+              children: [
+                const Text(
+                  'Mutasi Saldo',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF013236),
+                  ),
+                ),
+                const Spacer(),
+                if (!prov.loading && prov.data != null)
+                  Text(
+                    '${prov.data!.mutasiItems.length} transaksi',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 11,
+                      color: const Color(0xFF013236).withValues(alpha: 0.4),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+        // List content
+        if (prov.loading)
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (_, __) => const _SkeletonItem(),
+              childCount: 6,
+            ),
+          )
+        else if (prov.error != null)
+          SliverToBoxAdapter(
+            child: _ErrorState(
+              message: prov.error!,
+              onRetry: prov.load,
+            ),
+          )
+        else if (prov.data == null || prov.data!.mutasiItems.isEmpty)
+          const SliverToBoxAdapter(child: _EmptyState())
+        else
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (_, i) {
+                final items = prov.data!.mutasiItems;
+                return _MutasiItemTile(
+                  item: items[i],
+                  rewardId: prov.rewardId,
+                  showDivider: i < items.length - 1,
+                );
+              },
+              childCount: prov.data!.mutasiItems.length,
+            ),
+          ),
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: MediaQuery.of(context).padding.bottom + 32,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -355,9 +503,8 @@ class _MutasiItemTile extends StatelessWidget {
     final color = item.isPositive ? _green : _red;
     final bgColor =
         item.isPositive ? const Color(0xFFF0FAF4) : const Color(0xFFFDF2F2);
-    final dateStr = DateFormat('d MMM yyyy', 'id_ID')
-        .format(item.tanggalTransaksi);
-    final timeStr = DateFormat('HH:mm', 'id_ID').format(item.tanggalTransaksi);
+    final dateTimeStr =
+        DateFormat('d MMM yyyy • HH:mm', 'id_ID').format(item.tanggalTransaksi);
 
     return Material(
       color: Colors.transparent,
@@ -391,7 +538,7 @@ class _MutasiItemTile extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          dateStr,
+                          dateTimeStr,
                           style: const TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 13,
@@ -401,7 +548,9 @@ class _MutasiItemTile extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          timeStr,
+                          item.keterangan.isNotEmpty ? item.keterangan : '-',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 11,
@@ -580,5 +729,32 @@ class _ErrorState extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ── Sticky header delegate ───────────────────────────────────────────────────
+// Bikin filter bulan + filter chip reward nempel (pinned) di atas begitu
+// TransaksiLayouts mentok ke TopBarCustom, sementara chart + list mutasi
+// yang ikut bergerak.
+class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+
+  _StickyHeaderDelegate({required this.child, required this.height});
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) {
+    return oldDelegate.child != child || oldDelegate.height != height;
   }
 }

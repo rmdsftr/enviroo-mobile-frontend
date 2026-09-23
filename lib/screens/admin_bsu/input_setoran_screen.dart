@@ -1,11 +1,8 @@
-import 'dart:io';
 import 'package:enviroo/models/katalog_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
-import 'package:enviroo/screens/admin_bsu/inapp_camera_screen.dart';
 import 'package:enviroo/screens/petugas/preview_setoran_screen.dart';
-import 'package:enviroo/screens/petugas/struk_setoran_nasabah.dart';
+import 'package:enviroo/screens/nasabah/detail_setoran_screen.dart';
 import 'package:enviroo/services/katalog_service.dart';
-import 'package:enviroo/widgets/confirm_bottom_sheet.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/filter_chip_row.dart';
 import 'package:enviroo/widgets/search.dart';
@@ -98,43 +95,8 @@ class _InputSetoranState extends State<InputSetoranScreen> {
     }
   }
 
-  // ── Ambil foto nasabah via kamera in-app (tidak membuka Activity baru) ────────
-  Future<File?> _ambilFoto() async {
-    final File? result = await Navigator.push<File?>(
-      context,
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => const InAppCameraScreen(),
-      ),
-    );
-    return result;
-  }
-
   Future<void> _goToPreview() async {
     if (!_adaInput) return;
-
-    File? fotoFile;
-
-    if (!widget.dariQr) {
-      final konfirmasi = await showConfirmBottomSheet(
-        context,
-        icon: Icons.camera_alt_rounded,
-        title: 'Foto Bukti Nasabah',
-        message: 'Karena setoran ini dilakukan secara manual, harap ambil foto nasabah sebagai bukti kehadiran sebelum melanjutkan.',
-        cancelLabel: 'Batal',
-        confirmLabel: 'Ambil Foto',
-      );
-
-      if (!konfirmasi || !mounted) return;
-
-      fotoFile = await _ambilFoto();
-      if (!mounted) return;
-
-      if (fotoFile == null) {
-        showCustomSnackBar(context, 'Foto nasabah wajib diambil untuk setoran manual.');
-        return;
-      }
-    }
 
     List<Map<String, dynamic>> items = [];
     for (final sampah in _katalog) {
@@ -158,7 +120,6 @@ class _InputSetoranState extends State<InputSetoranScreen> {
           photoUrl: widget.photoUrl,
           dariQr: widget.dariQr,
           items: items,
-          fotoFile: fotoFile,
         ),
       ),
     );
@@ -167,10 +128,7 @@ class _InputSetoranState extends State<InputSetoranScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => StrukSetoranNasabahScreen(
-            setoranId: setoranId,
-            namaNasabah: widget.nasabahName,
-          ),
+          builder: (_) => DetailSetoranScreen(setoranId: setoranId),
         ),
       );
     }
@@ -631,7 +589,7 @@ class _RewardBadge extends StatelessWidget {
     switch (namaReward.toLowerCase()) {
       case 'uang':
         return const Color(0xFF4EA771);
-      case 'sembako':
+      case 'barang':
         return const Color(0xFFE57C2C);
       default:
         return Colors.grey;

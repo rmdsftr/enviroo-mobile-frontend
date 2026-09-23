@@ -126,7 +126,7 @@ class _DetailDistribusiSisaScreenState
 
     String tanggalFmt() {
       try {
-        final dt = DateTime.parse(detail.createdAt);
+        final dt = DateTime.parse(detail.createdAt).toLocal();
         return DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(dt);
       } catch (_) {
         return detail.createdAt;
@@ -261,29 +261,20 @@ class _DetailDistribusiSisaScreenState
                     ),
                   )
                 else
-                  ...detail.penerimaBsu.asMap().entries.map((entry) {
-                    final isLast =
-                        entry.key == detail.penerimaBsu.length - 1;
-                    return Column(
-                      children: [
-                        _penerimaRow(
-                          p: entry.value,
-                          fmtNominal: fmtNominal,
-                          iconColor: _C.dark,
-                          iconBg: _C.dark.withValues(alpha: 0.06),
-                          showAntar: true,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => StrukBagiHasilBsuScreen(
-                                  penerimaSisaId: entry.value.penerimaSisaId),
-                            ),
-                          ),
-                        ),
-                        if (!isLast) _divider(),
-                      ],
-                    );
-                  }),
+                  ...detail.penerimaBsu.map((bsu) => _penerimaRow(
+                    p: bsu,
+                    fmtNominal: fmtNominal,
+                    iconColor: _C.dark,
+                    iconBg: _C.dark.withValues(alpha: 0.06),
+                    showAntar: true,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => StrukBagiHasilBsuScreen(
+                            penerimaSisaId: bsu.penerimaSisaId),
+                      ),
+                    ),
+                  )),
               ],
             ),
           ),
@@ -300,87 +291,105 @@ class _DetailDistribusiSisaScreenState
     bool showAntar = false,
     VoidCallback? onTap,
   }) {
-    final antarLabel = p.diantarOleh == 'bsu' ? 'Antar Mandiri' : 'Diantar BSI';
-    final antarColor =
-        p.diantarOleh == 'bsu' ? _C.green : _C.dark.withValues(alpha: 0.55);
-
     return GestureDetector(
       onTap: onTap,
       child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.account_balance_rounded,
-                size: 15, color: iconColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  p.namaBank,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    color: _C.dark,
-                  ),
-                ),
-                // if (showAntar && p.diantarOleh != null)
-                //   Text(
-                //     antarLabel,
-                //     style: TextStyle(
-                //       fontFamily: 'Poppins',
-                //       fontSize: 10,
-                //       color: antarColor,
-                //       fontWeight: FontWeight.w500,
-                //     ),
-                //   ),
-                // const SizedBox(height: 3),
-                Text(
-                  'Porsi: ${fmtNominal(p.porsi, p.satuanNominal)}  ·  '
-                  'Transport: ${fmtNominal(p.transportasi, p.satuanNominal)}',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    color: _C.dark.withValues(alpha: 0.45),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Row(
-            children: [
-              Text(
-                fmtNominal(p.nominalDiterima, p.satuanNominal),
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: _C.green,
-                ),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              margin: const EdgeInsets.only(bottom: 3),
+              decoration: BoxDecoration(
+                color: _C.dark.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
               ),
-              if (onTap != null) ...[
-                const SizedBox(width: 2),
-                Icon(Icons.chevron_right_rounded,
-                    size: 14, color: _C.dark.withValues(alpha: 0.3)),
-              ],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    p.namaBank,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _C.dark.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  if (onTap != null)
+                    Icon(Icons.chevron_right_rounded,
+                        size: 14, color: _C.dark.withValues(alpha: 0.3)),
+                ],
+              ),
+            ),
+            _statCell('Porsi', fmtNominal(p.porsi, p.satuanNominal)),
+            _statCell('Transport', fmtNominal(p.transportasi, p.satuanNominal)),
+            if (p.transportDetail.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              ...p.transportDetail.map((t) => Padding(
+                padding: const EdgeInsets.only(left: 10, bottom: 2, top: 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.subdirectory_arrow_right_rounded,
+                            size: 10,
+                            color: _C.dark.withValues(alpha: 0.3)),
+                        const SizedBox(width: 3),
+                        Text(t.namaBsu,
+                            style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 9.5,
+                                color: _C.dark.withValues(alpha: 0.4))),
+                      ],
+                    ),
+                    Text(fmtNominal(t.transport, p.satuanNominal),
+                        style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 9.5,
+                            color: _C.dark.withValues(alpha: 0.5))),
+                  ],
+                ),
+              )),
+              const SizedBox(height: 2),
             ],
-          ),
-        ],
+            _statCell('Total', fmtNominal(p.nominalDiterima, p.satuanNominal), isTotal: true),
+          ],
+        ),
       ),
-    ),
     );
   }
+}
+
+Widget _statCell(String label, String value, {bool isTotal = false}) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 3, left: 5, right: 5, bottom: 3),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 12,
+            color: _C.dark.withValues(alpha: 0.45),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 12,
+            fontWeight: isTotal ? FontWeight.w700 : FontWeight.w500,
+            color: isTotal ? _C.green : _C.dark.withValues(alpha: 0.75),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────

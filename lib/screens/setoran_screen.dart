@@ -5,6 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class SetoranScreen extends StatefulWidget {
+  final String penimbanganId;
+  const SetoranScreen({super.key, required this.penimbanganId});
+
   @override
   State<SetoranScreen> createState() => _SetoranScreenState();
 }
@@ -22,7 +25,7 @@ class _SetoranScreenState extends State<SetoranScreen> {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final nasabahId = auth.identityId ?? '';
     setState(() {
-      _qrData = 'ENVIROO-SETORAN-$nasabahId';
+      _qrData = '{"type":"ENVIROO-SETORAN","nasabah_id":"$nasabahId","penimbangan_id":"${widget.penimbanganId}"}';
     });
   }
 

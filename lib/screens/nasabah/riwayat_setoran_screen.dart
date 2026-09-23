@@ -1,42 +1,14 @@
+import 'package:enviroo/models/setoran_nasabah_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/services/setoran_service.dart';
 import 'package:enviroo/screens/nasabah/detail_setoran_screen.dart';
 import 'package:enviroo/screens/setoran_screen.dart';
 import 'package:enviroo/services/penimbangan_service.dart';
-import 'package:enviroo/widgets/filter_chip_row.dart';
 import 'package:enviroo/widgets/filter_month_year.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-
-// ── Model ────────────────────────────────────────────────────────────────────
-class RiwayatSetoranModel {
-  final String setoranId;
-  final String namaPetugas;
-  final DateTime transaksiTimestamp;
-  final int totalItem;
-  final String statusSetoran;
-
-  RiwayatSetoranModel({
-    required this.setoranId,
-    required this.namaPetugas,
-    required this.transaksiTimestamp,
-    required this.totalItem,
-    required this.statusSetoran,
-  });
-
-  factory RiwayatSetoranModel.fromJson(Map<String, dynamic> json) {
-    return RiwayatSetoranModel(
-      setoranId: json['setoran_id'] ?? '',
-      namaPetugas: json['nama_petugas'] ?? 'Petugas',
-      transaksiTimestamp:
-          DateTime.tryParse(json['transaksi_timestamp'] ?? '') ?? DateTime.now(),
-      totalItem: json['total_item'] ?? 0,
-      statusSetoran: json['status_setoran'] ?? '',
-    );
-  }
-}
 
 // ── Screen ───────────────────────────────────────────────────────────────────
 class RiwayatSetoranScreen extends StatefulWidget {
@@ -56,22 +28,17 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
   bool _isLoading = true;
   String? _error;
   bool _isSessionActive = false;
+  String _penimbanganId = '';
+  int _pendingSessions = 0;
 
   // ── Filter & Search State ───────────────────────────────────────────────────
   final _searchController = TextEditingController();
   String _searchQuery = '';
-  String _filterStatus = 'semua';
 
   DateTime _filterStart = DateTime(
       DateTime.now().month - 2 <= 0 ? DateTime.now().year - 1 : DateTime.now().year,
       DateTime.now().month - 2 <= 0 ? DateTime.now().month + 10 : DateTime.now().month - 2);
   DateTime _filterEnd = DateTime(DateTime.now().year, DateTime.now().month);
-
-  static const _filterItems = [
-    FilterChipItem(value: 'semua', label: 'Semua'),
-    FilterChipItem(value: 'berhasil', label: 'Berhasil'),
-    FilterChipItem(value: 'lainnya', label: 'Lainnya'),
-  ];
 
   @override
   void initState() {
@@ -116,15 +83,21 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
       if (res['success'] == true) {
         setState(() {
           _isSessionActive = res['is_active'] == true;
+          _penimbanganId = res['penimbangan_id']?.toString() ?? '';
+          _pendingSessions = (res['pending_sessions'] as int?) ?? 0;
         });
       } else {
         setState(() {
           _isSessionActive = false;
+          _penimbanganId = '';
+          _pendingSessions = 0;
         });
       }
     } catch (_) {
       setState(() {
         _isSessionActive = false;
+        _penimbanganId = '';
+        _pendingSessions = 0;
       });
     }
   }
@@ -139,7 +112,16 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final nasabahId = auth.identityId ?? '';
 
-    final res = await SetoranService.getListSetoranNasabah(nasabahId);
+    // Konversi filter bulan -> rentang tanggal penuh (hari pertama s/d hari terakhir)
+    final start = DateTime(_filterStart.year, _filterStart.month, 1);
+    final end = DateTime(_filterEnd.year, _filterEnd.month + 1, 0);
+    final fmt = DateFormat('yyyy-MM-dd');
+
+    final res = await SetoranService.getListSetoranNasabah(
+      nasabahId,
+      startDate: fmt.format(start),
+      endDate: fmt.format(end),
+    );
     if (!mounted) return;
     if (res['success'] == true) {
       final List data = (res['data'] as List?) ?? [];
@@ -156,20 +138,9 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
   }
 
   // ── Filtered List ────────────────────────────────────────────────────────────
+  // Filter tanggal sudah ditangani server-side; di sini hanya search.
   List<RiwayatSetoranModel> get _filteredList {
     return _list.where((item) {
-      // Filter tanggal
-      final d = DateTime(item.transaksiTimestamp.year, item.transaksiTimestamp.month);
-      final start = DateTime(_filterStart.year, _filterStart.month);
-      final end = DateTime(_filterEnd.year, _filterEnd.month);
-      if (d.isBefore(start) || d.isAfter(end)) return false;
-
-      if (_filterStatus == 'berhasil' && item.statusSetoran != 'berhasil') {
-        return false;
-      }
-      if (_filterStatus == 'lainnya' && item.statusSetoran == 'berhasil') {
-        return false;
-      }
       if (_searchQuery.isNotEmpty) {
         final namaMatch =
             item.namaPetugas.toLowerCase().contains(_searchQuery);
@@ -191,7 +162,7 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/bg_struk.webp'),
+            image: AssetImage('assets/images/bg_struk2.webp'),
             fit: BoxFit.cover,
           ),
         ),
@@ -207,20 +178,56 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
                       : RefreshIndicator(
                           color: _accent,
                           onRefresh: _fetchAll,
-                          child: SingleChildScrollView(
+                          child: CustomScrollView(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // QR button (padding bawah lebih kecil jika tidak ada sesi)
-                                _buildQRButton(),
-                                // Summary stats dengan padding atas jika QR tidak muncul
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                                  child: _buildSummaryStats(),
+                            slivers: [
+                              // QR button + summary stats — scroll away normally
+                              SliverToBoxAdapter(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildQRButton(),
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                                      child: _buildSummaryStats(),
+                                    ),
+                                  ],
                                 ),
-                                // White container untuk riwayat
-                                Container(
+                              ),
+                              // Sticky: "Riwayat Setoran" + filter bulan, pin di bawah TopBarBack
+                              SliverPersistentHeader(
+                                pinned: true,
+                                delegate: _StickyHeaderDelegate(
+                                  height: 116,
+                                  child: Container(
+                                    color: Colors.white,
+                                    padding: const EdgeInsets.only(top: 5),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        _buildSectionHeader(),
+                                        Padding(
+                                          padding: const EdgeInsets.fromLTRB(20, 5, 20, 15),
+                                          child: MonthYearFilterRow(
+                                            filterStart: _filterStart,
+                                            filterEnd: _filterEnd,
+                                            onChanged: (start, end) {
+                                              setState(() {
+                                                _filterStart = start;
+                                                _filterEnd = end;
+                                              });
+                                              _fetchRiwayat();
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // List / Empty — cuma ini yang scroll di bawah sticky header
+                              SliverToBoxAdapter(
+                                child: Container(
                                   width: double.infinity,
                                   constraints: BoxConstraints(
                                     minHeight: MediaQuery.of(context).size.height,
@@ -228,26 +235,11 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
                                   decoration: const BoxDecoration(
                                     color: Colors.white,
                                   ),
+                                  padding: const EdgeInsets.only(bottom: 40),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      _buildSectionHeader(),
-                                      // Filter bulan
-                                      Padding(
-                                        padding: const EdgeInsets.fromLTRB(20, 5, 20, 15),
-                                        child: MonthYearFilterRow(
-                                          filterStart: _filterStart,
-                                          filterEnd: _filterEnd,
-                                          onChanged: (start, end) => setState(() {
-                                            _filterStart = start;
-                                            _filterEnd = end;
-                                          }),
-                                        ),
-                                      ),
-
-                                      _buildFilterChips(),
                                       const SizedBox(height: 8),
-                                      // List / Empty
                                       if (_filteredList.isEmpty)
                                         _buildEmpty()
                                       else
@@ -261,8 +253,8 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
                                     ],
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
             ),
@@ -281,7 +273,8 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
       child: GestureDetector(
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => SetoranScreen()),
+          MaterialPageRoute(
+              builder: (_) => SetoranScreen(penimbanganId: _penimbanganId)),
         ),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -332,23 +325,10 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
   }
 
 
-  // ── Filter Chips ──────────────────────────────────────────────────────────────
-  Widget _buildFilterChips() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: FilterChipRow<String>(
-        items: _filterItems,
-        selectedValue: _filterStatus,
-        onSelected: (val) => setState(() => _filterStatus = val),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-      ),
-    );
-  }
-
   // ── Section Header ────────────────────────────────────────────────────────────
   Widget _buildSectionHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 10, 20, 8),
+      padding: const EdgeInsets.fromLTRB(24, 20, 20, 8),
       child: Row(
         children: [
           const Text(
@@ -356,7 +336,7 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
             style: TextStyle(
               fontFamily: 'Poppins',
               fontWeight: FontWeight.w600,
-              fontSize: 13,
+              fontSize: 14,
               color: _teal,
             ),
           ),
@@ -367,10 +347,7 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
 
   // ── Card ──────────────────────────────────────────────────────────────────────
   Widget _buildCard(RiwayatSetoranModel item) {
-    final bool isSuccess = item.statusSetoran == 'berhasil';
-    final statusColor = isSuccess ? _accent : Colors.orange;
-    final statusIcon =
-        isSuccess ? Icons.check_circle_rounded : Icons.schedule_rounded;
+    const statusIcon = Icons.move_to_inbox_rounded;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -399,10 +376,14 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: Color(0xFF013236).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(statusIcon, color: statusColor, size: 22),
+                child: Icon(
+                    statusIcon,
+                    color: Color(0xFF013236),
+                    size: 22
+                ),
               ),
               const SizedBox(width: 14),
               // Info
@@ -416,7 +397,7 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
                       style: const TextStyle(
                         fontFamily: 'Poppins',
                         fontWeight: FontWeight.w600,
-                        fontSize: 12,
+                        fontSize: 13,
                         color: _teal,
                       ),
                     ),
@@ -520,7 +501,7 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              _searchQuery.isNotEmpty || _filterStatus != 'semua'
+              _searchQuery.isNotEmpty
                   ? 'Tidak ada data yang cocok'
                   : 'Belum ada setoran',
               style: TextStyle(
@@ -532,8 +513,8 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              _searchQuery.isNotEmpty || _filterStatus != 'semua'
-                  ? 'Coba ubah kata kunci atau filter'
+              _searchQuery.isNotEmpty
+                  ? 'Coba ubah kata kunci pencarian'
                   : 'Riwayat setoran sampah kamu akan muncul di sini',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -587,17 +568,9 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
 
   // ── Summary Stats ─────────────────────────────────────────────────────────────
   Widget _buildSummaryStats() {
-    // Filter by date first
-    final listByDate = _list.where((item) {
-      final d = DateTime(item.transaksiTimestamp.year, item.transaksiTimestamp.month);
-      final start = DateTime(_filterStart.year, _filterStart.month);
-      final end = DateTime(_filterEnd.year, _filterEnd.month);
-      return !d.isBefore(start) && !d.isAfter(end);
-    }).toList();
-
-    final totalSetoran = listByDate.length;
-    final totalBerhasil = listByDate.where((s) => s.statusSetoran == 'berhasil').length;
-    final totalLainnya = listByDate.where((s) => s.statusSetoran != 'berhasil').length;
+    // _list sudah difilter tanggal dari server
+    final totalSetoran = _list.length;
+    final totalItem = _list.fold<int>(0, (sum, s) => sum + s.totalItem);
 
     return Row(
       children: [
@@ -609,20 +582,18 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
         const SizedBox(width: 10),
         Expanded(child: _statCard(
           iconColor: _accent,
-          label: 'Berhasil',
-          value: totalBerhasil.toString(),
-        )),
-        const SizedBox(width: 10),
-        Expanded(child: _statCard(
-          iconColor: Colors.orange,
-          label: 'Lainnya',
-          value: totalLainnya.toString(),
+          label: 'Total Item Sampah',
+          value: totalItem.toString(),
         )),
       ],
     );
   }
 
   Widget _infoCard(){
+    final message = _pendingSessions > 0
+        ? 'Hari ini terdapat $_pendingSessions sesi penimbangan. Penyetoran sampah baru bisa dilakukan jika petugas sudah membuka sesi penimbangan ya'
+        : 'Fitur untuk melakukan penyetoran baru akan muncul jika sesi penimbangan sudah dibuka petugas';
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
       child: Container(
@@ -642,7 +613,7 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Fitur untuk melakukan penyetoran baru akan muncul jika sesi penimbangan sudah dibuka petugas',
+                  message,
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontWeight: FontWeight.w500,
@@ -698,5 +669,31 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
         ],
       ),
     );
+  }
+}
+
+// ── Sticky header delegate ───────────────────────────────────────────────────
+// Bikin "Riwayat Setoran" + filter bulan nempel (pinned) di bawah TopBarBack
+// saat di-scroll, sementara cuma ListView card yang ikut bergerak.
+class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+
+  _StickyHeaderDelegate({required this.child, required this.height});
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) {
+    return oldDelegate.child != child || oldDelegate.height != height;
   }
 }

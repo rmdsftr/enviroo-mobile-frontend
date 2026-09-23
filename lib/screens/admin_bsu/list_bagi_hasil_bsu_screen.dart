@@ -1,3 +1,4 @@
+import 'package:enviroo/models/bagi_hasil_bsu_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/services/bagi_hasil_service.dart';
 import 'package:enviroo/screens/admin_bsu/struk_bagi_hasil_bsu_screen.dart';
@@ -6,40 +7,6 @@ import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-
-// ── Model ─────────────────────────────────────────────────────────────────────
-
-class _DistribusiSisaItem {
-  final String penerimaSisaId;
-  final String distribusiId;
-  final String bagiHasilId;
-  final double nominalDiterima;
-  final String satuanNominal;
-  final String diantarOleh;
-  final DateTime tanggalDistribusi;
-
-  _DistribusiSisaItem({
-    required this.penerimaSisaId,
-    required this.distribusiId,
-    required this.bagiHasilId,
-    required this.nominalDiterima,
-    required this.satuanNominal,
-    required this.diantarOleh,
-    required this.tanggalDistribusi,
-  });
-
-  factory _DistribusiSisaItem.fromJson(Map<String, dynamic> j) =>
-      _DistribusiSisaItem(
-        penerimaSisaId: j['penerima_sisa_id'] ?? '',
-        distribusiId: j['distribusi_id'] ?? '',
-        bagiHasilId: j['bagi_hasil_id'] ?? '',
-        nominalDiterima: (j['nominal_diterima'] as num?)?.toDouble() ?? 0.0,
-        satuanNominal: j['satuan_nominal'] ?? '',
-        diantarOleh: j['diantar_oleh'] ?? '',
-        tanggalDistribusi:
-            DateTime.tryParse(j['tanggal_distribusi'] ?? '') ?? DateTime.now(),
-      );
-}
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -58,7 +25,7 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
   late DateTime _filterStart;
   late DateTime _filterEnd;
 
-  List<_DistribusiSisaItem> _allItems = [];
+  List<DistribusiSisaBsuItem> _allItems = [];
   bool _isLoading = true;
   String? _error;
 
@@ -81,12 +48,14 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final bsuId = auth.bankId ?? '';
 
-    final res = await BagiHasilService.getListDistribusiSisaBsu(bsuId);
+    final startDate = '${_filterStart.year}-${_filterStart.month.toString().padLeft(2, '0')}-01';
+    final endDate = '${_filterEnd.year}-${_filterEnd.month.toString().padLeft(2, '0')}-${DateTime(_filterEnd.year, _filterEnd.month + 1, 0).day.toString().padLeft(2, '0')}';
+    final res = await BagiHasilService.getListDistribusiSisaBsu(bsuId, startDate: startDate, endDate: endDate);
     if (!mounted) return;
     if (res['success'] == true) {
       final body = res['data'] as Map<String, dynamic>? ?? {};
       final list = (body['riwayat'] as List? ?? [])
-          .map((e) => _DistribusiSisaItem.fromJson(e as Map<String, dynamic>))
+          .map((e) => DistribusiSisaBsuItem.fromJson(e as Map<String, dynamic>))
           .toList();
       setState(() {
         _allItems = list;
@@ -100,7 +69,7 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
     }
   }
 
-  List<_DistribusiSisaItem> get _filtered {
+  List<DistribusiSisaBsuItem> get _filtered {
     return _allItems.where((item) {
       final itemMonth = DateTime(
           item.tanggalDistribusi.year, item.tanggalDistribusi.month);
@@ -113,7 +82,7 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
   String _fmtNominal(double val, String satuan) {
     final s = satuan.toLowerCase();
     if (s == 'rp') return 'Rp ${NumberFormat('#,##0', 'id_ID').format(val)}';
-    return '${NumberFormat('#,##0.##', 'id_ID').format(val)} $satuan';
+    return '${NumberFormat('#,##0', 'id_ID').format(val)} $satuan';
   }
 
   // Warna & ikon berdasarkan satuan
@@ -139,7 +108,7 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
           // Background image
           Positioned.fill(
             child: Image.asset(
-              'assets/images/bg_struk.webp',
+              'assets/images/bg_struk2.webp',
               fit: BoxFit.cover,
             ),
           ),
@@ -147,7 +116,7 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const TopBarBack(title: 'Riwayat Distribusi Sisa BSU'),
+                const TopBarBack(title: 'Bagi Hasil'),
                 // Deskripsi & filter — tampil di atas background
                 const SizedBox(height: 12),
                 Padding(
@@ -163,35 +132,55 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: MonthYearFilterRow(
-                    filterStart: _filterStart,
-                    filterEnd: _filterEnd,
-                    onChanged: (s, e) => setState(() {
-                      _filterStart = s;
-                      _filterEnd = e;
-                    }),
-                  ),
-                ),
-                const SizedBox(height: 16),
                 // White container — menutupi background hingga paling bawah
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.only(top: 15),
                     decoration: const BoxDecoration(
                       color: Colors.white,
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                     ),
                     child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(24),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                            child: Text(
+                              'Riwayat distribusi bagi hasil',
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: _teal,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: MonthYearFilterRow(
+                              filterStart: _filterStart,
+                              filterEnd: _filterEnd,
+                              onChanged: (s, e) {
+                                setState(() {
+                                  _filterStart = s;
+                                  _filterEnd = e;
+                                });
+                                _fetchData();
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            child: _isLoading
+                                ? const Center(child: CircularProgressIndicator(color: _green))
+                                : _error != null
+                                    ? _buildError()
+                                    : _buildList(),
+                          ),
+                        ],
                       ),
-                      child: _isLoading
-                          ? const Center(
-                              child: CircularProgressIndicator(color: _green))
-                          : _error != null
-                              ? _buildError()
-                              : _buildList(),
                     ),
                   ),
                 ),
@@ -239,7 +228,7 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
     );
   }
 
-  Widget _buildCard(_DistribusiSisaItem item) {
+  Widget _buildCard(DistribusiSisaBsuItem item) {
     final color = _cardColor(item.satuanNominal);
     final icon = _cardIcon(item.satuanNominal);
     final dateStr = DateFormat('dd MMM yyyy, HH:mm', 'id_ID')
@@ -271,10 +260,10 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
+                color: Color(0xFF013236).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 22),
+              child: Icon(icon, color: Color(0xFF013236), size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(

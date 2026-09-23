@@ -1,85 +1,10 @@
+import 'package:enviroo/models/penimbangan_model.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
-import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/services/penimbangan_service.dart';
+import 'package:enviroo/services/setoran_service.dart';
 import 'package:enviroo/screens/admin_bsu/scanner_penimbangan_screen.dart';
-import 'package:enviroo/screens/petugas/struk_setoran_nasabah.dart';
+import 'package:enviroo/screens/nasabah/detail_setoran_screen.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
-
-// ─── Models ──────────────────────────────────────────────────────────────────
-
-class _SetoranItem {
-  final String setoranId;
-  final String nasabahId;
-  final String namaNasabah;
-  final DateTime createdAt;
-
-  _SetoranItem({
-    required this.setoranId,
-    required this.nasabahId,
-    required this.namaNasabah,
-    required this.createdAt,
-  });
-
-  factory _SetoranItem.fromJson(Map<String, dynamic> j) {
-    DateTime dt = DateTime.now();
-    try {
-      dt = DateTime.parse(j['created_at'] ?? '');
-    } catch (_) {}
-    return _SetoranItem(
-      setoranId: j['setoran_id'] ?? '',
-      nasabahId: j['nasabah_id'] ?? '',
-      namaNasabah: j['nama_nasabah'] ?? '-',
-      createdAt: dt,
-    );
-  }
-
-  String get waktuFmt =>
-      DateFormat('HH:mm', 'id_ID').format(createdAt);
-}
-
-class _SesiData {
-  final String penimbanganId;
-  final String namaBank;
-  final String startedAt;
-  final String startedBy;
-  final List<_SetoranItem> listSetoran;
-
-  _SesiData({
-    required this.penimbanganId,
-    required this.namaBank,
-    required this.startedAt,
-    required this.startedBy,
-    required this.listSetoran,
-  });
-
-  factory _SesiData.fromJson(Map<String, dynamic> j) {
-    String startedAt = '-';
-    if (j['started_at'] != null) {
-      try {
-        final parsed = DateTime.parse(j['started_at']);
-        startedAt =
-            DateFormat('EEEE, dd MMM yyyy · HH:mm', 'id_ID').format(parsed);
-      } catch (_) {
-        startedAt = j['started_at'].toString();
-      }
-    }
-
-    final rawList = j['list_setoran'] as List? ?? [];
-    final list = rawList
-        .map((e) => _SetoranItem.fromJson(e as Map<String, dynamic>))
-        .toList();
-
-    return _SesiData(
-      penimbanganId: j['penimbangan_id'] ?? '',
-      namaBank: j['nama_bank'] ?? '-',
-      startedAt: startedAt,
-      startedBy: j['started_by'] ?? '-',
-      listSetoran: list,
-    );
-  }
-}
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -96,7 +21,7 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
   bool _isLoading = true;
   bool _actionLoading = false;
   bool _isExpanded = false;
-  _SesiData? _sesi;
+  SesiPenimbanganAktif? _sesi;
   String? _errorMsg;
 
   @override
@@ -111,12 +36,12 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
       _errorMsg = null;
     });
     final res =
-        await PenimbanganService.getSesiAktif(widget.penimbanganId);
+        await SetoranService.getListSetoranPenimbangan(widget.penimbanganId);
     if (!mounted) return;
 
     if (res['success'] == true) {
       setState(() {
-        _sesi = _SesiData.fromJson(res['data'] as Map<String, dynamic>);
+        _sesi = SesiPenimbanganAktif.fromJson(res['data'] as Map<String, dynamic>);
         _isLoading = false;
       });
     } else {
@@ -129,11 +54,9 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
 
   Future<void> _updateSesi(String status) async {
     setState(() => _actionLoading = true);
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final adminId = auth.userId;
 
     final res = await PenimbanganService.updatePenimbangan(
-        widget.penimbanganId, adminId, status);
+        widget.penimbanganId, status);
     if (!mounted) return;
     setState(() => _actionLoading = false);
 
@@ -582,15 +505,12 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
     );
   }
 
-  Widget _buildSetoranTile(_SetoranItem item) {
+  Widget _buildSetoranTile(PenimbanganSetoranItem item) {
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => StrukSetoranNasabahScreen(
-            setoranId: item.setoranId,
-            namaNasabah: item.namaNasabah,
-          ),
+          builder: (_) => DetailSetoranScreen(setoranId: item.setoranId),
         ),
       ),
       child: Container(
@@ -652,8 +572,6 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
   // ── Expandable card akhiri sesi ──────────────────────────────────────────
 
   Widget _buildActionButtons() {
-    final isEmpty = _sesi?.listSetoran.isEmpty ?? true;
-
     return GestureDetector(
       onTap: () => setState(() => _isExpanded = !_isExpanded),
       child: AnimatedContainer(
@@ -726,69 +644,34 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
                                         strokeWidth: 2.5),
                                   ),
                                 )
-                              : Row(
-                                  children: [
-                                    if (isEmpty) ...[
-                                      Expanded(
-                                        child: OutlinedButton.icon(
-                                          onPressed: () =>
-                                              _showKonfirmasi('dibatalkan'),
-                                          icon: const Icon(
-                                              Icons.cancel_outlined,
-                                              size: 15,
-                                              color: Colors.red),
-                                          label: const Text(
-                                            'Batalkan',
-                                            style: TextStyle(
-                                              color: Colors.red,
-                                              fontFamily: 'Poppins',
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          style: OutlinedButton.styleFrom(
-                                            side: BorderSide(
-                                                color: Colors.red.shade300),
-                                            shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                        50)),
-                                            padding: const EdgeInsets
-                                                .symmetric(vertical: 12),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                    ],
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: () =>
-                                            _showKonfirmasi('selesai'),
-                                        icon: const Icon(
-                                            Icons.check_circle_outline_rounded,
-                                            size: 15,
-                                            color: Color(0xFF013236)),
-                                        label: const Text(
-                                          'Tutup Sesi',
-                                          style: TextStyle(
-                                            color: Color(0xFF013236),
-                                            fontFamily: 'Poppins',
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        style: OutlinedButton.styleFrom(
-                                          side: const BorderSide(
-                                              color: Color(0xFF013236)),
-                                          shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(50)),
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 12),
-                                        ),
+                              : SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _showKonfirmasi('selesai'),
+                                    icon: const Icon(
+                                        Icons.check_circle_outline_rounded,
+                                        size: 15,
+                                        color: Color(0xFF013236)),
+                                    label: const Text(
+                                      'Tutup Sesi Penimbangan',
+                                      style: TextStyle(
+                                        color: Color(0xFF013236),
+                                        fontFamily: 'Poppins',
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
                                       ),
                                     ),
-                                  ],
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(
+                                          color: Color(0xFF013236)),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(50)),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
+                                    ),
+                                  ),
                                 ),
                         ),
                       ],

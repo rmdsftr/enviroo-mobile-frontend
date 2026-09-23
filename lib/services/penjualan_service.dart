@@ -1,13 +1,20 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
-import 'api_client.dart';
+import 'package:enviroo/core/config/api_config.dart';
+import 'package:enviroo/core/network/api_client.dart';
 
 class PenjualanService {
-  static Future<Map<String, dynamic>> getRiwayatEksternal(String bankId) async {
+  static Future<Map<String, dynamic>> getRiwayatEksternal(String bankId, {String? startDate, String? endDate}) async {
     try {
-      final response = await ApiClient.get(Uri.parse('${ApiConfig.getRiwayatPenjualanEksternalUrl}/$bankId'));
+      final base = Uri.parse('${ApiConfig.getRiwayatPenjualanEksternalUrl}/$bankId');
+      final uri = (startDate != null || endDate != null)
+          ? base.replace(queryParameters: {
+              if (startDate != null) 'start_date': startDate,
+              if (endDate != null) 'end_date': endDate,
+            })
+          : base;
+      final response = await ApiClient.get(uri);
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) return {'success': true, 'data': body['data'] ?? []};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil riwayat penjualan'};
@@ -45,13 +52,12 @@ class PenjualanService {
   }) async {
     try {
       final uri = Uri.parse('${ApiConfig.previewPenjualanEksternalUrl}/$bankId');
-      final request = http.MultipartRequest('POST', uri);
-      request.headers['Authorization'] = 'Bearer ${ApiClient.currentToken}';
-      request.headers['Accept'] = 'application/json';
-      request.fields['reward_id'] = rewardId.toString();
-      request.fields['items_sampah'] = jsonEncode(itemsSampah);
-      final streamed = await request.send();
-      final response = await http.Response.fromStream(streamed);
+      final response = await ApiClient.sendMultipart(() async {
+        final request = http.MultipartRequest('POST', uri);
+        request.fields['reward_id'] = rewardId.toString();
+        request.fields['items_sampah'] = jsonEncode(itemsSampah);
+        return request;
+      });
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) return {'success': true, 'data': body};
       return {'success': false, 'message': body['error'] ?? 'Gagal menghitung preview penjualan'};
@@ -64,21 +70,29 @@ class PenjualanService {
     required String bankId,
     required String adminId,
     required int rewardId,
-    required String identitasPembeli,
+    String? mitraId,
+    String? namaMitra,
     required List<Map<String, dynamic>> itemsSampah,
     required File buktiFoto,
   }) async {
+    assert(
+      mitraId != null || namaMitra != null,
+      'mitraId atau namaMitra wajib diisi salah satu',
+    );
     try {
       final uri = Uri.parse('${ApiConfig.addPenjualanEksternalUrl}/$bankId/$adminId');
-      final request = http.MultipartRequest('POST', uri);
-      request.headers['Authorization'] = 'Bearer ${ApiClient.currentToken}';
-      request.headers['Accept'] = 'application/json';
-      request.fields['reward_id'] = rewardId.toString();
-      request.fields['identitas_pembeli'] = identitasPembeli;
-      request.fields['items_sampah'] = jsonEncode(itemsSampah);
-      request.files.add(await http.MultipartFile.fromPath('bukti_foto', buktiFoto.path));
-      final streamed = await request.send();
-      final response = await http.Response.fromStream(streamed);
+      final response = await ApiClient.sendMultipart(() async {
+        final request = http.MultipartRequest('POST', uri);
+        request.fields['reward_id'] = rewardId.toString();
+        if (mitraId != null) {
+          request.fields['mitra_id'] = mitraId;
+        } else {
+          request.fields['nama_mitra'] = namaMitra!;
+        }
+        request.fields['items_sampah'] = jsonEncode(itemsSampah);
+        request.files.add(await http.MultipartFile.fromPath('bukti_foto', buktiFoto.path));
+        return request;
+      });
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200 || response.statusCode == 201) {
         return {'success': true, 'message': body['message'] ?? 'Penjualan berhasil dicatat', 'penjualan_id': body['penjualan_id'] ?? ''};

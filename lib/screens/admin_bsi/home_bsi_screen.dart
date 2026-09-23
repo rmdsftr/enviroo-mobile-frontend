@@ -14,7 +14,6 @@ import 'package:enviroo/screens/admin_bsu/jadwal_screen.dart';
 import 'package:enviroo/screens/profil_bank_screen.dart';
 import 'package:enviroo/providers/katalog_provider.dart';
 import 'package:enviroo/providers/konten_provider.dart';
-import 'package:enviroo/providers/jadwal_provider.dart';
 
 class HomeBsiScreen extends StatefulWidget {
   const HomeBsiScreen({Key? key}) : super(key: key);
@@ -25,6 +24,7 @@ class HomeBsiScreen extends StatefulWidget {
 
 class _HomeBsiScreenState extends State<HomeBsiScreen> {
   int _currentIndex = 0;
+  int _jadwalVisitKey = 0;
 
   @override
   void initState() {
@@ -103,6 +103,7 @@ class _HomeBsiScreenState extends State<HomeBsiScreen> {
   void _onNavTap(int i) {
     if (i == 0 && i != _currentIndex) {
       final auth = context.read<AuthProvider>();
+      context.read<DashboardProvider>().fetchDashboardPetugas(auth);
       if (auth.bankId != null) {
         context.read<KontenProvider>().fetchKonten(
           auth.bankId!,
@@ -119,8 +120,7 @@ class _HomeBsiScreenState extends State<HomeBsiScreen> {
       }
     }
     if (i == 2 && i != _currentIndex) {
-      final auth = context.read<AuthProvider>();
-      context.read<JadwalProvider>().fetchJadwal(auth);
+      _jadwalVisitKey++;
     }
     setState(() => _currentIndex = i);
   }
@@ -139,7 +139,7 @@ class _HomeBsiScreenState extends State<HomeBsiScreen> {
       PopScope(
         canPop: false,
         onPopInvoked: (_) => _goHome(),
-        child: JadwalScreen(onBack: _goHome),
+        child: JadwalScreen(key: ValueKey(_jadwalVisitKey), onBack: _goHome),
       ),
       PopScope(
         canPop: false,

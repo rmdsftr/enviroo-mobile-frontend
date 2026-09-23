@@ -49,7 +49,7 @@ class SetoranGroup {
     final tanggalRaw = j['tanggal_setoran'] as String? ?? '';
     return SetoranGroup(
       sourceId: j['source_id'] ?? '',
-      tanggalSetoran: tanggalRaw.isNotEmpty ? DateTime.tryParse(tanggalRaw) : null,
+      tanggalSetoran: tanggalRaw.isNotEmpty ? DateTime.tryParse(tanggalRaw)?.toLocal() : null,
       items: ((j['items'] as List?) ?? [])
           .map((e) => ItemTabungan.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -127,11 +127,12 @@ class PengangkutanGroup {
   // PostgreSQL OF format outputs "+07" (no minutes), Dart needs "+07:00"
   static DateTime? _parseDate(String raw) {
     if (raw.isEmpty) return null;
-    final normalized = raw.replaceAllMapped(
-      RegExp(r'([+-]\d{2})$'),
-      (m) => '${m[1]}:00',
-    );
-    return DateTime.tryParse(normalized);
+    // Hapus Z atau offset yang ada, tambah +07:00
+    final clean = raw
+        .replaceAll('Z', '')
+        .replaceAll(RegExp(r'[+-]\d{2}:\d{2}$'), '')
+        .trim();
+    return DateTime.tryParse('${clean}+07:00')?.toLocal();
   }
 
   factory PengangkutanGroup.fromJson(Map<String, dynamic> j) {

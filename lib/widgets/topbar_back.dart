@@ -1,7 +1,4 @@
-import 'package:enviroo/providers/auth_provider.dart';
-import 'package:enviroo/screens/splash_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 class TopBarBack extends StatelessWidget {
   final String title;

@@ -1,26 +1,29 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
-import 'api_client.dart';
+import 'package:enviroo/core/config/api_config.dart';
+import 'package:enviroo/core/network/api_client.dart';
 
 class SetoranService {
   static Future<Map<String, dynamic>> verifikasiSetoran(
-    String penimbanganId,
-    String nasabahId,
+    String qrData,
     String adminId,
   ) async {
     try {
-      final response = await ApiClient.get(
-        Uri.parse('${ApiConfig.verifikasiSetoranUrl}/$penimbanganId/$nasabahId/$adminId'),
+      final response = await ApiClient.post(
+        Uri.parse(ApiConfig.verifikasiSetoranUrl),
+        body: jsonEncode({'qr_data': qrData, 'admin_id': adminId}),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      return {
-        'success': true,
-        'status': body['status'] ?? 'unverified',
-        'message': body['message'] ?? '',
-        'data': body['data'],
-      };
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'status': body['status'] ?? 'unverified',
+          'message': body['message'] ?? '',
+          'data': body['data'],
+        };
+      }
+      return {'success': false, 'status': 'unverified', 'message': body['error'] ?? 'Akses ditolak'};
     } catch (e) {
       return {'success': false, 'status': 'unverified', 'message': 'Gagal terhubung ke server: $e'};
     }
@@ -33,12 +36,11 @@ class SetoranService {
   ) async {
     try {
       final uri = Uri.parse('${ApiConfig.previewSetoranUrl}/$penimbanganId/$nasabahId');
-      final request = http.MultipartRequest('POST', uri);
-      request.headers['Authorization'] = 'Bearer ${ApiClient.currentToken}';
-      request.headers['Accept'] = 'application/json';
-      request.fields['items'] = jsonEncode(items);
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final response = await ApiClient.sendMultipart(() async {
+        final request = http.MultipartRequest('POST', uri);
+        request.fields['items'] = jsonEncode(items);
+        return request;
+      });
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) return {'success': true, 'data': body['data']};
       return {'success': false, 'message': body['error'] ?? 'Gagal memuat preview setoran'};
@@ -69,9 +71,19 @@ class SetoranService {
     }
   }
 
-  static Future<Map<String, dynamic>> getListSetoranNasabah(String nasabahId) async {
+  static Future<Map<String, dynamic>> getListSetoranNasabah(
+    String nasabahId, {
+    String? startDate,
+    String? endDate,
+  }) async {
     try {
-      final res = await ApiClient.get(Uri.parse('${ApiConfig.listSetoranNasabahUrl}/$nasabahId'));
+      final uri = Uri.parse('${ApiConfig.listSetoranNasabahUrl}/$nasabahId').replace(
+        queryParameters: {
+          if (startDate != null) 'start_date': startDate,
+          if (endDate != null) 'end_date': endDate,
+        },
+      );
+      final res = await ApiClient.get(uri);
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (res.statusCode == 200) return {'success': true, 'data': body['data']};
       return {'success': false, 'message': body['error'] ?? 'Gagal memuat riwayat setoran'};
@@ -90,16 +102,15 @@ class SetoranService {
   }) async {
     try {
       final uri = Uri.parse('${ApiConfig.inputSetoranUrl}/$penimbanganId/$nasabahId/$adminId');
-      final request = http.MultipartRequest('POST', uri);
-      request.headers['Authorization'] = 'Bearer ${ApiClient.currentToken}';
-      request.headers['Accept'] = 'application/json';
-      request.fields['via'] = viaManual ? 'manual' : 'qr';
-      request.fields['items'] = jsonEncode(items);
-      if (viaManual && fotoFile != null) {
-        request.files.add(await http.MultipartFile.fromPath('foto', fotoFile.path));
-      }
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final response = await ApiClient.sendMultipart(() async {
+        final request = http.MultipartRequest('POST', uri);
+        request.fields['via'] = viaManual ? 'manual' : 'qr';
+        request.fields['items'] = jsonEncode(items);
+        if (viaManual && fotoFile != null) {
+          request.files.add(await http.MultipartFile.fromPath('foto', fotoFile.path));
+        }
+        return request;
+      });
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 201) {
         return {

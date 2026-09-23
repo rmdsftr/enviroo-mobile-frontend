@@ -92,7 +92,7 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
           // Background image
           Positioned.fill(
             child: Image.asset(
-              'assets/images/bg_struk.webp',
+              'assets/images/bg_struk2.webp',
               fit: BoxFit.cover,
             ),
           ),
@@ -110,19 +110,24 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
                         _buildHeader(),
                         if (_isBsi) _buildBankDropdown(),
                         _buildStatCards(),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 18),
                         // White panel: search, filter, list
-                        Container(
-                          decoration: const BoxDecoration(color: Colors.white),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSearchBar(),
-                              _buildFilterChips(),
-                              const SizedBox(height: 15),
-                              _buildListNasabah(),
-                              const SizedBox(height: 30),
-                            ],
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: MediaQuery.of(context).size.height,
+                          ),
+                          child : Container(
+                            decoration: const BoxDecoration(color: Colors.white),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildSearchBar(),
+                                _buildFilterChips(),
+                                const SizedBox(height: 15),
+                                _buildListNasabah(),
+                                const SizedBox(height: 30),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -284,7 +289,7 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: CustomSearchBar(
         controller: _searchController,
         hintText: 'Cari nama nasabah...',

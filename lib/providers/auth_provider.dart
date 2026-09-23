@@ -1,7 +1,7 @@
 import 'package:enviroo/models/nasabah_profile_model.dart';
 import 'package:enviroo/models/petugas_model.dart';
 import 'package:enviroo/models/user_model.dart';
-import 'package:enviroo/services/api_client.dart';
+import 'package:enviroo/core/network/api_client.dart';
 import 'package:enviroo/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,11 +25,24 @@ class AuthProvider extends ChangeNotifier {
   PetugasModel? _petugasProfile;
   bool _isLoading = false;
   bool _isSwitchingRole = false;
+  bool _isRestoringSession = false;
   String? _errorMessage;
   List<String> _availableRoles = [];
 
+  // Alasan sesi berakhir dari server (mis. SESSION_REVOKED saat akun dipakai
+  // login di perangkat lain) — dipakai untuk pesan di layar login.
+  String? _sessionEndedCode;
+  String? _sessionEndedMessage;
+
   // Deduplicate concurrent refresh calls — only one in-flight at a time.
   Future<bool>? _refreshFuture;
+
+  int _profilePhotoVersion = 0;
+  int get profilePhotoVersion => _profilePhotoVersion;
+  void bumpPhotoVersion() {
+    _profilePhotoVersion++;
+    notifyListeners();
+  }
 
   // Dipanggil setelah logout paksa akibat akun dinonaktifkan (403 ACCOUNT_INACTIVE).
   // Di-set dari _EnvirooAppState.initState agar bisa pakai _navigatorKey.
@@ -46,6 +59,8 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoggedIn => _currentUser != null;
   String? get errorMessage => _errorMessage;
   List<String> get availableRoles => _availableRoles;
+  String? get sessionEndedCode => _sessionEndedCode;
+  String? get sessionEndedMessage => _sessionEndedMessage;
 
   // Convenience getters
   String get role => _currentUser?.role ?? '';
@@ -119,6 +134,19 @@ class AuthProvider extends ChangeNotifier {
       refreshToken: prefs.getString(_K.refreshToken) ?? '',
     );
     _availableRoles = prefs.getStringList(_K.availableRoles) ?? [];
+    _initApiClient();
+
+    // Token yang tersimpan di disk bukan bukti sesi masih sah — server bisa
+    // sudah mematikannya (login dari perangkat lain / ganti password). Validasi
+    // dulu lewat refresh; kalau gagal, _doRefreshToken sudah membersihkan sesi
+    // dan SplashScreen akan mengarahkan ke login.
+    _isRestoringSession = true;
+    await refreshToken();
+    _isRestoringSession = false;
+    // Kalau server menolak, _doRefreshToken sudah menghapus sesi → ke login.
+    // Kalau gagalnya karena jaringan, sesi dipertahankan dan app tetap masuk;
+    // request berikutnya yang akan mencoba lagi.
+    if (_currentUser == null) return false;
 
     // Ambil profil tambahan berdasarkan role
     if (_currentUser!.role == 'nasabah' && _currentUser!.identityId != null) {
@@ -131,7 +159,6 @@ class AuthProvider extends ChangeNotifier {
       await fetchPetugasProfile();
     }
 
-    _initApiClient();
     notifyListeners();
     return true;
   }
@@ -158,6 +185,8 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> login(String email, String password, String role) async {
     _isLoading = true;
     _errorMessage = null;
+    _sessionEndedCode = null;
+    _sessionEndedMessage = null;
     notifyListeners();
 
     final result = await AuthService.login(email, password, role);
@@ -281,7 +310,12 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    await AuthService.logout();
+    // Token dikirim agar server ikut mengosongkan slot sesi user, bukan cuma
+    // dibersihkan di sisi aplikasi.
+    final accessToken = _currentUser?.accessToken ?? '';
+    if (accessToken.isNotEmpty) {
+      await AuthService.logout(accessToken, _currentUser?.refreshToken ?? '');
+    }
     await _clearSession();
 
     _currentUser = null;
@@ -305,42 +339,20 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> _doRefreshToken() async {
-    if (_currentUser == null || _currentUser!.refreshToken.isEmpty) return false;
+    if (_currentUser == null) return false;
 
-    final result = await AuthService.refreshToken(_currentUser!.refreshToken);
+    Map<String, dynamic> result = {'success': false};
+    if (_currentUser!.refreshToken.isNotEmpty) {
+      result = await AuthService.refreshToken(_currentUser!.refreshToken);
+    }
 
-    if (result['success'] == true && result['set_cookie'] != null) {
-      final String setCookie = result['set_cookie'] as String;
-
-      String? newAccessToken;
-      String? newRefreshToken;
-
-      // Split per cookie dengan regex agar tidak tertipu koma di dalam nilai
-      // Expires (contoh: "Expires=Mon, 01 Jan 2024...").
-      final cookiePattern = RegExp(r'(?:^|(?<=\n))([^,]|,(?!\s*\d))+');
-      for (final match in cookiePattern.allMatches(setCookie)) {
-        final cookie = match.group(0) ?? '';
-        if (cookie.contains('access_token=')) {
-          newAccessToken = cookie.split('access_token=')[1].split(';')[0].trim();
-        } else if (cookie.contains('refresh_token=')) {
-          newRefreshToken = cookie.split('refresh_token=')[1].split(';')[0].trim();
-        }
-      }
-
-      // Fallback: jika regex tidak cocok, coba simple split
-      if (newAccessToken == null) {
-        for (var cookie in setCookie.split(',')) {
-          if (cookie.contains('access_token=')) {
-            newAccessToken = cookie.split('access_token=')[1].split(';')[0].trim();
-          } else if (newRefreshToken == null && cookie.contains('refresh_token=')) {
-            newRefreshToken = cookie.split('refresh_token=')[1].split(';')[0].trim();
-          }
-        }
-      }
+    if (result['success'] == true) {
+      final newAccessToken = result['access_token'] as String?;
+      final newRefreshToken = result['refresh_token'] as String?;
 
       // Refresh token tidak selalu dirotasi — pertahankan yang lama jika backend
       // tidak mengirim yang baru.
-      if (newAccessToken != null) {
+      if (newAccessToken != null && newAccessToken.isNotEmpty) {
         _currentUser = UserModel(
           userId: _currentUser!.userId,
           email: _currentUser!.email,
@@ -349,7 +361,9 @@ class AuthProvider extends ChangeNotifier {
           bankId: _currentUser!.bankId,
           identityId: _currentUser!.identityId,
           accessToken: newAccessToken,
-          refreshToken: newRefreshToken ?? _currentUser!.refreshToken,
+          refreshToken: (newRefreshToken != null && newRefreshToken.isNotEmpty)
+              ? newRefreshToken
+              : _currentUser!.refreshToken,
         );
         await _saveSession(_currentUser!);
         notifyListeners();
@@ -357,13 +371,33 @@ class AuthProvider extends ChangeNotifier {
       }
     }
 
-    // Jika gagal refresh dan tidak sedang switch role, logout user
-    if (!_isSwitchingRole) await logout();
+    // Gagal karena jaringan, bukan karena server menolak — sesi belum tentu
+    // mati (mis. app dibuka saat offline), jadi jangan dipaksa logout.
+    if (result['network_error'] == true) return false;
+
+    // Refresh gagal → sesi sudah tidak sah di server (expired, atau
+    // SESSION_REVOKED karena akun dipakai login di perangkat lain).
+    // Saat switch role, kegagalan ditangani oleh switchRole() sendiri.
+    if (!_isSwitchingRole) {
+      _sessionEndedCode = result['code'] as String?;
+      _sessionEndedMessage = result['message'] as String?;
+      await logout();
+      // Saat restore sesi, SplashScreen yang mengarahkan ke login — tidak perlu
+      // (dan tidak boleh) push route baru dari sini.
+      if (!_isRestoringSession) _onForceLogout?.call();
+    }
     return false;
   }
 
   void clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  /// Dipanggil setelah alasan sesi berakhir ditampilkan ke user, agar
+  /// pesannya tidak muncul lagi di kunjungan berikutnya ke layar login.
+  void clearSessionEnded() {
+    _sessionEndedCode = null;
+    _sessionEndedMessage = null;
   }
 }

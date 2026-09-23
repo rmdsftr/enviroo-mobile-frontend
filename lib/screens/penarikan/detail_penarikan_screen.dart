@@ -6,7 +6,9 @@ import 'package:provider/provider.dart';
 import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/penarikan_nasabah_provider.dart';
+import '../../widgets/penarikan_detail_widgets.dart';
 import '../../widgets/topbar_back.dart';
+import 'qr_penarikan_screen.dart';
 
 class DetailPenarikanScreen extends StatefulWidget {
   final String penarikanId;
@@ -39,169 +41,185 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
 
   // ── Formatters ────────────────────────────────────────────────────────────
 
-  String _fmtDate(DateTime? d) {
-    if (d == null) return '-';
-    return DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(d);
-  }
-
-  String _fmtNominal(double v, String satuan) {
+  String _fmtNominal(double v, String satuan, {bool isUang = false}) {
     final f = NumberFormat.decimalPattern('id_ID');
     f.maximumFractionDigits = 4;
     f.minimumFractionDigits = 0;
-    final lower = satuan.toLowerCase();
-    if (lower.contains('rupiah') || lower.contains('uang')) {
-      return 'Rp ${f.format(v)}';
-    }
+    if (isUang) return 'Rp ${f.format(v)}';
     return '${f.format(v)} ${satuan.isEmpty ? 'poin' : satuan}';
   }
 
-  // ── Status styling ────────────────────────────────────────────────────────
-
-  Color _statusColor(StatusPenarikan s) {
-    switch (s) {
-      case StatusPenarikan.pending:
-        return const Color(0xFFF59E0B);
-      case StatusPenarikan.berhasil:
-        return const Color(0xFF4EA771);
-      case StatusPenarikan.dibatalkan:
-        return const Color(0xFFEF4444);
-      case StatusPenarikan.kadaluarsa:
-        return const Color(0xFF9CA3AF);
-      default:
-        return Colors.grey;
-    }
+  String _fmtDeadline(DateTime? dt) {
+    if (dt == null) return '-';
+    final dateStr = DateFormat('d MMMM yyyy', 'id_ID').format(dt);
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$dateStr, $h.$m WIB';
   }
 
-  String _statusLabel(StatusPenarikan s) {
-    switch (s) {
-      case StatusPenarikan.pending:
-        return 'Menunggu Konfirmasi';
-      case StatusPenarikan.berhasil:
-        return 'Berhasil';
-      case StatusPenarikan.dibatalkan:
-        return 'Dibatalkan';
-      case StatusPenarikan.kadaluarsa:
-        return 'Kadaluarsa';
-      default:
-        return 'Unknown';
-    }
-  }
-
-  IconData _statusIcon(StatusPenarikan s) {
-    switch (s) {
-      case StatusPenarikan.pending:
-        return Icons.hourglass_empty_rounded;
-      case StatusPenarikan.berhasil:
-        return Icons.check_circle_rounded;
-      case StatusPenarikan.dibatalkan:
-        return Icons.cancel_rounded;
-      case StatusPenarikan.kadaluarsa:
-        return Icons.timer_off_rounded;
-      default:
-        return Icons.help_outline_rounded;
-    }
-  }
+  String _capitalize(String s) =>
+      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}';
 
   // ── Batal ─────────────────────────────────────────────────────────────────
 
   Future<void> _confirmBatal(PenarikanNasabahProvider prov) async {
+    final catatanController = TextEditingController();
+
     final confirm = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.black12,
-                borderRadius: BorderRadius.circular(10),
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final catatanFilled = catatanController.text.trim().isNotEmpty;
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.cancel_outlined,
-                  color: Color(0xFFEF4444), size: 32),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Batalkan Pengajuan?',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: dark,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Pengajuan penarikan akan dibatalkan dan saldo akan dikembalikan ke rekeningmu.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: Colors.black54,
-              ),
-            ),
-            const SizedBox(height: 28),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.black54,
-                      side: const BorderSide(color: Colors.black12),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(50)),
-                    ),
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text(
-                      'Tidak',
-                      style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600),
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.black12,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEF4444),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(50)),
-                    ),
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text(
-                      'Ya, Batalkan',
-                      style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.cancel_outlined,
+                          color: Color(0xFFEF4444), size: 32),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(height: 16),
+                  const SizedBox(
+                    width: double.infinity,
+                    child: Text(
+                      'Batalkan Pengajuan?',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: dark,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const SizedBox(
+                    width: double.infinity,
+                    child: Text(
+                      'Pengajuan penarikan akan dibatalkan dan saldo akan dikembalikan ke rekeningmu.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 13,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: catatanController,
+                    maxLines: 3,
+                    minLines: 3,
+                    maxLength: 255,
+                    textInputAction: TextInputAction.done,
+                    inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\n'))],
+                    onChanged: (_) => setSheetState(() {}),
+                    style: const TextStyle(
+                        fontFamily: 'Poppins', fontSize: 13, color: dark),
+                    decoration: InputDecoration(
+                      hintText: 'Isi alasan pembatalan pengajuan penarikan',
+                      hintStyle: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 13,
+                        color: dark.withValues(alpha: 0.35),
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFFF5F7FA),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                            color: Color(0xFFEF4444), width: 1),
+                      ),
+                      contentPadding: const EdgeInsets.all(14),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.black54,
+                            side: const BorderSide(color: Colors.black12),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(50)),
+                          ),
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text(
+                            'Tidak',
+                            style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFEF4444),
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: Colors.grey.shade300,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(50)),
+                          ),
+                          onPressed:
+                              catatanFilled ? () => Navigator.pop(ctx, true) : null,
+                          child: const Text(
+                            'Ya, Batalkan',
+                            style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
 
+    final catatan = catatanController.text.trim();
+    catatanController.dispose();
+
     if (confirm != true || !mounted) return;
 
-    final ok = await prov.callBatal(widget.penarikanId);
+    final ok = await prov.callBatal(widget.penarikanId, catatan: catatan);
     if (!mounted) return;
 
     if (ok) {
@@ -315,339 +333,213 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
   Widget _buildDetail(
       PenarikanDetail detail, PenarikanNasabahProvider prov) {
     final isPending = detail.status == StatusPenarikan.pending;
+    final isApproved = detail.status == StatusPenarikan.approved;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      padding: const EdgeInsets.only(top: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildStatusCard(detail),
-          const SizedBox(height: 16),
-          _buildInfoSection(detail),
-          const SizedBox(height: 16),
-          _buildTimeline(detail),
-          if (detail.isSembako && detail.detailSembako.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _buildSembakoDetail(detail),
-          ],
-          if (isPending) ...[
-            const SizedBox(height: 24),
-            _buildBatalCard(prov),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(detail),
+                const SizedBox(height: 20),
+                _buildInfoSection(detail),
+                if (detail.isSembako && detail.detailSembako.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildBarangCard(detail),
+                ],
+                const SizedBox(height: 12),
+                _buildEstimasiCard(detail),
+                if (detail.buktiFoto != null && detail.buktiFoto!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildBuktiFotoCard(detail),
+                ],
+                const SizedBox(height: 12),
+                PenarikanRiwayatCard(riwayat: detail.riwayat),
+                if (isPending) ...[
+                  const SizedBox(height: 16),
+                  _buildBatalCard(prov),
+                ],
+                if (!isApproved) const SizedBox(height: 32),
+              ],
+            ),
+          ),
+          if (isApproved) ...[
+            const SizedBox(height: 20),
+            _buildQrCard(detail),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildStatusCard(PenarikanDetail detail) {
-    final color = _statusColor(detail.status);
-    final label = _statusLabel(detail.status);
-    final icon = _statusIcon(detail.status);
+  // ── Header (struk style) ─────────────────────────────────────────────────
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.25), width: 1.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Baris 1: icon (kiri) + badge (kanan)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(11),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(50),
-                ),
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          // Baris 2: judul
-          Text(
-            'Penarikan ${_capitalize(detail.namaReward)}',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: dark,
-            ),
-          ),
-          const SizedBox(height: 4),
-          // Baris 3: ID transaksi
-          Text(
-            detail.penarikanId,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 11,
-              color: Colors.black.withValues(alpha: 0.38),
-            ),
-          ),
-          if (detail.status == StatusPenarikan.berhasil) ...[
-            const SizedBox(height: 14),
-            Container(
-              width: double.infinity,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.check_circle_rounded, size: 16, color: primary),
-                  SizedBox(width: 8),
-                  Text(
-                    'Penarikan telah berhasil diproses',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          if (detail.status == StatusPenarikan.kadaluarsa) ...[
-            const SizedBox(height: 14),
-            Container(
-              width: double.infinity,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.timer_off_rounded, size: 16, color: Colors.grey),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Pengajuan kadaluarsa karena tidak dikonfirmasi dalam 2 jam. Saldo sudah dikembalikan.',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
+  Widget _buildHeader(PenarikanDetail detail) {
+    return PenarikanDetailHeader(
+      nominal: detail.nominalPenarikan,
+      satuan: detail.satuanPenarikan,
+      isUang: detail.isUang,
+      status: detail.status,
+      penarikanId: detail.penarikanId,
     );
   }
+
+  // ── Informasi Penarikan ──────────────────────────────────────────────────
 
   Widget _buildInfoSection(PenarikanDetail detail) {
-    final f = NumberFormat.decimalPattern('id_ID');
-    f.maximumFractionDigits = 4;
-    f.minimumFractionDigits = 0;
-
-    return _SectionCard(
+    return SectionCard(
+      icon: Icons.receipt_long_rounded,
       title: 'Informasi Penarikan',
       children: [
-        _InfoRow(
-            label: 'ID Transaksi',
-            value: detail.penarikanId),
-        _InfoRow(
-            label: 'Jenis Reward',
-            value: _capitalize(detail.namaReward)),
-        if (!detail.isSembako)
-          _InfoRow(
-            label: 'Nominal',
-            value: _fmtNominal(
-                detail.nominalPenarikan, detail.satuanPenarikan),
-          ),
-        if (detail.isSembako)
-          _InfoRow(
-            label: 'Total Poin',
-            value: '${f.format(detail.nominalPenarikan)} poin',
-          ),
-        _InfoRow(
-            label: 'Tanggal Pengajuan',
-            value: _fmtDate(detail.createdAt)),
-        if (detail.status == StatusPenarikan.pending && detail.kadaluarsaAt != null)
-          _InfoRow(
-            label: 'Batas Konfirmasi',
-            value: _fmtDate(detail.kadaluarsaAt),
-          ),
-        if (detail.status != StatusPenarikan.pending)
-          _InfoRow(
-            label: 'Update Terakhir',
-            value: _fmtDate(detail.updatedAt)),
+        PenarikanInfoRow(label: 'Insentif', value: _capitalize(detail.namaReward)),
+        PenarikanInfoRow(label: 'ID Transaksi', value: detail.penarikanId),
+        PenarikanInfoRow(
+          label: 'Nominal',
+          value: _fmtNominal(detail.nominalPenarikan, detail.satuanPenarikan,
+              isUang: detail.isUang),
+        ),
+        PenarikanInfoRow(label: 'Status', value: detail.status.label),
       ],
     );
   }
 
-  Widget _buildTimeline(PenarikanDetail detail) {
-    final steps = _buildTimelineSteps(detail);
+  // ── Detail Barang (sembako) ──────────────────────────────────────────────
 
-    return _SectionCard(
-      title: 'Progres Transaksi',
-      children: List.generate(steps.length, (i) {
-        final step = steps[i];
-        final isLast = i == steps.length - 1;
-        return _TimelineItem(
-          label: step['label'] as String,
-          sub: step['sub'] as String?,
-          isDone: step['done'] as bool,
-          isCurrent: step['current'] as bool,
-          isError: step['error'] as bool? ?? false,
-          showLine: !isLast,
-        );
-      }),
+  Widget _buildBarangCard(PenarikanDetail detail) {
+    final items = detail.detailSembako;
+
+    return SectionCard(
+      icon: Icons.shopping_basket_rounded,
+      title: 'Detail Barang',
+      children: [
+        for (int i = 0; i < items.length; i++) ...[
+          if (i > 0) const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          DetailBarangRow(item: items[i]),
+        ],
+      ],
     );
   }
 
-  List<Map<String, dynamic>> _buildTimelineSteps(
-      PenarikanDetail detail) {
-    final status = detail.status;
-    final isDone = status == StatusPenarikan.berhasil;
-    final isCanceled = status == StatusPenarikan.dibatalkan;
-    final isExpired = status == StatusPenarikan.kadaluarsa;
-    final isPending = status == StatusPenarikan.pending;
+  // ── Estimasi Konfirmasi ──────────────────────────────────────────────────
 
-    return [
-      {
-        'label': 'Pengajuan Dibuat',
-        'sub': _fmtDate(detail.createdAt),
-        'done': true,
-        'current': false,
-        'error': false,
-      },
-      {
-        'label': 'Menunggu Konfirmasi Petugas',
-        'sub': isPending ? 'Sedang menunggu...' : null,
-        'done': isDone || isCanceled || isExpired,
-        'current': isPending,
-        'error': false,
-      },
-      {
-        'label': isCanceled
-            ? 'Pengajuan Dibatalkan'
-            : isExpired
-                ? 'Kadaluarsa'
-                : 'Diproses',
-        'sub': isCanceled
-            ? _fmtDate(detail.updatedAt)
-            : isExpired
-                ? 'Tidak dikonfirmasi dalam 2 jam'
-                : isDone
-                    ? _fmtDate(detail.updatedAt)
-                    : null,
-        'done': isDone || isCanceled || isExpired,
-        'current': false,
-        'error': isCanceled || isExpired,
-      },
-      if (isDone || (!isCanceled && !isExpired))
-        {
-          'label': 'Selesai',
-          'sub': isDone ? _fmtDate(detail.updatedAt) : null,
-          'done': isDone,
-          'current': false,
-          'error': false,
-        },
-    ];
+  Widget _buildEstimasiCard(PenarikanDetail detail) {
+    return SectionCard(
+      icon: Icons.event_available_rounded,
+      title: 'Estimasi Konfirmasi',
+      children: [
+        PenarikanInfoRow(
+          label: 'Pengajuan',
+          value: _fmtDeadline(detail.deadlineKonfirmasi),
+        ),
+        PenarikanInfoRow(
+          label: 'Pengambilan',
+          value: _fmtDeadline(detail.deadlineJemput),
+        ),
+      ],
+    );
   }
 
-  Widget _buildSembakoDetail(PenarikanDetail detail) {
-    final f = NumberFormat.decimalPattern('id_ID');
-    f.maximumFractionDigits = 2;
-    f.minimumFractionDigits = 0;
+  // ── Bukti Penyerahan Insentif ────────────────────────────────────────────
 
-    return _SectionCard(
-      title: 'Detail Sembako',
-      children: detail.detailSembako.map((d) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.symmetric(
-              horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF0FAF3),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.shopping_basket_rounded,
-                  size: 18, color: primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      d.namaSembako,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: dark,
-                      ),
-                    ),
-                    Text(
-                      '${f.format(d.nilaiPoin)} poin/item',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: Colors.black.withValues(alpha: 0.45),
-                      ),
-                    ),
-                  ],
+  Widget _buildBuktiFotoCard(PenarikanDetail detail) {
+    return SectionCard(
+      icon: Icons.photo_camera_rounded,
+      title: 'Bukti Penyerahan Insentif',
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: Image.network(
+              detail.buktiFoto!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                color: Colors.grey.shade200,
+                child: const Center(
+                  child: Icon(Icons.broken_image_rounded,
+                      color: Colors.grey, size: 40),
                 ),
               ),
-              Text(
-                'x${f.format(d.qty)}',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── QR Penerimaan Insentif (status approved) ─────────────────────────────
+
+  Widget _buildQrCard(PenarikanDetail detail) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(
+          top: BorderSide(
+            width: 1,
+            color: const Color(0xFF013236).withValues(alpha: 0.1),
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+      child: Column(
+        children: [
+          Text(
+            'Tunjukkan QR code berikut pada petugas saat pengambilan insentif '
+            'sebelum ${_fmtDeadline(detail.deadlineJemput)}',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 11,
+              color: dark.withValues(alpha: 0.6),
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: dark,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50)),
+              ),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => QrPenarikanScreen(
+                    transaksiId: detail.penarikanId,
+                    nasabahId: detail.nasabahId ?? '',
+                    deadline: detail.deadlineJemput ?? DateTime.now(),
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.qr_code_rounded, size: 16),
+              label: const Text(
+                'QR Penerimaan Insentif',
                 style: TextStyle(
                   fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w600,
                   fontSize: 13,
-                  color: Colors.black.withValues(alpha: 0.5),
                 ),
               ),
-              const SizedBox(width: 12),
-              Text(
-                '${f.format(d.subtotalPoin)} poin',
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: primary,
-                ),
-              ),
-            ],
+            ),
           ),
-        );
-      }).toList(),
+        ],
+      ),
     );
   }
+
+  // ── Batalkan pengajuan ───────────────────────────────────────────────────
 
   Widget _buildBatalCard(PenarikanNasabahProvider prov) {
     return GestureDetector(
@@ -660,7 +552,7 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             width: 1,
-            color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+            color: const Color(0xFF013236).withValues(alpha: 0.1),
           ),
         ),
         child: Column(
@@ -730,197 +622,7 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
       ),
     );
   }
-
-  String _capitalize(String s) =>
-      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}';
 }
 
-// ── Section Card ──────────────────────────────────────────────────────────────
-
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
-
-  const _SectionCard({required this.title, required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          width: 1,
-          color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF013236),
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
-          const SizedBox(height: 12),
-          ...children,
-        ],
-      ),
-    );
-  }
-}
-
-// ── Info Row ──────────────────────────────────────────────────────────────────
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                color: Colors.black.withValues(alpha: 0.5),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF013236),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Timeline Item ─────────────────────────────────────────────────────────────
-
-class _TimelineItem extends StatelessWidget {
-  final String label;
-  final String? sub;
-  final bool isDone;
-  final bool isCurrent;
-  final bool isError;
-  final bool showLine;
-
-  const _TimelineItem({
-    required this.label,
-    this.sub,
-    required this.isDone,
-    required this.isCurrent,
-    this.isError = false,
-    required this.showLine,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isError
-        ? const Color(0xFFEF4444)
-        : isDone
-            ? const Color(0xFF4EA771)
-            : isCurrent
-                ? const Color(0xFFF59E0B)
-                : const Color(0xFFD1D5DB);
-
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            children: [
-              Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isError
-                      ? Icons.close_rounded
-                      : isDone
-                          ? Icons.check_rounded
-                          : isCurrent
-                              ? Icons.more_horiz_rounded
-                              : Icons.circle,
-                  color: Colors.white,
-                  size: isError || isDone ? 14 : 8,
-                ),
-              ),
-              if (showLine)
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    color: color.withValues(alpha: 0.3),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      fontWeight: isCurrent
-                          ? FontWeight.w600
-                          : FontWeight.w500,
-                      color: isDone || isCurrent
-                          ? const Color(0xFF013236)
-                          : Colors.grey,
-                    ),
-                  ),
-                  if (sub != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      sub!,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        color: Colors.black.withValues(alpha: 0.4),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// Section card, info row, dan riwayat card sekarang dari
+// ../../widgets/penarikan_detail_widgets.dart (dipakai bareng dengan layar petugas).

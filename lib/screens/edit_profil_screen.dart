@@ -1,8 +1,11 @@
 import 'dart:io';
+import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/services/profil_service.dart';
+import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 
 class EditProfilScreen extends StatefulWidget {
   final String userId;
@@ -64,9 +67,7 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
     final nama = _namaController.text.trim();
     final wa   = _waController.text.trim();
     if (nama.isEmpty && wa.isEmpty && _pickedPhoto == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Minimal satu field harus diubah')),
-      );
+      showCustomSnackBar(context, 'Minimal satu field harus diubah');
       return;
     }
 
@@ -80,12 +81,16 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
     if (!mounted) return;
     setState(() => _isSaving = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(result['message']),
-      backgroundColor: result['success'] == true ? _green : Colors.red,
-    ));
+    showCustomSnackBar(
+      context,
+      result['message'] ?? (result['success'] == true ? 'Profil berhasil diperbarui' : 'Gagal memperbarui profil'),
+      type: result['success'] == true ? SnackBarType.success : SnackBarType.error,
+    );
 
-    if (result['success'] == true) Navigator.pop(context, true);
+    if (result['success'] == true) {
+      if (mounted) context.read<AuthProvider>().bumpPhotoVersion();
+      if (mounted) Navigator.pop(context, true);
+    }
   }
 
   @override

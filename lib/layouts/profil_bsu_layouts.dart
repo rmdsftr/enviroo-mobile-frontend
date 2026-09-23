@@ -1,4 +1,3 @@
-import 'package:enviroo/screens/nasabah/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:enviroo/providers/auth_provider.dart';
@@ -27,12 +26,12 @@ class _ProfilBsuScreenState extends State<ProfilBsuScreen> {
     final auth = context.read<AuthProvider>();
     
     String roleText = 'Petugas BSU';
-    if (auth.role == 'admin_bsu') {
-      roleText = 'Admin BSU';
+    if (auth.role == 'petugas_bsu') {
+      roleText = 'Petugas BSU';
     } else if (auth.role == 'petugas_bsm') {
       roleText = 'Petugas BSM';
-    } else if (auth.role == 'admin_bsm') {
-      roleText = 'Admin BSM';
+    } else if (auth.role == 'petugas_bsi') {
+      roleText = 'Petugas BSI';
     }
 
     return Padding(

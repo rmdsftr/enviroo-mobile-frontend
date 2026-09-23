@@ -1,5 +1,7 @@
 // ── Reward info (moved from redeem_models) ───────────────────────────────────
 
+import 'package:flutter/material.dart';
+
 double _toDouble(dynamic v) {
   if (v == null) return 0;
   if (v is num) return v.toDouble();
@@ -50,7 +52,7 @@ class NilaiRewardBank {
   String get namaReward => reward?.namaReward ?? '';
   String get satuan => reward?.satuan ?? '';
 
-  bool get isSembako => namaReward.toLowerCase().contains('sembako');
+  bool get isSembako => namaReward.toLowerCase().contains('barang');
   bool get isUang => namaReward.toLowerCase().contains('uang');
 
   double convertPoin(double poin) {
@@ -72,20 +74,130 @@ class NilaiRewardBank {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum StatusPenarikan { pending, berhasil, kadaluarsa, dibatalkan, unknown }
+enum StatusPenarikan {
+  pending,
+  approved,
+  completed,
+  canceled,
+  rejected,
+  requestExpired,
+  pickupExpired,
+  unknown,
+}
 
 StatusPenarikan statusPenarikanFromString(String? v) {
   switch (v) {
     case 'pending':
       return StatusPenarikan.pending;
-    case 'berhasil':
-      return StatusPenarikan.berhasil;
-    case 'kadaluarsa':
-      return StatusPenarikan.kadaluarsa;
-    case 'dibatalkan':
-      return StatusPenarikan.dibatalkan;
+    case 'approved':
+      return StatusPenarikan.approved;
+    case 'completed':
+      return StatusPenarikan.completed;
+    case 'canceled':
+      return StatusPenarikan.canceled;
+    case 'rejected':
+      return StatusPenarikan.rejected;
+    case 'request_expired':
+      return StatusPenarikan.requestExpired;
+    case 'pickup_expired':
+      return StatusPenarikan.pickupExpired;
     default:
       return StatusPenarikan.unknown;
+  }
+}
+
+/// Kelompok filter "Dalam Proses" / "Selesai" dipakai di main navbar
+/// PenarikanNasabahScreen, plus styling terpusat (label/warna/icon) supaya
+/// konsisten di semua layar (nasabah & petugas).
+extension StatusPenarikanX on StatusPenarikan {
+  /// true = masuk grup "Dalam Proses" (pending, approved)
+  /// false = masuk grup "Selesai" (canceled, request_expired, rejected, pickup_expired, completed)
+  bool get isDalamProses =>
+      this == StatusPenarikan.pending || this == StatusPenarikan.approved;
+
+  String get label {
+    switch (this) {
+      case StatusPenarikan.pending:
+        return 'Menunggu Konfirmasi';
+      case StatusPenarikan.approved:
+        return 'Siap Diambil';
+      case StatusPenarikan.completed:
+        return 'Selesai';
+      case StatusPenarikan.canceled:
+        return 'Dibatalkan';
+      case StatusPenarikan.rejected:
+        return 'Pengajuan Ditolak';
+      case StatusPenarikan.requestExpired:
+        return 'Pengajuan Kadaluarsa';
+      case StatusPenarikan.pickupExpired:
+        return 'Pengambilan Kadaluarsa';
+      case StatusPenarikan.unknown:
+        return 'Unknown';
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case StatusPenarikan.pending:
+        return const Color(0xFFF59E0B);
+      case StatusPenarikan.approved:
+        return const Color(0xFF3B82F6);
+      case StatusPenarikan.completed:
+        return const Color(0xFF4EA771);
+      case StatusPenarikan.canceled:
+        return const Color(0xFFEF4444);
+      case StatusPenarikan.rejected:
+        return const Color(0xFFEF4444);
+      case StatusPenarikan.requestExpired:
+        return const Color(0xFF9CA3AF);
+      case StatusPenarikan.pickupExpired:
+        return const Color(0xFF9CA3AF);
+      case StatusPenarikan.unknown:
+        return const Color(0xFF9E9E9E);
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case StatusPenarikan.pending:
+        return Icons.hourglass_empty_rounded;
+      case StatusPenarikan.approved:
+        return Icons.inventory_2_rounded;
+      case StatusPenarikan.completed:
+        return Icons.check_circle_rounded;
+      case StatusPenarikan.canceled:
+        return Icons.cancel_rounded;
+      case StatusPenarikan.rejected:
+        return Icons.block_rounded;
+      case StatusPenarikan.requestExpired:
+        return Icons.timer_off_rounded;
+      case StatusPenarikan.pickupExpired:
+        return Icons.event_busy_rounded;
+      case StatusPenarikan.unknown:
+        return Icons.help_outline_rounded;
+    }
+  }
+
+  /// Kalimat penjelasan singkat untuk status card di layar detail.
+  /// null untuk status yang masih berjalan tanpa penjelasan tambahan (mis. pending).
+  String? get description {
+    switch (this) {
+      case StatusPenarikan.approved:
+        return 'Pengajuan disetujui. Silakan datang ke bank sampah untuk mengambil sesuai kesepakatan.';
+      case StatusPenarikan.completed:
+        return 'Penarikan telah berhasil diproses.';
+      case StatusPenarikan.canceled:
+        return 'Pengajuan penarikan telah dibatalkan.';
+      case StatusPenarikan.rejected:
+        return 'Pengajuan penarikan ditolak oleh petugas.';
+      case StatusPenarikan.requestExpired:
+        return 'Pengajuan kadaluarsa karena tidak dikonfirmasi dalam 2 jam. Saldo sudah dikembalikan.';
+      case StatusPenarikan.pickupExpired:
+        return 'Waktu pengambilan sudah habis. Hubungi petugas bank sampah untuk info lebih lanjut.';
+      case StatusPenarikan.pending:
+      case StatusPenarikan.unknown:
+        return null;
+    }
   }
 }
 
@@ -106,8 +218,12 @@ int _i(dynamic v) {
 DateTime? _parseDate(dynamic v) {
   if (v == null) return null;
   if (v is String && v.isNotEmpty) {
-    final s = v.endsWith('Z') ? v.substring(0, v.length - 1) : v;
-    return DateTime.tryParse(s);
+    // Jika ada info timezone (Z = UTC, atau +xx:xx), parse langsung lalu convert ke local
+    if (v.endsWith('Z') || v.contains('+')) {
+      return DateTime.tryParse(v)?.toLocal();
+    }
+    // Tidak ada timezone — anggap WIB (+07:00)
+    return DateTime.tryParse('$v+07:00')?.toLocal();
   }
   return null;
 }
@@ -128,7 +244,7 @@ class SaldoReward {
   });
 
   bool get isUang => namaReward.toLowerCase().contains('uang');
-  bool get isSembako => namaReward.toLowerCase().contains('sembako');
+  bool get isSembako => namaReward.toLowerCase().contains('barang');
 
   factory SaldoReward.fromJson(Map<String, dynamic> j) => SaldoReward(
         rewardId: _i(j['reward_id']),
@@ -177,7 +293,7 @@ class SaldoNasabahV2 {
       if (poinData != null) {
         saldoList.add(SaldoReward(
             rewardId: 2,
-            namaReward: 'sembako',
+            namaReward: 'barang',
             satuan: 'poin',
             nominal: _d(poinData['total_poin'])));
       }
@@ -206,7 +322,7 @@ class SaldoNasabahV2 {
       if (j['saldo_poin_sembako'] != null) {
         saldoList.add(SaldoReward(
             rewardId: 2,
-            namaReward: 'sembako',
+            namaReward: 'barang',
             satuan: 'poin',
             nominal: _d(j['saldo_poin_sembako'])));
       }
@@ -262,7 +378,7 @@ class PenarikanItem {
   });
 
   bool get isUang => namaReward.toLowerCase().contains('uang');
-  bool get isSembako => namaReward.toLowerCase().contains('sembako');
+  bool get isSembako => namaReward.toLowerCase().contains('barang');
 
   factory PenarikanItem.fromJson(Map<String, dynamic> j) => PenarikanItem(
         penarikanId: (j['penarikan_id'] ?? '') as String,
@@ -282,7 +398,7 @@ class PenarikanItem {
       );
 }
 
-// ── Penarikan detail (includes sembako breakdown) ────────────────────────────
+// ── Penarikan detail (response /penarikan/detail/:id — header + riwayat) ─────
 
 class DetailSembakoItem {
   final String sembakoId;
@@ -303,8 +419,8 @@ class DetailSembakoItem {
 
   factory DetailSembakoItem.fromJson(Map<String, dynamic> j) =>
       DetailSembakoItem(
-        sembakoId: (j['sembako_id'] ?? '') as String,
-        namaSembako: (j['nama_sembako'] ?? '') as String,
+        sembakoId: (j['produk_id'] ?? '') as String,
+        namaSembako: (j['nama_barang'] ?? '') as String,
         photoUrl: j['photo_url'] as String?,
         qty: _d(j['qty']),
         nilaiPoin: _d(j['nilai_poin']),
@@ -312,46 +428,101 @@ class DetailSembakoItem {
       );
 }
 
-class PenarikanDetail extends PenarikanItem {
+/// Satu entri log perubahan status penarikan (array `riwayat` di response).
+class PenarikanRiwayatItem {
+  final String riwayatPenarikanId;
+  final StatusPenarikan status;
+  final String? catatan;
+  final String createdBy;
+  final DateTime createdAt;
+
+  PenarikanRiwayatItem({
+    required this.riwayatPenarikanId,
+    required this.status,
+    this.catatan,
+    required this.createdBy,
+    required this.createdAt,
+  });
+
+  factory PenarikanRiwayatItem.fromJson(Map<String, dynamic> j) =>
+      PenarikanRiwayatItem(
+        riwayatPenarikanId: (j['riwayat_penarikan_id'] ?? '') as String,
+        status: statusPenarikanFromString(j['status_penarikan'] as String?),
+        catatan: j['catatan'] as String?,
+        createdBy: (j['created_by'] ?? '') as String,
+        createdAt: _parseDate(j['created_at']) ?? DateTime.now(),
+      );
+}
+
+/// Response GET /penarikan/detail/:id — bentuknya { header, riwayat, detail_penarikan }.
+class PenarikanDetail {
+  final String penarikanId;
+  final String? nasabahId;
+  final String? namaNasabah;
+  final String? bankId;
+  final String? namaBank;
+  final int? rewardId;
+  final String namaReward;
+  final double nominalPenarikan;
+  final String satuanPenarikan;
+  final StatusPenarikan status;
+  final DateTime? deadlineKonfirmasi;
+  final DateTime? deadlineJemput;
+  final String? buktiFoto;
+  final List<PenarikanRiwayatItem> riwayat;
   final List<DetailSembakoItem> detailSembako;
 
   PenarikanDetail({
-    required super.penarikanId,
-    super.nasabahId,
-    super.namaNasabah,
-    super.bankId,
-    super.namaBank,
-    super.rewardId,
-    required super.namaReward,
-    required super.nominalPenarikan,
-    required super.satuanPenarikan,
-    required super.status,
-    super.kadaluarsaAt,
-    super.buktiFoto,
-    required super.createdAt,
-    required super.updatedAt,
-    required this.detailSembako,
+    required this.penarikanId,
+    this.nasabahId,
+    this.namaNasabah,
+    this.bankId,
+    this.namaBank,
+    this.rewardId,
+    required this.namaReward,
+    required this.nominalPenarikan,
+    required this.satuanPenarikan,
+    required this.status,
+    this.deadlineKonfirmasi,
+    this.deadlineJemput,
+    this.buktiFoto,
+    this.riwayat = const [],
+    this.detailSembako = const [],
   });
 
+  bool get isUang => namaReward.toLowerCase().contains('uang');
+  bool get isSembako => namaReward.toLowerCase().contains('barang');
+
+  /// Waktu pengajuan dibuat — entri riwayat paling awal (pending).
+  DateTime get createdAt =>
+      riwayat.isNotEmpty ? riwayat.first.createdAt : (deadlineKonfirmasi ?? DateTime.now());
+
+  /// Waktu status terakhir berubah — entri riwayat paling akhir.
+  DateTime get updatedAt => riwayat.isNotEmpty ? riwayat.last.createdAt : createdAt;
+
   factory PenarikanDetail.fromJson(Map<String, dynamic> j) {
-    final base = PenarikanItem.fromJson(j);
-    final sembakoList = (j['detail_sembako'] as List?) ?? [];
+    final header = (j['header'] as Map<String, dynamic>?) ?? j;
+    final riwayatList = (j['riwayat'] as List?) ?? [];
+    final detailList = (j['detail_penarikan'] as List?) ?? [];
     return PenarikanDetail(
-      penarikanId: base.penarikanId,
-      nasabahId: base.nasabahId,
-      namaNasabah: base.namaNasabah,
-      bankId: base.bankId,
-      namaBank: base.namaBank,
-      rewardId: base.rewardId,
-      namaReward: base.namaReward,
-      nominalPenarikan: base.nominalPenarikan,
-      satuanPenarikan: base.satuanPenarikan,
-      status: base.status,
-      kadaluarsaAt: base.kadaluarsaAt,
-      buktiFoto: base.buktiFoto,
-      createdAt: base.createdAt,
-      updatedAt: base.updatedAt,
-      detailSembako: sembakoList
+      penarikanId: (header['penarikan_id'] ?? '') as String,
+      nasabahId: header['nasabah_id'] as String?,
+      namaNasabah: header['nama_nasabah'] as String?,
+      bankId: header['bank_id'] as String?,
+      namaBank: header['nama_bank'] as String?,
+      rewardId: header['reward_id'] == null ? null : _i(header['reward_id']),
+      namaReward: (header['nama_reward'] ?? '') as String,
+      nominalPenarikan: _d(header['nominal_penarikan']),
+      satuanPenarikan: (header['satuan_penarikan'] ?? '') as String,
+      status: statusPenarikanFromString(header['status_penarikan'] as String?),
+      deadlineKonfirmasi: _parseDate(header['deadline_konfirmasi']),
+      deadlineJemput: _parseDate(header['deadline_jemput']),
+      buktiFoto: header['bukti_foto'] as String?,
+      riwayat: riwayatList
+          .whereType<Map<String, dynamic>>()
+          .map(PenarikanRiwayatItem.fromJson)
+          .toList(),
+      detailSembako: detailList
           .whereType<Map<String, dynamic>>()
           .map(DetailSembakoItem.fromJson)
           .toList(),
@@ -410,8 +581,8 @@ class PreviewSembakoItem {
 
   factory PreviewSembakoItem.fromJson(Map<String, dynamic> j) =>
       PreviewSembakoItem(
-        sembakoId: (j['sembako_id'] ?? '') as String,
-        namaSembako: (j['nama_sembako'] ?? '') as String,
+        sembakoId: (j['produk_id'] ?? '') as String,
+        namaSembako: (j['nama_barang'] ?? '') as String,
         qty: _d(j['qty']),
         nilaiPoin: _d(j['nilai_poin']),
         subtotalPoin: _d(j['subtotal_poin']),
@@ -450,7 +621,7 @@ class PenarikanPreviewData {
   });
 
   bool get isUang => namaReward.toLowerCase().contains('uang');
-  bool get isSembako => namaReward.toLowerCase().contains('sembako');
+  bool get isSembako => namaReward.toLowerCase().contains('barang');
 
   factory PenarikanPreviewData.fromJson(
     Map<String, dynamic> j, {
@@ -458,7 +629,7 @@ class PenarikanPreviewData {
     double? nominalRequest,
     List<Map<String, dynamic>> itemSembakoRequest = const [],
   }) {
-    final items = (j['item_sembako'] as List?) ?? [];
+    final items = (j['item_barang'] as List?) ?? [];
     return PenarikanPreviewData(
       nasabahId: (j['nasabah_id'] ?? '') as String,
       namaReward: (j['nama_reward'] ?? '') as String,
@@ -486,13 +657,32 @@ class PenarikanFormData {
   final String namaReward;
   final double? nominalPenarikan;
   final List<Map<String, dynamic>> itemSembako;
+  // Diisi di DeadlinePenarikanScreen (step 2)
+  final DateTime? batasKonfirmasi;
+  final String? catatanPetugas;
 
   const PenarikanFormData({
     required this.rewardId,
     required this.namaReward,
     this.nominalPenarikan,
     this.itemSembako = const [],
+    this.batasKonfirmasi,
+    this.catatanPetugas,
   });
 
-  bool get isSembako => namaReward.toLowerCase().contains('sembako');
+  PenarikanFormData copyWith({
+    DateTime? batasKonfirmasi,
+    String? catatanPetugas,
+  }) {
+    return PenarikanFormData(
+      rewardId: rewardId,
+      namaReward: namaReward,
+      nominalPenarikan: nominalPenarikan,
+      itemSembako: itemSembako,
+      batasKonfirmasi: batasKonfirmasi ?? this.batasKonfirmasi,
+      catatanPetugas: catatanPetugas ?? this.catatanPetugas,
+    );
+  }
+
+  bool get isSembako => namaReward.toLowerCase().contains('barang');
 }

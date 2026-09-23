@@ -1,9 +1,12 @@
+import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/screens/lihat_foto_screen.dart';
+import 'package:enviroo/services/dashboard_service.dart';
 import 'package:enviroo/services/profil_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 class DetailProfilNasabahScreen extends StatefulWidget {
   final String nasabahId;
@@ -18,10 +21,20 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
   String _error = '';
   Map<String, dynamic>? _detail;
 
+  bool _isSaldoLoading = true;
+  bool _isSaldoVisible = false;
+  double _saldoUang = 0;
+  double _saldoPoin = 0;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _fetchDetail());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchDetail();
+      if (context.read<AuthProvider>().role != 'nasabah') {
+        _fetchSaldo();
+      }
+    });
   }
 
   Future<void> _fetchDetail() async {
@@ -34,8 +47,24 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
     }
   }
 
+  Future<void> _fetchSaldo() async {
+    final res = await DashboardService.getSaldoNasabah(widget.nasabahId);
+    if (!mounted) return;
+    setState(() {
+      _isSaldoLoading = false;
+      if (res['success'] == true && res['data'] != null) {
+        final data = res['data'] as Map<String, dynamic>;
+        final uang = data['uang'] as Map<String, dynamic>? ?? {};
+        final poin = data['poin'] as Map<String, dynamic>? ?? {};
+        _saldoUang = (uang['total_uang'] as num?)?.toDouble() ?? 0;
+        _saldoPoin = (poin['total_poin'] as num?)?.toDouble() ?? 0;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isNasabah = context.watch<AuthProvider>().role == 'nasabah';
     return Scaffold(
       body: Stack(
         children: [
@@ -66,7 +95,7 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
                             child: Column(
                               children: [
                                 _buildCardProfile(),
-                                _buildAsosiasiCard(),
+                                if (isNasabah) _buildAsosiasiCard() else _buildSaldoCard(),
                                 const SizedBox(height: 25),
                                 _buildInformasiPribadiSection(),
                                 const SizedBox(height: 30),
@@ -253,6 +282,95 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static final _numberFormat = NumberFormat.decimalPattern('id');
+
+  Widget _buildSaldoCard() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 17),
+      child: Container(
+        margin: const EdgeInsets.only(top: 15),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(width: 1, color: const Color(0xFF013236).withValues(alpha: 0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 25,
+                    height: 25,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF013236),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(CupertinoIcons.money_dollar_circle_fill, color: Colors.white, size: 14),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Informasi Saldo',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF013236),
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => setState(() => _isSaldoVisible = !_isSaldoVisible),
+                    child: Icon(
+                      _isSaldoVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                      size: 18,
+                      color: const Color(0xFF013236).withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              child: Container(height: 0.5, color: const Color(0xFF013236).withValues(alpha: 0.08)),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
+              child: _isSaldoLoading
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4EA771)),
+                      ),
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: _buildInfoRow(
+                            'Saldo Rupiah',
+                            _isSaldoVisible ? 'Rp${_numberFormat.format(_saldoUang)}' : '••••••',
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildInfoRow(
+                            'Saldo Poin',
+                            _isSaldoVisible ? '${_numberFormat.format(_saldoPoin)} poin' : '••••••',
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ],
         ),

@@ -1,8 +1,6 @@
 import 'package:enviroo/screens/admin_bsi/katalog_sembako_screen.dart';
-import 'package:enviroo/screens/admin_bsi/list_bsu_screen.dart';
 import 'package:enviroo/screens/admin_bsi/pengangkutan_bsi_screen.dart';
 import 'package:enviroo/screens/bagi_hasil/riwayat_bagi_hasil_screen.dart';
-import 'package:enviroo/screens/kelola_nasabah_screen.dart';
 import 'package:enviroo/screens/penarikan/penarikan_petugas_screen.dart';
 import 'package:enviroo/screens/petugas/penimbangan_screen.dart';
 import 'package:enviroo/screens/penjualan_eksternal/riwayat_penjualan_screen.dart';
@@ -44,30 +42,6 @@ class _MenuAdminBSIState extends State<MenuAdminBSI> {
                     width: itemWidth,
                     child: _buildMenuItem(
                       context: context,
-                      label: "BSU",
-                      icon: Icons.house_rounded,
-                      color: const Color(0xFF2D9CDB),
-                      iconColor: Colors.white,
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => ListBsuScreen())),
-                    ),
-                  ),
-                  SizedBox(
-                    width: itemWidth,
-                    child: _buildMenuItem(
-                      context: context,
-                      label: "Nasabah",
-                      icon: Icons.person_rounded,
-                      color: const Color(0xFF9B51E0),
-                      iconColor: Colors.white,
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => KelolaNasabahScreen())),
-                    ),
-                  ),
-                  SizedBox(
-                    width: itemWidth,
-                    child: _buildMenuItem(
-                      context: context,
                       label: "Timbang",
                       icon: Icons.document_scanner_rounded,
                       color: const Color(0xFFF2994A),
@@ -82,7 +56,7 @@ class _MenuAdminBSIState extends State<MenuAdminBSI> {
                       context: context,
                       label: "Angkut",
                       icon: Icons.fire_truck_rounded,
-                      color: const Color(0xFF4EA771),
+                      color: const Color(0xFF2D9CDB),
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const PengangkutanBsiScreen())),
@@ -104,9 +78,21 @@ class _MenuAdminBSIState extends State<MenuAdminBSI> {
                     width: itemWidth,
                     child: _buildMenuItem(
                       context: context,
+                      label: "Bagi Hasil",
+                      icon: Icons.account_balance_rounded,
+                      color: const Color(0xFF1ABC9C),
+                      iconColor: Colors.white,
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const RiwayatBagiHasilScreen())),
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildMenuItem(
+                      context: context,
                       label: "Penarikan",
                       icon: Icons.account_balance_wallet_rounded,
-                      color: const Color(0xFFF2994A),
+                      color: const Color(0xFFEB5757),
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const PenarikanPetugasScreen())),
@@ -116,24 +102,12 @@ class _MenuAdminBSIState extends State<MenuAdminBSI> {
                     width: itemWidth,
                     child: _buildMenuItem(
                       context: context,
-                      label: "Sembako",
+                      label: "Barang",
                       icon: Icons.storefront_rounded,
-                      color: const Color(0xFF2D9CDB),
+                      color: const Color(0xFF4EA771),
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const KatalogSembakoScreen())),
-                    ),
-                  ),
-                  SizedBox(
-                    width: itemWidth,
-                    child: _buildMenuItem(
-                      context: context,
-                      label: "Bagi Hasil",
-                      icon: Icons.account_balance_rounded,
-                      color: const Color(0xFFEB5757),
-                      iconColor: Colors.white,
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const RiwayatBagiHasilScreen())),
                     ),
                   ),
                 ],

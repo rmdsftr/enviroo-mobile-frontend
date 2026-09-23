@@ -78,15 +78,6 @@ class _ScannerDistribusiBsuScreenState extends State<ScannerDistribusiBsuScreen>
     await _submit(adminBsuId);
   }
 
-  void _resumeScan() {
-    if (!mounted) return;
-    setState(() {
-      _isProcessing = false;
-      _isSubmitting = false;
-    });
-    _scannerController.start();
-  }
-
   Future<void> _submit(String adminBsuId) async {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
@@ -120,7 +111,7 @@ class _ScannerDistribusiBsuScreenState extends State<ScannerDistribusiBsuScreen>
     await showSuccessBottomSheet(
       context,
       title: 'Distribusi Berhasil!',
-      message: 'Distribusi sembako ke ${widget.namaBsu} berhasil dikirim.',
+      message: 'Distribusi barang ke ${widget.namaBsu} berhasil dikirim.',
       buttonLabel: 'Selesai',
       onDismiss: () => Navigator.pop(context, widget.bsuId),
     );
@@ -198,7 +189,7 @@ class _ScannerDistribusiBsuScreenState extends State<ScannerDistribusiBsuScreen>
                 ),
                 const SizedBox(height: 2),
                 const Text(
-                  'Distribusi sembako',
+                  'Distribusi barang',
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 11,
@@ -238,7 +229,7 @@ class _ScannerDistribusiBsuScreenState extends State<ScannerDistribusiBsuScreen>
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Scan QR identitas petugas BSU untuk mengkonfirmasi penerimaan distribusi sembako.',
+              'Scan QR identitas petugas BSU untuk mengkonfirmasi penerimaan distribusi barang.',
               style: TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 11.5,

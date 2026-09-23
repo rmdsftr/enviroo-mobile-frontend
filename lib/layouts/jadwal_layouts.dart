@@ -1,8 +1,10 @@
-import 'package:enviroo/screens/admin_bsi/list_nasabah_screen.dart';
+import 'package:enviroo/models/detail_bank_model.dart';
+import 'package:enviroo/screens/nasabah/chat_info_bank_sampah_screen.dart';
+import 'package:enviroo/services/profil_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../services/jadwal_service.dart';
+import '../providers/notifikasi_provider.dart';
 
 class JadwalSetoranSection extends StatefulWidget {
   const JadwalSetoranSection({super.key});
@@ -12,9 +14,7 @@ class JadwalSetoranSection extends StatefulWidget {
 }
 
 class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
-  String _namaBank = "";
-  String _bankId = "";
-  List<Map<String, dynamic>> _jadwalOperasional = [];
+  DetailBankModel? _bank;
   bool _isLoading = true;
   String? _error;
 
@@ -26,8 +26,8 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
   @override
   void initState() {
     super.initState();
-    _fetchJadwal();
-    _lifecycleListener = AppLifecycleListener(onResume: _fetchJadwal);
+    _fetchBankDetail();
+    _lifecycleListener = AppLifecycleListener(onResume: _fetchBankDetail);
   }
 
   @override
@@ -36,13 +36,13 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
     super.dispose();
   }
 
-  Future<void> refresh() => _fetchJadwal();
+  Future<void> refresh() => _fetchBankDetail();
 
-  Future<void> _fetchJadwal() async {
+  Future<void> _fetchBankDetail() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final nasabahId = auth.currentUser?.identityId;
+    final bankId = auth.bankId;
 
-    if (nasabahId == null) {
+    if (bankId == null || bankId.isEmpty) {
       setState(() {
         _isLoading = false;
         _error = "Sesi tidak valid.";
@@ -50,57 +50,25 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
       return;
     }
 
-    final result = await JadwalService.getJadwalNasabah(nasabahId);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
-    if (result['success'] == true) {
-      final dynamic rawData = result['data'];
-
-      String namaBank = "";
-      List<Map<String, dynamic>> jadwalList = [];
-
-      if (rawData is Map<String, dynamic>) {
-        namaBank = rawData['nama_bank']?.toString() ?? "";
-        _bankId = rawData['bank_id']?.toString().isNotEmpty == true
-            ? rawData['bank_id'].toString()
-            : auth.nasabahProfile?.bankId ?? auth.bankId ?? '';
-        final rawJadwal = rawData['jadwal'];
-        if (rawJadwal is List) {
-          jadwalList = rawJadwal
-              .whereType<Map<String, dynamic>>()
-              .toList();
-        }
-      }
-
-      // Fallback: gunakan namaBsu dari profil nasabah jika nama_bank kosong
-      if (namaBank.isEmpty) {
-        namaBank = auth.nasabahProfile?.namaBsu ?? "";
-      }
-
+    try {
+      final bank = await ProfilService.getDetailBank(bankId);
+      if (!mounted) return;
       setState(() {
-        _namaBank = namaBank.isNotEmpty ? namaBank : "Bank Sampah";
-        _jadwalOperasional = jadwalList;
+        _bank = bank;
         _isLoading = false;
       });
-    } else {
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _error = result['message'] ?? "Gagal memuat jadwal.";
+        _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
-  }
-
-  String _formatJam(dynamic jamMulai, dynamic jamSelesai) {
-    String start = jamMulai?.toString() ?? '';
-    String end = jamSelesai?.toString() ?? '';
-    if (start.length >= 5) start = start.substring(0, 5);
-    if (end.length >= 5) end = end.substring(0, 5);
-    if (start.isEmpty && end.isEmpty) return '-';
-    return "$start - $end";
-  }
-
-  int _getMingguKe(dynamic value) {
-    if (value is int) return value;
-    return int.tryParse(value?.toString() ?? '0') ?? 0;
   }
 
   @override
@@ -114,13 +82,12 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 27),
             child: Text(
-              "Jadwal Penimbangan",
+              "Info Bank Sampah",
               style: TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 15,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 color: _darkTeal,
-                letterSpacing: 0.1,
               ),
             ),
           ),
@@ -148,198 +115,212 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
                 ),
               ),
             )
-          else
-            _buildSingleCard(),
+          else if (_bank != null)
+            _buildBankCard(_bank!),
         ],
       ),
     );
   }
 
-  Widget _buildSingleCard() {
+  // ── Card ──────────────────────────────────────────────────────────────────────
+
+  Widget _buildBankCard(DetailBankModel bank) {
+    final lokasi = [
+      bank.alamat,
+      bank.kelurahan,
+      bank.kecamatan,
+      bank.kabupatenKota,
+      bank.provinsi,
+    ].where((s) => s.isNotEmpty).join(', ');
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
         width: double.infinity,
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: Column(
-            children: [
-              // ─── Header: Nama Bank ───────────────────────────────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border(
-                    bottom: BorderSide(
-                      color: _darkTeal.withOpacity(0.07),
-                      width: 1,
-                    ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ─── Row 1: foto + nama_bank/bank_id + notif ────────────────────
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _greenAccent.withValues(alpha: 0.12),
+                  ),
+                  child: ClipOval(
+                    child: bank.photoUrl.isNotEmpty
+                        ? Image.network(
+                            bank.photoUrl,
+                            width: 46,
+                            height: 46,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _defaultAvatar(),
+                          )
+                        : _defaultAvatar(),
                   ),
                 ),
-                child: GestureDetector(
-                  onTap: _bankId.isEmpty
-                      ? null
-                      : () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  ListNasabahScreen(bsuId: _bankId),
-                            ),
-                          ),
-                  child: Row(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          _namaBank,
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: _darkTeal,
-                            letterSpacing: 0.2,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      Text(
+                        bank.namaBank,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _darkTeal,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 12,
-                        color: Color(0xFF4EA771),
+                      const SizedBox(height: 2),
+                      Text(
+                        bank.bankId,
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 10,
+                          color: _darkTeal.withValues(alpha: 0.45),
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                Consumer<NotifikasiProvider>(
+                  builder: (context, notifProvider, _) {
+                    final unread = notifProvider.notifikasi
+                        .where((n) => n.isChatInfoBank && !n.isRead)
+                        .length;
+                    return GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChatInfoBankSampahScreen(
+                            bankId: bank.bankId,
+                            namaBank: bank.namaBank,
+                            photoUrl: bank.photoUrl,
+                          ),
+                        ),
+                      ),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _darkTeal,
+                            ),
+                            child: const Icon(
+                              Icons.chat_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                          if (unread > 0)
+                            Positioned(
+                              top: -2,
+                              right: -4,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF94DF0C),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: Colors.white, width: 1.5),
+                                ),
+                                constraints: const BoxConstraints(minWidth: 18),
+                                child: Text(
+                                  unread > 9 ? '9+' : '$unread',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w700,
+                                    color: _darkTeal,
+                                    height: 1.2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
 
-              // ─── Body: List Jadwal ───────────────────────────────────
-              if (_jadwalOperasional.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                  child: Center(
+            // ─── Row 2: deskripsi ────────────────────────────────────────────
+            if (bank.deskripsi.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                bank.deskripsi,
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 11.5,
+                  color: _darkTeal.withValues(alpha: 0.65),
+                  height: 1.5,
+                ),
+              ),
+            ],
+
+            // ─── Divider antara deskripsi & lokasi ──────────────────────────
+            if (bank.deskripsi.isNotEmpty && lokasi.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: _darkTeal.withValues(alpha: 0.08),
+              ),
+            ],
+
+            // ─── Row 3: lokasi ───────────────────────────────────────────────
+            if (lokasi.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.location_on_outlined,
+                    size: 14,
+                    color: _greenAccent.withValues(alpha: 0.75),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
                     child: Text(
-                      "Belum ada jadwal penimbangan.",
+                      lokasi,
                       style: TextStyle(
                         fontFamily: 'Poppins',
-                        fontSize: 12,
-                        color: _darkTeal.withOpacity(0.5),
+                        fontSize: 11,
+                        color: _greenAccent.withValues(alpha: 0.75),
+                        height: 1.4,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    children: _jadwalOperasional.asMap().entries.map((entry) {
-                      final i = entry.key;
-                      final jadwal = entry.value;
-                      final isLast = i == _jadwalOperasional.length - 1;
-                      return _buildJadwalRow(jadwal, isLast: isLast);
-                    }).toList(),
-                  ),
-                ),
+                ],
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildJadwalRow(Map<String, dynamic> jadwal, {bool isLast = false}) {
-    final String hari = jadwal['hari']?.toString() ?? '-';
-    final int mingguKe = _getMingguKe(jadwal['minggu_ke']);
-    final String mingguInfo = mingguKe == 0 ? "Setiap Minggu" : "Minggu ke-$mingguKe";
-    final String jam = _formatJam(jadwal['jam_mulai'], jadwal['jam_selesai']);
-
-    return Column(
-      children: [
-        Row(
-          children: [
-            // Calendar icon
-            Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: _greenAccent.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.calendar_month_rounded,
-                color: _greenAccent,
-                size: 16,
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // Hari & minggu ke
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    hari,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _darkTeal,
-                    ),
-                  ),
-                  Text(
-                    mingguInfo,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: _darkTeal.withOpacity(0.5),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Jam badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: _darkTeal.withOpacity(0.06),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.access_time_rounded,
-                    size: 11,
-                    color: _darkTeal.withOpacity(0.65),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    jam,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _darkTeal.withOpacity(0.75),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        if (!isLast)
-          Divider(
-            height: 20,
-            thickness: 1,
-            color: _darkTeal.withOpacity(0.06),
-          ),
-      ],
-    );
+  Widget _defaultAvatar() {
+    return Icon(Icons.account_balance_rounded, color: _greenAccent, size: 22);
   }
 }

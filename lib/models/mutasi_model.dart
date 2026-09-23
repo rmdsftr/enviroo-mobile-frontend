@@ -1,11 +1,13 @@
 class MutasiItem {
   final bool isPositive;
   final double nominal;
+  final String keterangan;
   final DateTime tanggalTransaksi;
 
   const MutasiItem({
     required this.isPositive,
     required this.nominal,
+    required this.keterangan,
     required this.tanggalTransaksi,
   });
 
@@ -13,7 +15,8 @@ class MutasiItem {
     return MutasiItem(
       isPositive: json['is_positive'] as bool? ?? false,
       nominal: (json['nominal'] as num?)?.toDouble() ?? 0,
-      tanggalTransaksi: DateTime.parse(json['tanggal_transaksi'] as String),
+      keterangan: json['keterangan'] as String? ?? '',
+      tanggalTransaksi: DateTime.parse(json['tanggal_transaksi'] as String).toLocal(),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:enviroo/models/pengangkutan_bsi_model.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -8,108 +9,11 @@ import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/filter_month_year.dart';
 import 'package:enviroo/widgets/filter_chip_row.dart';
 import 'package:enviroo/widgets/navbar.dart';
-import 'package:enviroo/widgets/confirm_bottom_sheet.dart';
 import 'package:enviroo/services/pengangkutan_service.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/pengangkutan_provider.dart';
 import 'package:enviroo/screens/admin_bsi/detail_pengangkutan_screen.dart';
 import 'package:enviroo/screens/admin_bsi/alur_sesi_pengangkutan_screen.dart';
-
-// ─── Model ──────────────────────────────────────────────────────────────────
-
-class PengangkutanData {
-  final String id;
-  final String bsiId;
-  final String bsuId;
-  final String namaBsu;
-  final String namaBsi;
-  final String namaAdminBsi;
-  final String namaAdminBsu;
-  final String adminBsuId;
-  final String status;
-  final String tanggal;
-  final DateTime? rawDate;
-
-  PengangkutanData({
-    required this.id,
-    required this.bsiId,
-    required this.bsuId,
-    required this.namaBsu,
-    required this.namaBsi,
-    required this.namaAdminBsi,
-    required this.namaAdminBsu,
-    required this.adminBsuId,
-    required this.status,
-    required this.tanggal,
-    this.rawDate,
-  });
-
-  factory PengangkutanData.fromJson(Map<String, dynamic> json) {
-    String tanggal = '-';
-    DateTime? rawDate;
-    if (json['changed_at'] != null) {
-      try {
-        final parsed = DateTime.parse(json['changed_at'].toString());
-        rawDate = parsed;
-        tanggal = DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID').format(parsed);
-      } catch (_) {
-        tanggal = json['changed_at'].toString();
-      }
-    }
-
-    return PengangkutanData(
-      id: json['pengangkutan_id'] ?? '',
-      bsiId: json['bsi_id'] ?? '',
-      bsuId: json['bsu_id'] ?? '',
-      namaBsu: json['nama_bsu'] ?? '-',
-      namaBsi: json['nama_bsi'] ?? '-',
-      namaAdminBsi: json['nama_admin_bsi'] ?? '-',
-      namaAdminBsu: json['nama_admin_bsu'] ?? '-',
-      adminBsuId: json['admin_bsu_id'] ?? '',
-      status: json['status_pengangkutan'] ?? '',
-      tanggal: tanggal,
-      rawDate: rawDate,
-    );
-  }
-}
-
-class PengangkutanAktifBsiData {
-  final String pengangkutanId;
-  final String bsuId;
-  final String namaBsu;
-  final String statusTerkini;
-  final bool isActionAllowed;
-
-  const PengangkutanAktifBsiData({
-    required this.pengangkutanId,
-    required this.bsuId,
-    required this.namaBsu,
-    required this.statusTerkini,
-    required this.isActionAllowed,
-  });
-
-  factory PengangkutanAktifBsiData.fromJson(Map<String, dynamic> json) {
-    return PengangkutanAktifBsiData(
-      pengangkutanId: json['pengangkutan_id'] as String? ?? '',
-      bsuId: json['bsu_id'] as String? ?? '',
-      namaBsu: json['nama_bsu'] as String? ?? '-',
-      statusTerkini: json['status_terkini'] as String? ?? '',
-      isActionAllowed: json['is_action_allowed'] as bool? ?? false,
-    );
-  }
-}
-
-class BsuUnit {
-  final String bankId;
-  final String namaBank;
-  BsuUnit({required this.bankId, required this.namaBank});
-  factory BsuUnit.fromJson(Map<String, dynamic> json) {
-    return BsuUnit(
-      bankId: json['bank_id'] ?? json['BankID'] ?? '',
-      namaBank: json['nama_bank'] ?? json['NamaBank'] ?? '-',
-    );
-  }
-}
 
 // ─── Screen ─────────────────────────────────────────────────────────────────
 
@@ -133,6 +37,7 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
   List<PengangkutanData> _riwayat = [];
   List<PengangkutanAktifBsiData> _activeSessions = [];
   List<BsuUnit> _bsuList = [];
+  List<JadwalHariIniItem> _jadwalHariIni = [];
   int _selectedTab = 0;
   String _filterSesi = 'semua';
   String? _highlightedId;
@@ -175,7 +80,23 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
   }
 
   Future<void> _init() async {
-    await Future.wait([_loadHistory(), _loadBsuList(), _loadActiveSessions()]);
+    await Future.wait([_loadHistory(), _loadBsuList(), _loadActiveSessions(), _loadJadwalHariIni()]);
+  }
+
+  Future<void> _loadJadwalHariIni() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final bankId = auth.bankId ?? '';
+    if (bankId.isEmpty) return;
+    final res = await PengangkutanService.checkJadwalHariIni(bankId);
+    if (!mounted) return;
+    if (res['success'] == true) {
+      final List raw = res['jadwal_hari_ini'] as List? ?? [];
+      setState(() {
+        _jadwalHariIni = raw
+            .map((e) => JadwalHariIniItem.fromJson(e as Map<String, dynamic>))
+            .toList();
+      });
+    }
   }
 
   // ── 1. Load history ──────────────────────────────────────────────────────
@@ -188,7 +109,9 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
       return;
     }
 
-    final res = await PengangkutanService.getAllPengangkutan(bankId);
+    final startDate = '${_filterStart.year}-${_filterStart.month.toString().padLeft(2, '0')}-01';
+    final endDate = '${_filterEnd.year}-${_filterEnd.month.toString().padLeft(2, '0')}-${DateTime(_filterEnd.year, _filterEnd.month + 1, 0).day.toString().padLeft(2, '0')}';
+    final res = await PengangkutanService.getAllPengangkutan(bankId, startDate: startDate, endDate: endDate);
     if (!mounted) return;
 
     if (res['success'] == true) {
@@ -297,45 +220,41 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
       builder: (ctx) => _BsuPickerSheet(
         bsuList: _bsuList,
         activeBsuIds: _activeSessions.map((s) => s.bsuId).toSet(),
-        onSelected: (bsu) {
+        jadwalHariIni: _jadwalHariIni,
+        onSelected: (bsu, jadwalId) {
           Navigator.pop(ctx);
-          _checkAndStartSesi(bsu);
+          _checkAndStartSesi(bsu, jadwalId);
         },
       ),
     );
   }
 
-  Future<void> _checkAndStartSesi(BsuUnit bsu) async {
-    setState(() => _actionLoading = true);
+  Future<void> _checkAndStartSesi(BsuUnit bsu, String jadwalId) async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final bsiId = auth.bankId ?? '';
     final adminId = auth.identityId ?? '';
 
-    // Check jadwal
-    final checkRes = await PengangkutanService.checkJadwal(bsiId, bsu.bankId);
-    if (!mounted) return;
-
-    if (checkRes['success'] != true) {
-      setState(() => _actionLoading = false);
-      _showSnackBar(checkRes['message'] ?? 'Gagal cek jadwal', isError: true);
-      return;
-    }
-
-    final status = checkRes['status'] as String? ?? 'dadakan';
-
-    if (status == 'scheduled') {
-      // Langsung mulai
-      await _startSesi(bsiId, bsu.bankId, adminId, false);
-    } else {
-      // Konfirmasi dadakan
-      setState(() => _actionLoading = false);
-      _showDadakanDialog(bsiId, bsu, adminId);
-    }
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _MandiriPickerSheet(
+        namaBsu: bsu.namaBank,
+        onSelected: (isMandiri) {
+          Navigator.pop(context);
+          _startSesi(bsiId, bsu.bankId, adminId, isMandiri, jadwalId);
+        },
+      ),
+    );
   }
 
-  Future<void> _startSesi(String bsiId, String bsuId, String adminId, bool dadakan) async {
+  Future<void> _startSesi(String bsiId, String bsuId, String adminId, bool isMandiri, String jadwalId) async {
     setState(() => _actionLoading = true);
-    final res = await PengangkutanService.startSesi(bsiId, bsuId, adminId, statusDadakan: dadakan);
+    final res = await PengangkutanService.startSesi(
+      bsiId, bsuId, adminId,
+      isMandiri: isMandiri,
+      jadwalId: jadwalId,
+    );
     if (!mounted) return;
     setState(() => _actionLoading = false);
 
@@ -360,21 +279,6 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
     );
   }
 
-  // ── Dialog dadakan ───────────────────────────────────────────────────────
-  Future<void> _showDadakanDialog(String bsiId, BsuUnit bsu, String adminId) async {
-    final ok = await showConfirmBottomSheet(
-      context,
-      icon: Icons.local_shipping_rounded,
-      title: 'Tidak Ada Jadwal Hari Ini',
-      message: 'Tidak ada jadwal pengangkutan ke ${bsu.namaBank} hari ini. Apakah Anda ingin mengadakan sesi dadakan?',
-      cancelLabel: 'Tidak',
-      confirmLabel: 'Ya, Dadakan',
-    );
-    if (ok) {
-      _startSesi(bsiId, bsu.bankId, adminId, true);
-    }
-  }
-
   void _showSnackBar(String msg, {bool isError = false}) {
     showCustomSnackBar(
       context,
@@ -393,7 +297,7 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/bg_struk.webp'),
+            image: AssetImage('assets/images/bg_struk2.webp'),
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
           ),
@@ -428,6 +332,7 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
             if (i == 1) _loadActiveSessions();
           },
           tabs: const ['Riwayat', 'Sesi'],
+          badges: [null, _activeSessions.isEmpty ? null : _activeSessions.length],
           backgroundColor: Colors.white.withValues(alpha: 0.6),
           border: Border.all(
             color: const Color(0xFF013236).withValues(alpha: 0.1),
@@ -454,26 +359,39 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
             ),
             decoration: const BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             ),
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 100),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Riwayat Pengangkutan',
-                    style: TextStyle(fontFamily: 'Poppins', fontSize: 15,
-                        fontWeight: FontWeight.w700, color: Color(0xFF013236))),
-                const SizedBox(height: 12),
-                MonthYearFilterRow(
-                  filterStart: _filterStart,
-                  filterEnd: _filterEnd,
-                  onChanged: (start, end) => setState(() {
-                    _filterStart = start;
-                    _filterEnd = end;
-                  }),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 17, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Riwayat Pengangkutan',
+                          style: TextStyle(fontFamily: 'Poppins', fontSize: 14,
+                              fontWeight: FontWeight.w600, color: Color(0xFF013236))),
+                      const SizedBox(height: 12),
+                      MonthYearFilterRow(
+                        filterStart: _filterStart,
+                        filterEnd: _filterEnd,
+                        onChanged: (start, end) {
+                          setState(() {
+                            _filterStart = start;
+                            _filterEnd = end;
+                          });
+                          _loadHistory();
+                        },
+                      ),
+                    ]
+                  ),
                 ),
-                const SizedBox(height: 12),
-                _buildRiwayatList(),
+                SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _buildRiwayatList(),
+                )
               ],
             ),
           ),
@@ -540,25 +458,81 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
   // ── Tombol mulai sesi ────────────────────────────────────────────────────
   Widget _buildStartSection() {
     final isLoading = _actionLoading;
-    return GestureDetector(
-      onTap: isLoading ? null : _onMulaiSesiTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 17),
-        decoration: BoxDecoration(
-          color: isLoading ? const Color(0xFF013236).withOpacity(0.6) : const Color(0xFF013236),
-          borderRadius: BorderRadius.circular(50),
-        ),
-        child: Center(
-          child: isLoading
-              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-              : const Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.local_shipping_rounded, color: Colors.white, size: 20),
+    final now = DateTime.now();
+    final todayStr = DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(now);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color : Color(0xFF013236),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Hari ini, $todayStr',
+            style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 11,
+              color: Colors.white60,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _jadwalHariIni.isEmpty
+                ? 'Tidak ada jadwal pengangkutan hari ini'
+                : _jadwalHariIni.every((j) => j.isCompleted)
+                    ? 'Semua pengangkutan sudah selesai'
+                    : 'Ada ${_jadwalHariIni.where((j) => !j.isCompleted).length} Jadwal Pengangkutan',
+            style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: isLoading ? null : _onMulaiSesiTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: isLoading ? Colors.white.withOpacity(0.5) : Colors.white,
+                borderRadius: BorderRadius.circular(50),
+              ),
+              child: isLoading
+                  ? const Center(
+                child: SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                      color: Color(0xFF013236), strokeWidth: 2),
+                ),
+              )
+                  : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.local_shipping_rounded,
+                      color: Color(0xFF013236), size: 16),
                   SizedBox(width: 8),
-                  Text('Mulai Sesi Pengangkutan', style: TextStyle(fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
-                ]),
-        ),
+                  Text(
+                    'Cek Sesi Pengangkutan',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF013236),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -805,8 +779,8 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
         child: Row(children: [
           Container(
             padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
-            child: Icon(_statusIcon(s.status), color: color, size: 18),
+            decoration: BoxDecoration(color: Color(0xFF013236).withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: Icon(Icons.house, color: Color(0xFF013236), size: 18),
           ),
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -819,10 +793,6 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
             decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(20)),
             child: Text(_statusLabel(s.status), style: TextStyle(fontFamily: 'Poppins', fontSize: 10.5, fontWeight: FontWeight.w600, color: color)),
           ),
-          if (isCompleted) ...[
-            const SizedBox(width: 6),
-            Icon(Icons.chevron_right_rounded, size: 18, color: Colors.grey[400]),
-          ],
         ]),
       ),
     );
@@ -852,16 +822,6 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
     }
   }
 
-  IconData _statusIcon(String s) {
-    switch (s) {
-      case 'completed': return Icons.check_circle_outline_rounded;
-      case 'canceled': case 'rejected': return Icons.cancel_outlined;
-      case 'otw': return Icons.local_shipping_rounded;
-      case 'approved': return Icons.thumb_up_alt_rounded;
-      case 'requested': return Icons.hourglass_top_rounded;
-      default: return Icons.info_outline_rounded;
-    }
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -871,11 +831,13 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
 class _BsuPickerSheet extends StatefulWidget {
   final List<BsuUnit> bsuList;
   final Set<String> activeBsuIds;
-  final Function(BsuUnit) onSelected;
+  final List<JadwalHariIniItem> jadwalHariIni;
+  final Function(BsuUnit, String jadwalId) onSelected;
 
   const _BsuPickerSheet({
     required this.bsuList,
     required this.activeBsuIds,
+    required this.jadwalHariIni,
     required this.onSelected,
   });
 
@@ -947,48 +909,231 @@ class _BsuPickerSheetState extends State<_BsuPickerSheet> {
                   itemBuilder: (_, i) {
                     final bsu = _filtered[i];
                     final isActive = widget.activeBsuIds.contains(bsu.bankId);
+                    final jadwalList = widget.jadwalHariIni
+                        .where((j) => j.bsuId == bsu.bankId)
+                        .toList();
+                    final jadwal = jadwalList.isNotEmpty ? jadwalList.first : null;
+                    final hasJadwal = jadwal != null;
+                    final isCompleted = jadwal?.isCompleted ?? false;
+                    final canTap = hasJadwal && !isActive && !isCompleted;
+                    final keterangan = hasJadwal
+                        ? (jadwal.namaJadwalSpesial.isEmpty
+                            ? 'Pengangkutan Rutin'
+                            : jadwal.namaJadwalSpesial)
+                        : null;
+
+                    final Color iconColor;
+                    final Color iconBg;
+                    final Color nameColor;
+                    if (isActive || isCompleted) {
+                      iconColor = Colors.grey[400]!;
+                      iconBg = Colors.grey.withValues(alpha: 0.12);
+                      nameColor = Colors.grey[400]!;
+                    } else if (hasJadwal) {
+                      iconColor = const Color(0xFF4EA771);
+                      iconBg = const Color(0xFF4EA771).withValues(alpha: 0.12);
+                      nameColor = const Color(0xFF013236);
+                    } else {
+                      iconColor = Colors.grey[400]!;
+                      iconBg = Colors.grey.withValues(alpha: 0.08);
+                      nameColor = Colors.grey[400]!;
+                    }
+
+                    Widget? trailingWidget;
+                    if (isActive) {
+                      trailingWidget = Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFAA324).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text('Sedang Aktif',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFFAA324),
+                            )),
+                      );
+                    } else if (isCompleted) {
+                      trailingWidget = Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4EA771).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle_rounded, size: 10, color: Color(0xFF4EA771)),
+                            SizedBox(width: 4),
+                            Text('Selesai',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF4EA771),
+                                )),
+                          ],
+                        ),
+                      );
+                    } else if (hasJadwal) {
+                      trailingWidget = const Icon(Icons.arrow_forward_ios_rounded,
+                          size: 14, color: Color(0xFF4EA771));
+                    }
+
                     return ListTile(
-                      onTap: isActive ? null : () => widget.onSelected(bsu),
+                      onTap: canTap ? () => widget.onSelected(bsu, jadwal.jadwalId) : null,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                       leading: Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: isActive
-                              ? Colors.grey.withValues(alpha: 0.12)
-                              : const Color(0xFF06C0C9).withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.store_rounded,
-                            color: isActive ? Colors.grey[400] : const Color(0xFF06C0C9), size: 20),
+                        decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+                        child: Icon(Icons.store_rounded, color: iconColor, size: 20),
                       ),
-                      title: Text(bsu.namaBank,
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: isActive ? Colors.grey[400] : const Color(0xFF013236),
-                          )),
-                      trailing: isActive
-                          ? Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFAA324).withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(20),
+                      title: Text(
+                        bsu.namaBank,
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: nameColor,
+                        ),
+                      ),
+                      subtitle: keterangan != null
+                          ? Text(
+                              keterangan,
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11,
+                                color: (hasJadwal && !isCompleted)
+                                    ? const Color(0xFF4EA771)
+                                    : Colors.grey[400],
                               ),
-                              child: const Text('Sedang Aktif',
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFFFAA324),
-                                  )),
                             )
-                          : const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                          : null,
+                      trailing: trailingWidget,
                     );
                   },
                 ),
         ),
       ]),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Mandiri Picker Bottom Sheet
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _MandiriPickerSheet extends StatelessWidget {
+  final String namaBsu;
+  final void Function(bool isMandiri) onSelected;
+
+  const _MandiriPickerSheet({
+    required this.namaBsu,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 24),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF013236).withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.local_shipping_rounded,
+                color: Color(0xFF013236), size: 26),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Metode Pengangkutan',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              color: Color(0xFF013236),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Apakah pengangkutan sampah $namaBsu dilakukan secara mandiri atau dijemput BSI ke lokasi?',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 12.5,
+              color: const Color(0xFF013236).withValues(alpha: 0.5),
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => onSelected(true),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF013236),
+                    side: BorderSide(
+                        color: const Color(0xFF013236).withValues(alpha: 0.3)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(50)),
+                  ),
+                  child: const Text(
+                    'Diantar BSU',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => onSelected(false),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF013236),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(50)),
+                  ),
+                  child: const Text(
+                    'Dijemput BSI',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

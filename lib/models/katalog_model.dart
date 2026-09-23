@@ -140,7 +140,7 @@ class HistoryHargaModel {
       hargaLama: (json['harga_lama'] as num?)?.toDouble() ?? 0.0,
       hargaBaru: (json['harga_baru'] as num?)?.toDouble() ?? 0.0,
       changedAt: json['changed_at'] != null
-          ? DateTime.parse(json['changed_at'])
+          ? DateTime.parse(json['changed_at']).toLocal()
           : DateTime.now(),
       changedByNama: json['changed_by_nama'] ?? '',
     );
@@ -218,8 +218,8 @@ class KatalogSembakoModel {
 
   factory KatalogSembakoModel.fromJson(Map<String, dynamic> json) {
     return KatalogSembakoModel(
-      sembakoId: json['sembako_id']?.toString() ?? json['SembakoID']?.toString() ?? '',
-      namaSembako: json['nama_sembako']?.toString() ?? json['NamaSembako']?.toString() ?? '',
+      sembakoId: json['produk_id']?.toString() ?? '',
+      namaSembako: json['nama_barang']?.toString() ?? '',
       photoUrl: json['photo_url']?.toString() ?? json['PhotoURL']?.toString() ?? '',
       stok: _toDouble(json['stok']),
       nilaiPoin: _toDouble(json['nilai_poin']),
@@ -238,33 +238,33 @@ class KatalogSembakoModel {
 // ── Riwayat distribusi sembako ────────────────────────────────────────────────
 
 class RiwayatDistribusiSembakoModel {
-  final String distribusiId;
+  final String disbakoId;
   final DateTime tanggalKirim;
-  final int stokTerdistribusi;
-  final String namaAdminBsi;
-  final String namaAdminBsu;
+  final double item;
+  final double stokSebelum;
+  final double stokSesudah;
 
   RiwayatDistribusiSembakoModel({
-    required this.distribusiId,
+    required this.disbakoId,
     required this.tanggalKirim,
-    required this.stokTerdistribusi,
-    required this.namaAdminBsi,
-    required this.namaAdminBsu,
+    required this.item,
+    required this.stokSebelum,
+    required this.stokSesudah,
   });
 
   factory RiwayatDistribusiSembakoModel.fromJson(Map<String, dynamic> json) {
     DateTime parsedDate;
     try {
-      parsedDate = DateTime.parse(json['tanggal_kirim'] ?? '');
+      parsedDate = DateTime.parse(json['tanggal_kirim'] ?? '').toLocal();
     } catch (_) {
       parsedDate = DateTime.now();
     }
     return RiwayatDistribusiSembakoModel(
-      distribusiId: json['distribusi_id']?.toString() ?? '',
+      disbakoId: json['disba_id']?.toString() ?? '',
       tanggalKirim: parsedDate,
-      stokTerdistribusi: (json['stok_terdistribusi'] as num?)?.toInt() ?? 0,
-      namaAdminBsi: json['nama_admin_bsi']?.toString() ?? '',
-      namaAdminBsu: json['nama_admin_bsu']?.toString() ?? '',
+      item: (json['item'] as num?)?.toDouble() ?? 0.0,
+      stokSebelum: (json['stok_sebelum'] as num?)?.toDouble() ?? 0.0,
+      stokSesudah: (json['stok_sesudah'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
@@ -277,15 +277,120 @@ class DetailSembakoWithRiwayat {
     required this.sembako,
     required this.riwayatDistribusi,
   });
+}
 
-  factory DetailSembakoWithRiwayat.fromJson(Map<String, dynamic> json) {
-    final sembakoJson = json['sembako'] as Map<String, dynamic>? ?? {};
-    final riwayatJson = json['riwayat_distribusi'] as List<dynamic>? ?? [];
-    return DetailSembakoWithRiwayat(
-      sembako: KatalogSembakoModel.fromJson(sembakoJson),
-      riwayatDistribusi: riwayatJson
-          .map((e) => RiwayatDistribusiSembakoModel.fromJson(e as Map<String, dynamic>))
+// ── Detail distribusi sembako ─────────────────────────────────────────────────
+
+class DetailDistribusiItemModel {
+  final String sembakoId;
+  final String namaBarang;
+  final String photoUrl;
+  final double nilaiPoin;
+  final double item;
+  final double subtotalPoin;
+
+  DetailDistribusiItemModel({
+    required this.sembakoId,
+    required this.namaBarang,
+    required this.photoUrl,
+    required this.nilaiPoin,
+    required this.item,
+    required this.subtotalPoin,
+  });
+
+  factory DetailDistribusiItemModel.fromJson(Map<String, dynamic> json) {
+    return DetailDistribusiItemModel(
+      sembakoId: json['produk_id']?.toString() ?? '',
+      namaBarang: json['nama_barang']?.toString() ?? '-',
+      photoUrl: json['photo_url']?.toString() ?? '',
+      nilaiPoin: (json['nilai_poin'] as num?)?.toDouble() ?? 0.0,
+      item: (json['item'] as num?)?.toDouble() ?? 0.0,
+      subtotalPoin: (json['subtotal_poin'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
+
+class DetailDistribusiSembakoModel {
+  final String disbakoId;
+  final String namaBsi;
+  final String namaBsu;
+  final String namaAdminBsi;
+  final String namaAdminBsu;
+  final DateTime createdAt;
+  final double totalItem;
+  final double totalPoin;
+  final String statusDistribusi;
+  final List<DetailDistribusiItemModel> items;
+
+  DetailDistribusiSembakoModel({
+    required this.disbakoId,
+    required this.namaBsi,
+    required this.namaBsu,
+    required this.namaAdminBsi,
+    required this.namaAdminBsu,
+    required this.createdAt,
+    required this.totalItem,
+    required this.totalPoin,
+    required this.statusDistribusi,
+    required this.items,
+  });
+
+  factory DetailDistribusiSembakoModel.fromJson(Map<String, dynamic> json) {
+    final hdr = json['header'] as Map<String, dynamic>;
+    DateTime parsedDate;
+    try {
+      parsedDate = DateTime.parse(hdr['created_at'] ?? '').toLocal();
+    } catch (_) {
+      parsedDate = DateTime.now();
+    }
+    final rawItems = json['items'] as List<dynamic>? ?? [];
+    return DetailDistribusiSembakoModel(
+      disbakoId: hdr['disba_id']?.toString() ?? '',
+      namaBsi: hdr['nama_bsi']?.toString() ?? '-',
+      namaBsu: hdr['nama_bsu']?.toString() ?? '-',
+      namaAdminBsi: hdr['nama_admin_bsi']?.toString() ?? '-',
+      namaAdminBsu: hdr['nama_admin_bsu']?.toString() ?? '-',
+      createdAt: parsedDate,
+      totalItem: (hdr['total_item'] as num?)?.toDouble() ?? 0.0,
+      totalPoin: (hdr['total_poin'] as num?)?.toDouble() ?? 0.0,
+      statusDistribusi: hdr['status_distribusi']?.toString() ?? '-',
+      items: rawItems
+          .map((e) => DetailDistribusiItemModel.fromJson(e as Map<String, dynamic>))
           .toList(),
+    );
+  }
+}
+
+// ── List distribusi sembako (BSI → BSU) ──────────────────────────────────────
+
+class ListDistribusiSembakoModel {
+  final String disbakoId;
+  final String namaBsu;
+  final DateTime createdAt;
+  final double totalItem;
+  final String statusDistribusi;
+
+  ListDistribusiSembakoModel({
+    required this.disbakoId,
+    required this.namaBsu,
+    required this.createdAt,
+    required this.totalItem,
+    required this.statusDistribusi,
+  });
+
+  factory ListDistribusiSembakoModel.fromJson(Map<String, dynamic> json) {
+    DateTime parsedDate;
+    try {
+      parsedDate = DateTime.parse(json['created_at'] ?? '').toLocal();
+    } catch (_) {
+      parsedDate = DateTime.now();
+    }
+    return ListDistribusiSembakoModel(
+      disbakoId: json['disba_id']?.toString() ?? '',
+      namaBsu: json['nama_bsu']?.toString() ?? '-',
+      createdAt: parsedDate,
+      totalItem: (json['total_item'] as num?)?.toDouble() ?? 0.0,
+      statusDistribusi: json['status_distribusi']?.toString() ?? '-',
     );
   }
 }
@@ -319,8 +424,8 @@ class PreviewDistribusiItemModel {
 
   factory PreviewDistribusiItemModel.fromJson(Map<String, dynamic> json) {
     return PreviewDistribusiItemModel(
-      sembakoId: json['sembako_id']?.toString() ?? '',
-      namaSembako: json['nama_sembako']?.toString() ?? '',
+      sembakoId: json['produk_id']?.toString() ?? '',
+      namaSembako: json['nama_barang']?.toString() ?? '',
       photoUrl: json['photo_url']?.toString() ?? '',
       nilaiPoin: (json['nilai_poin'] as num?)?.toDouble() ?? 0.0,
       stokKirim: (json['stok_kirim'] as num?)?.toInt() ?? 0,

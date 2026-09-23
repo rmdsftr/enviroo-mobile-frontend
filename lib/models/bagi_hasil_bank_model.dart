@@ -1,3 +1,31 @@
+// ─── Persentase bagi hasil per jenis reward (GET /nilai-reward/get/:bank_id) ──
+class PersenBagiHasilReward {
+  final int rewardId;
+  final String namaReward;
+  final String levelUser;
+  final double persenBagiHasil;
+  final bool isActive;
+
+  PersenBagiHasilReward({
+    required this.rewardId,
+    required this.namaReward,
+    required this.levelUser,
+    required this.persenBagiHasil,
+    required this.isActive,
+  });
+
+  factory PersenBagiHasilReward.fromJson(Map<String, dynamic> json) {
+    final reward = json['reward'] as Map<String, dynamic>?;
+    return PersenBagiHasilReward(
+      rewardId: (json['reward_id'] as num?)?.toInt() ?? 0,
+      namaReward: reward?['NamaReward']?.toString() ?? '',
+      levelUser: json['level_user']?.toString() ?? '',
+      persenBagiHasil: (json['persen_bagi_hasil'] as num?)?.toDouble() ?? 0,
+      isActive: json['is_active'] ?? true,
+    );
+  }
+}
+
 class BagiHasilBankItem {
   final String bagiHasilId;
   final int rewardId;
@@ -16,7 +44,7 @@ class BagiHasilBankItem {
       bagiHasilId: json['bagi_hasil_id'] ?? '',
       rewardId: json['reward_id'] ?? 1,
       namaReward: json['nama_reward'] ?? '',
-      tanggalBagiHasil: DateTime.parse(json['tanggal_bagi_hasil'] as String),
+      tanggalBagiHasil: DateTime.parse(json['tanggal_bagi_hasil'] as String).toLocal(),
     );
   }
 }
@@ -127,7 +155,7 @@ class BagiHasilBankDetail {
         penjualanId: json['penjualan_id'] ?? '',
         rewardId: json['reward_id'] ?? 1,
         namaReward: json['nama_reward'] ?? '',
-        tanggal: DateTime.tryParse(json['tanggal'] ?? '') ?? DateTime.now(),
+        tanggal: DateTime.tryParse(json['tanggal'] ?? '')?.toLocal() ?? DateTime.now(),
         grossBsi: (json['gross_bsm'] ?? json['gross_bsi'] ?? 0).toDouble(),
         sisaBagiHasil: (json['sisa_bagi_hasil'] ?? 0).toDouble(),
         totalDistribusiNasabah:

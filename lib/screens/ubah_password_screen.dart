@@ -1,5 +1,7 @@
 import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/screens/splash_screen.dart';
 import 'package:enviroo/services/auth_service.dart';
+import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/success_bottom_sheet.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
@@ -26,16 +28,12 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
     final konfirmasiPassword = _konfirmasiPasswordController.text.trim();
 
     if (passwordLama.isEmpty || passwordBaru.isEmpty || konfirmasiPassword.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Semua field harus diisi')),
-      );
+      showCustomSnackBar(context, 'Semua field harus diisi');
       return;
     }
 
     if (passwordBaru != konfirmasiPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Konfirmasi password baru tidak cocok')),
-      );
+      showCustomSnackBar(context, 'Konfirmasi password baru tidak cocok');
       return;
     }
 
@@ -58,20 +56,31 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
     });
 
     if (response['success']) {
-      if (mounted) {
-        await showSuccessBottomSheet(
-          context,
-          title: 'Berhasil!',
-          message: 'Password kamu berhasil diperbarui.',
-          buttonLabel: 'Kembali',
-          onDismiss: () => Navigator.pop(context), // Kembali ke profil screen
-        );
-      }
+      if (!mounted) return;
+
+      // Ganti password mematikan seluruh sesi di server — termasuk perangkat
+      // yang dipakai mengganti password ini. Jadi user wajib login ulang,
+      // bukan kembali ke profil.
+      await showSuccessBottomSheet(
+        context,
+        title: 'Berhasil!',
+        message: 'Password kamu berhasil diperbarui. '
+            'Silakan login kembali dengan password baru.',
+        buttonLabel: 'Login Ulang',
+      );
+
+      if (!mounted) return;
+      await Provider.of<AuthProvider>(context, listen: false).logout();
+
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => SplashScreen()),
+        (route) => false,
+      );
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response['message'])),
-        );
+        showCustomSnackBar(context, response['message'] ?? 'Gagal mengubah password');
       }
     }
   }

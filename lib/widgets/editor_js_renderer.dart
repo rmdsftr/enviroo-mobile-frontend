@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 
 class EditorJsRenderer extends StatelessWidget {
   final String jsonString;
+  final void Function(String url)? onImageTap;
 
-  const EditorJsRenderer({Key? key, required this.jsonString}) : super(key: key);
+  const EditorJsRenderer({Key? key, required this.jsonString, this.onImageTap}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -65,25 +66,24 @@ class EditorJsRenderer extends StatelessWidget {
       
       case 'image':
         final String url = block['media_url'] ?? block['url'] ?? '';
-        
+
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              if (url.isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    url,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Center(
-                      child: Icon(Icons.image_not_supported, color: Colors.grey),
+          child: url.isEmpty
+              ? const SizedBox.shrink()
+              : GestureDetector(
+                  onTap: onImageTap != null ? () => onImageTap!(url) : null,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      url,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Icon(Icons.image_not_supported, color: Colors.grey),
+                      ),
                     ),
                   ),
                 ),
-            ],
-          ),
         );
 
       default:

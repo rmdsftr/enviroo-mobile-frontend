@@ -1,7 +1,7 @@
 import 'dart:convert';
-import '../config/api_config.dart';
+import 'package:enviroo/core/config/api_config.dart';
 import '../models/bank_sampah_model.dart';
-import 'api_client.dart';
+import 'package:enviroo/core/network/api_client.dart';
 
 class BankService {
   static Future<Map<String, dynamic>> getAllBankSampah() async {

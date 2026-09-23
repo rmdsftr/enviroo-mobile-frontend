@@ -390,7 +390,7 @@ class _SampahCardState extends State<_SampahCard>
                 Builder(builder: (context) {
                   final reward = widget.prov.selectedReward;
                   final isSembako =
-                      reward?.namaReward.toLowerCase() == 'sembako';
+                      reward?.namaReward.toLowerCase() == 'barang';
                   final rewardSatuan = reward?.satuan ?? '';
                   return Row(
                     children: [
@@ -473,7 +473,7 @@ class _SubtotalRow extends StatelessWidget {
     final subtotal = item.qty * item.hargaJual;
 
     final isSembako =
-        prov.selectedReward?.namaReward.toLowerCase() == 'sembako';
+        prov.selectedReward?.namaReward.toLowerCase() == 'barang';
     final rewardSatuan = prov.selectedReward?.satuan ?? '';
     final hargaStr = isSembako
         ? '${fmt.format(item.hargaJual)} $rewardSatuan'

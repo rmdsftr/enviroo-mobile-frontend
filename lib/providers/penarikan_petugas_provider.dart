@@ -22,7 +22,7 @@ class PenarikanPetugasProvider extends ChangeNotifier {
   bool submitting = false;
 
   // ── Filters ───────────────────────────────────────────────────────────────
-  String _rewardFilter = 'Semua'; // "Semua" | "Uang" | "Sembako"
+  String _rewardFilter = 'Semua'; // "Semua" | "Uang" | "Barang"
   late DateTime _filterStart;
   late DateTime _filterEnd;
 
@@ -51,13 +51,26 @@ class PenarikanPetugasProvider extends ChangeNotifier {
 
   // ── Filtered views ────────────────────────────────────────────────────────
 
+  // Tab "Pengajuan" = masih dalam proses (pending, approved).
+  // Tab "Selesai" = sisanya (rejected, canceled, completed, request_expired, pickup_expired).
   List<PenarikanItem> get pengajuanList => _allItems
-      .where((i) => i.status == StatusPenarikan.pending)
+      .where((i) => i.status.isDalamProses)
       .where(_matchesReward)
       .toList();
 
   List<PenarikanItem> get selesaiList => _allItems
-      .where((i) => i.status != StatusPenarikan.pending)
+      .where((i) => !i.status.isDalamProses)
+      .where(_matchesReward)
+      .toList();
+
+  // Statistik terpisah (dipakai kartu ringkasan): pending vs approved.
+  List<PenarikanItem> get pendingList => _allItems
+      .where((i) => i.status == StatusPenarikan.pending)
+      .where(_matchesReward)
+      .toList();
+
+  List<PenarikanItem> get approvedList => _allItems
+      .where((i) => i.status == StatusPenarikan.approved)
       .where(_matchesReward)
       .toList();
 
@@ -67,8 +80,8 @@ class PenarikanPetugasProvider extends ChangeNotifier {
     switch (_rewardFilter) {
       case 'Uang':
         return lower.contains('uang');
-      case 'Sembako':
-        return lower.contains('sembako');
+      case 'Barang':
+        return lower.contains('barang');
       default:
         return true;
     }
@@ -156,11 +169,12 @@ class PenarikanPetugasProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Konfirmasi ────────────────────────────────────────────────────────────
+  // ── Selesaikan penarikan (approved -> completed) ─────────────────────────
 
-  Future<bool> konfirmasi({
+  Future<bool> selesaikanViaQr({
+    required String qrData,
     required String penarikanId,
-    required String buktiFoto,
+    String? catatan,
   }) async {
     if (!_hasToken) {
       errorDetail = 'Sesi tidak valid. Silakan login ulang.';
@@ -170,9 +184,101 @@ class PenarikanPetugasProvider extends ChangeNotifier {
     errorDetail = null;
     notifyListeners();
 
-    final res = await PenarikanService.konfirmasi(
+    final res = await PenarikanService.selesaikanPenarikan(
+      qrData: qrData,
+      catatan: catatan,
+    );
+
+    submitting = false;
+    if (res['success'] == true) {
+      await loadDetail(penarikanId);
+      await loadList();
+      return true;
+    }
+    errorDetail = res['message']?.toString();
+    notifyListeners();
+    return false;
+  }
+
+  Future<bool> selesaikanManual({
+    required String nasabahId,
+    required String penarikanId,
+    required String buktiFoto,
+    required String catatan,
+  }) async {
+    if (!_hasToken) {
+      errorDetail = 'Sesi tidak valid. Silakan login ulang.';
+      return false;
+    }
+    submitting = true;
+    errorDetail = null;
+    notifyListeners();
+
+    final res = await PenarikanService.selesaikanPenarikan(
+      nasabahId: nasabahId,
       penarikanId: penarikanId,
       buktiFoto: buktiFoto,
+      catatan: catatan,
+    );
+
+    submitting = false;
+    if (res['success'] == true) {
+      await loadDetail(penarikanId);
+      await loadList();
+      return true;
+    }
+    errorDetail = res['message']?.toString();
+    notifyListeners();
+    return false;
+  }
+
+  // ── Tolak / Setujui pengajuan ────────────────────────────────────────────
+
+  Future<bool> tolakPengajuan({
+    required String penarikanId,
+    required String catatan,
+  }) async {
+    if (!_hasToken) {
+      errorDetail = 'Sesi tidak valid. Silakan login ulang.';
+      return false;
+    }
+    submitting = true;
+    errorDetail = null;
+    notifyListeners();
+
+    final res = await PenarikanService.tolakPengajuan(
+      penarikanId: penarikanId,
+      catatan: catatan,
+    );
+
+    submitting = false;
+    if (res['success'] == true) {
+      await loadDetail(penarikanId);
+      await loadList();
+      return true;
+    }
+    errorDetail = res['message']?.toString();
+    notifyListeners();
+    return false;
+  }
+
+  Future<bool> setujuiPengajuan({
+    required String penarikanId,
+    required DateTime deadlineJemput,
+    String? catatan,
+  }) async {
+    if (!_hasToken) {
+      errorDetail = 'Sesi tidak valid. Silakan login ulang.';
+      return false;
+    }
+    submitting = true;
+    errorDetail = null;
+    notifyListeners();
+
+    final res = await PenarikanService.setujuiPengajuan(
+      penarikanId: penarikanId,
+      deadlineJemput: deadlineJemput,
+      catatan: catatan,
     );
 
     submitting = false;

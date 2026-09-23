@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -6,6 +7,7 @@ import '../../models/penjualan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bagi_hasil_provider.dart' hide FetchStatus;
 import '../../providers/penjualan_provider.dart';
+import '../../services/bukti_penjualan_pdf_service.dart';
 import '../../widgets/topbar_back.dart';
 import '../lihat_foto_screen.dart';
 import '../bagi_hasil/preview_bagi_hasil_screen.dart';
@@ -30,6 +32,9 @@ class DetailPenjualanScreen extends StatefulWidget {
 }
 
 class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
+  bool _hargaNasabahExpanded = false;
+  bool _unduhLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -38,6 +43,54 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
 
   Future<void> _load() async {
     await context.read<PenjualanProvider>().fetchDetail(widget.penjualanId);
+  }
+
+  // ── Unduh bukti penjualan jadi PDF ──────────────────────────────────────────
+  // PDF-nya dirender dari template di pdf_bukti_penjualan.dart, terus user
+  // milih sendiri mau disimpan di folder mana lewat dialog bawaan HP.
+  Future<void> _unduhBukti(DetailPenjualanModel d) async {
+    if (_unduhLoading) return;
+    setState(() => _unduhLoading = true);
+
+    try {
+      final bytes = await BuktiPenjualanPdfService.generate(d, context: context);
+      if (!mounted) return;
+
+      // Pakai flutter_file_dialog, bukan file_picker — file_picker (versi 8.x
+      // maupun 12.x) sama-sama gak bisa nge-set MIME "application/pdf" yang
+      // bener buat dialog save-nya, jadi hasilnya kesimpen tapi gak dikenali
+      // sistem sebagai PDF (nongol pilihan "buka sebagai audio/video/dokumen").
+      final tujuan = await FlutterFileDialog.saveFile(
+        params: SaveFileDialogParams(
+          data: bytes,
+          fileName: BuktiPenjualanPdfService.namaFile(d),
+          mimeTypesFilter: const ['application/pdf'],
+        ),
+      );
+      if (!mounted) return;
+
+      // tujuan == null artinya user batal milih folder — gak usah diapa-apain.
+      if (tujuan != null) {
+        _snack('Bukti penjualan berhasil disimpan', sukses: true);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _snack('Gagal membuat bukti penjualan: $e');
+    } finally {
+      if (mounted) setState(() => _unduhLoading = false);
+    }
+  }
+
+  void _snack(String pesan, {bool sukses = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(pesan, style: const TextStyle(fontFamily: 'Poppins')),
+        backgroundColor: sukses ? _C.green : _C.danger,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
   }
 
   @override
@@ -120,7 +173,7 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
     final fmtPoin = NumberFormat('#,##0.##########', 'id_ID');
     final fmtQty = NumberFormat('#,##0.##########', 'id_ID');
     final fmtRp = NumberFormat('#,##0', 'id_ID');
-    final isSembako = d.namaReward.toLowerCase() == 'sembako';
+    final isSembako = d.namaReward.toLowerCase() == 'barang';
 
     String fmtHarga(double val) => isSembako
         ? '${fmtPoin.format(val)} ${d.satuanReward}'
@@ -234,6 +287,10 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
 
           // ── CTA Button ──────────────────────────────────────────────────
           _buildCta(d),
+          const SizedBox(height: 12),
+
+          // ── Unduh Bukti Penjualan ───────────────────────────────────────
+          _buildUnduhButton(d),
         ],
       ),
     );
@@ -251,7 +308,7 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _infoRow(Icons.person_rounded, 'Pembeli', d.identitasPembeli),
+          _infoRow(Icons.person_rounded, 'Mitra Pengepul', d.namaMitra),
           _divider(),
           _infoRow(Icons.badge_rounded, 'Petugas', d.adminName),
           _divider(),
@@ -496,70 +553,100 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: const [
-              Icon(Icons.person_pin_rounded, color: _C.green, size: 18),
-              SizedBox(width: 8),
-              Text(
-                'Harga Sampah Nasabah',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: _C.dark,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (d.itemsSampah.isEmpty)
-            Text(
-              'Tidak ada data.',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: _C.dark.withValues(alpha: 0.4),
-              ),
-            )
-          else
-            ...d.itemsSampah.asMap().entries.map((entry) {
-              final i = entry.key;
-              final s = entry.value;
-              final isLast = i == d.itemsSampah.length - 1;
-              return Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            s.namaSampah,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: _C.dark,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          fmtHarga(s.hargaNasabahSnapshot),
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: _C.green,
-                          ),
-                        ),
-                      ],
+          InkWell(
+            onTap: () =>
+                setState(() => _hargaNasabahExpanded = !_hargaNasabahExpanded),
+            child: Row(
+              children: [
+                const Icon(Icons.person_pin_rounded, color: _C.green, size: 18),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Harga Sampah Nasabah',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: _C.dark,
                     ),
                   ),
-                  if (!isLast) Divider(color: _C.dark.withValues(alpha: 0.06), height: 1),
+                ),
+                AnimatedRotation(
+                  turns: _hargaNasabahExpanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: _C.dark.withValues(alpha: 0.5),
+                    size: 22,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 200),
+            sizeCurve: Curves.easeInOut,
+            crossFadeState: _hargaNasabahExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild: const SizedBox(width: double.infinity, height: 0),
+            secondChild: Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (d.itemsSampah.isEmpty)
+                    Text(
+                      'Tidak ada data.',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 12,
+                        color: _C.dark.withValues(alpha: 0.4),
+                      ),
+                    )
+                  else
+                    ...d.itemsSampah.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final s = entry.value;
+                      final isLast = i == d.itemsSampah.length - 1;
+                      return Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    s.namaSampah,
+                                    style: const TextStyle(
+                                      fontFamily: 'Poppins',
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: _C.dark,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  fmtHarga(s.hargaNasabahSnapshot),
+                                  style: const TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: _C.green,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (!isLast) Divider(color: _C.dark.withValues(alpha: 0.06), height: 1),
+                        ],
+                      );
+                    }),
                 ],
-              );
-            }),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -828,5 +915,38 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
     }
 
     return const SizedBox.shrink();
+  }
+
+  // ── Unduh Bukti Penjualan ─────────────────────────────────────────────────
+  Widget _buildUnduhButton(DetailPenjualanModel d) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _unduhLoading ? null : () => _unduhBukti(d),
+        icon: _unduhLoading
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: _C.dark),
+              )
+            : const Icon(Icons.download_rounded, size: 18),
+        label: Text(
+          _unduhLoading ? 'Menyiapkan PDF...' : 'Unduh Bukti Penjualan',
+          style: const TextStyle(
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _C.dark,
+          side: BorderSide(color: _C.dark.withOpacity(0.25)),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(50),
+          ),
+        ),
+      ),
+    );
   }
 }

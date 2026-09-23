@@ -32,20 +32,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  bool _obscureOld = true;
-  bool _obscureNew = true;
-  bool _obscureConfirm = true;
-
-  // Daftar BSU untuk dropdown pemindahan
-  final List<String> _daftarBsu = [
-    "BSU Fakultas Teknik",
-    "BSU Fakultas Ekonomi",
-    "BSU Fakultas Hukum",
-    "BSU Fakultas Kedokteran",
-    "BSU Fakultas MIPA",
-    "BSU Fakultas Ilmu Sosial",
-  ];
-  String? _selectedBsu;
   final _alasanController = TextEditingController();
 
   @override
@@ -1070,83 +1056,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // ─── Reusable: Styled TextField ───────────────────────────────────
-  // ═══════════════════════════════════════════════════════════════════
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    String? hint,
-    IconData? prefixIcon,
-    bool obscure = false,
-    Widget? suffixIcon,
-    TextInputType keyboardType = TextInputType.text,
-    int maxLines = 1,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 6),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFF013236).withValues(alpha: 0.7),
-            ),
-          ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: Color(0xFF4EA771).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: TextField(
-            controller: controller,
-            obscureText: obscure,
-            keyboardType: keyboardType,
-            maxLines: maxLines,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              color: Color(0xFF013236),
-            ),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: const Color(0xFF013236).withValues(alpha: 0.35),
-              ),
-              prefixIcon: prefixIcon != null
-                  ? Padding(
-                padding: const EdgeInsets.only(left: 14, right: 10),
-                child: Icon(
-                  prefixIcon,
-                  size: 18,
-                  color: const Color(0xFF4EA771),
-                ),
-              )
-                  : null,
-              prefixIconConstraints: const BoxConstraints(
-                minWidth: 0,
-                minHeight: 0,
-              ),
-              suffixIcon: suffixIcon,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 

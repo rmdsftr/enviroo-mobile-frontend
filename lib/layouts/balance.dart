@@ -147,7 +147,7 @@ class _BalanceLayoutState extends State<BalanceLayouts>
     final isBank = widget.entityType == BalanceEntityType.bank;
     final cards = <_CardConfig>[
       _CardConfig(
-        label: isBank ? 'Kas Uang' : 'Saldo Uang',
+        label: isBank ? 'Saldo Rupiah' : 'Saldo Rupiah',
         primaryValue: (s) => 'Rp ${_rupiah.format(s.totalUang)}',
         primaryUnit: '',
         icon: Icons.account_balance_wallet_rounded,
@@ -157,7 +157,7 @@ class _BalanceLayoutState extends State<BalanceLayouts>
     ];
     if (_saldo.hasPoin) {
       cards.add(_CardConfig(
-        label: isBank ? 'Kas Poin' : 'Saldo Poin',
+        label: isBank ? 'Saldo Poin' : 'Saldo Poin',
         primaryValue: (s) => _poin.format(s.totalPoin),
         primaryUnit: 'poin',
         icon: Icons.stars_rounded,
@@ -177,7 +177,7 @@ class _BalanceLayoutState extends State<BalanceLayouts>
         children: [
           // ── Swipeable card area ──────────────────────────
           AspectRatio(
-            aspectRatio: 1200 / 380,
+            aspectRatio: 1200 / 400,
             child: _isLoading
                 ? _buildSkeleton()
                 : FadeTransition(
@@ -274,7 +274,7 @@ class _BalanceCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 20),
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 15),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -339,7 +339,7 @@ class _BalanceCard extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
 
               // ── Primary Value + Unit (satu baris) ──
               Row(

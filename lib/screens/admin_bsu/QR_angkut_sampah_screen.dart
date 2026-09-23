@@ -3,16 +3,15 @@ import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'dart:math';
-
 class QRAngkutSampahScreen extends StatefulWidget {
-  /// Daftar sampah yang dipilih untuk diangkut (opsional, ditampilkan sebagai
-  /// preview saja). Sejak input pengangkutan dilakukan oleh Admin BSI, daftar
-  /// item sudah tidak dikirim via QR — yang penting hanyalah identitas
-  /// petugas BSU yang akan diambil oleh Admin BSI saat scan.
+  final String pengangkutanId;
   final List<Map<String, dynamic>> selectedItems;
 
-  const QRAngkutSampahScreen({super.key, this.selectedItems = const []});
+  const QRAngkutSampahScreen({
+    super.key,
+    required this.pengangkutanId,
+    this.selectedItems = const [],
+  });
 
   @override
   State<QRAngkutSampahScreen> createState() => _QRAngkutSampahScreenState();
@@ -28,17 +27,10 @@ class _QRAngkutSampahScreenState extends State<QRAngkutSampahScreen> {
   }
 
   void _generateQRCode() {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final random = Random().nextInt(999999).toString().padLeft(6, '0');
-
-    // Ambil identity_id (admin_id) petugas BSU dari sesi login.
-    // Format QR: ENVIROO-ANGKUTBSU|{adminBsuId}|{timestamp}|{random}
-    // Pemisah '|' digunakan agar tidak konflik dengan dash di dalam adminBsuId
-    // (format ID: ADM-YYYYMMDDHHMMSS-RANDOM).
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final adminBsuId = auth.identityId ?? '';
     setState(() {
-      _qrData = 'ENVIROO-ANGKUTBSU|$adminBsuId|$timestamp|$random';
+      _qrData = '{"type":"ENVIROO-ANGKUTBSU","admin_bsu_id":"$adminBsuId","pengangkutan_id":"${widget.pengangkutanId}"}';
     });
   }
 

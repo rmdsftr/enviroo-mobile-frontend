@@ -1,6 +1,6 @@
 import 'dart:convert';
-import '../config/api_config.dart';
-import 'api_client.dart';
+import 'package:enviroo/core/config/api_config.dart';
+import 'package:enviroo/core/network/api_client.dart';
 
 class DistribusiSisaService {
   static Future<Map<String, dynamic>> previewDistribusiSisa(String bagiHasilId) async {
@@ -26,12 +26,11 @@ class DistribusiSisaService {
   static Future<Map<String, dynamic>> submitDistribusiSisa(
     String bagiHasilId,
     String adminId,
-    List<Map<String, dynamic>> pengirimanBsu,
   ) async {
     try {
       final response = await ApiClient.post(
         Uri.parse('${ApiConfig.distribusiSisaBase}/submit/$bagiHasilId'),
-        body: jsonEncode({'admin_id': adminId, 'pengiriman_bsu': pengirimanBsu}),
+        body: jsonEncode({'admin_id': adminId}),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) {

@@ -148,14 +148,20 @@ class PenarikanNasabahProvider extends ChangeNotifier {
   // ── Load initial data for PenarikanNasabahScreen ─────────────────────────
 
   Future<void> loadInitial() async {
+    final now = DateTime.now();
+    _filterEnd = DateTime(now.year, now.month);
+    final startMonth = now.month - 2;
+    _filterStart = startMonth <= 0
+        ? DateTime(now.year - 1, 12 + startMonth)
+        : DateTime(now.year, startMonth);
+    _activeRewardId = null;
+    notifyListeners();
+
     await Future.wait([
       loadSaldo(),
       loadRewards(),
     ]);
-    
-    if (_activeRewardId == null) {
-      _activeRewardId = rewardUang?.rewardId;
-    }
+
     await loadList(refresh: true);
   }
 
@@ -310,6 +316,8 @@ class PenarikanNasabahProvider extends ChangeNotifier {
     required int rewardId,
     double? nominalPenarikan,
     List<Map<String, dynamic>> itemSembako = const [],
+    DateTime? deadlineKonfirmasi,
+    String? catatan,
   }) async {
     if (!_ok) {
       return {'success': false, 'message': 'Sesi tidak valid'};
@@ -319,17 +327,19 @@ class PenarikanNasabahProvider extends ChangeNotifier {
       rewardId: rewardId,
       nominalPenarikan: nominalPenarikan,
       itemSembako: itemSembako,
+      deadlineKonfirmasi: deadlineKonfirmasi,
+      catatan: catatan,
     );
   }
 
   // ── Batalkan ─────────────────────────────────────────────────────────────
 
-  Future<bool> callBatal(String penarikanId) async {
+  Future<bool> callBatal(String penarikanId, {String? catatan}) async {
     if (!_hasToken) return false;
     canceling = true;
     notifyListeners();
 
-    final res = await PenarikanService.batal(penarikanId);
+    final res = await PenarikanService.batal(penarikanId, catatan: catatan);
 
     canceling = false;
     if (res['success'] == true) {
@@ -345,7 +355,7 @@ class PenarikanNasabahProvider extends ChangeNotifier {
             namaReward: item.namaReward,
             nominalPenarikan: item.nominalPenarikan,
             satuanPenarikan: item.satuanPenarikan,
-            status: StatusPenarikan.dibatalkan,
+            status: StatusPenarikan.canceled,
             kadaluarsaAt: item.kadaluarsaAt,
             createdAt: item.createdAt,
             updatedAt: DateTime.now(),

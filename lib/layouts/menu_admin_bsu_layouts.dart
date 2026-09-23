@@ -3,11 +3,8 @@ import 'package:enviroo/screens/admin_bsu/list_bagi_hasil_bsu_screen.dart';
 import 'package:enviroo/screens/admin_bsu/pengangkutan_bsu_screen.dart';
 import 'package:enviroo/screens/admin_bsu/tabungan_sampah_bsu_screen.dart';
 import 'package:enviroo/screens/petugas/penimbangan_screen.dart';
-import 'package:enviroo/screens/kelola_nasabah_screen.dart';
 import 'package:enviroo/screens/penarikan/penarikan_petugas_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:enviroo/providers/auth_provider.dart';
 
 class MenuAdminBSU extends StatefulWidget {
   @override
@@ -45,18 +42,6 @@ class _MenuAdminBSUState extends State<MenuAdminBSU> {
                     width: itemWidth,
                     child: _buildMenuItem(
                       context: context,
-                      label: "Nasabah",
-                      icon: Icons.people_alt_rounded,
-                      color: const Color(0xFF9B51E0),
-                      iconColor: Colors.white,
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => KelolaNasabahScreen())),
-                    ),
-                  ),
-                  SizedBox(
-                    width: itemWidth,
-                    child: _buildMenuItem(
-                      context: context,
                       label: "Timbang",
                       icon: Icons.document_scanner_rounded,
                       color: const Color(0xFFFAA324),
@@ -75,6 +60,18 @@ class _MenuAdminBSUState extends State<MenuAdminBSU> {
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const PengangkutanBsuScreen())),
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _buildMenuItem(
+                      context: context,
+                      label: "Bagi Hasil",
+                      icon: Icons.volunteer_activism_rounded,
+                      color: const Color(0xFF4EA771),
+                      iconColor: Colors.white,
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const ListBagiHasilBsuScreen())),
                     ),
                   ),
                   SizedBox(
@@ -105,19 +102,7 @@ class _MenuAdminBSUState extends State<MenuAdminBSU> {
                     width: itemWidth,
                     child: _buildMenuItem(
                       context: context,
-                      label: "Bagi Hasil",
-                      icon: Icons.volunteer_activism_rounded,
-                      color: const Color(0xFFEB5757),
-                      iconColor: Colors.white,
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const ListBagiHasilBsuScreen())),
-                    ),
-                  ),
-                  SizedBox(
-                    width: itemWidth,
-                    child: _buildMenuItem(
-                      context: context,
-                      label: "Sembako",
+                      label: "Barang",
                       icon: Icons.storefront_rounded,
                       color: const Color(0xFF2D9CDB),
                       iconColor: Colors.white,

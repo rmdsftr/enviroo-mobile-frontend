@@ -1,3 +1,56 @@
+const _dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+
+class JadwalRutin {
+  final List<int> days;
+  final List<int> weeks;
+  final String waktu;
+  final String targetBankName;
+
+  JadwalRutin({
+    required this.days,
+    required this.weeks,
+    required this.waktu,
+    this.targetBankName = '',
+  });
+
+  String get label {
+    final dayStr = days.map((d) => _dayNames[d - 1]).join(', ');
+    final weekStr = weeks.isEmpty
+        ? 'tiap minggunya'
+        : weeks.map((w) => 'minggu ke-$w').join(' & ');
+    return 'Setiap hari $dayStr $weekStr';
+  }
+
+  List<DateTime> datesInMonth(int year, int month) {
+    final result = <DateTime>[];
+    final daysInMonth = DateTime(year, month + 1, 0).day;
+    final firstOfMonth = DateTime(year, month, 1);
+    final firstWeekday = firstOfMonth.weekday % 7;
+
+    for (int d = 1; d <= daysInMonth; d++) {
+      final date = DateTime(year, month, d);
+      final weekday = date.weekday;
+      final adjustedDay = d + firstWeekday - 1;
+      final weekNum = (adjustedDay ~/ 7) + 1;
+
+      if (days.contains(weekday)) {
+        if (weeks.isEmpty || weeks.contains(weekNum)) {
+          result.add(date);
+        }
+      }
+    }
+    return result;
+  }
+}
+
+class JadwalCustom {
+  final DateTime tanggal;
+  final String waktu;
+  final String? pesan;
+
+  JadwalCustom({required this.tanggal, required this.waktu, this.pesan});
+}
+
 class JadwalModel {
   final String jadwalId;
   final String bankId;
@@ -66,6 +119,49 @@ class JadwalModel {
   }
 
   String get formattedWaktu {
+    String mulai = jamMulai.length >= 5 ? jamMulai.substring(0, 5) : jamMulai;
+    String selesai = jamSelesai.length >= 5 ? jamSelesai.substring(0, 5) : jamSelesai;
+    return '$mulai - $selesai';
+  }
+}
+
+// ── Jadwal Penimbangan (endpoint GET /jadwal/penimbangan/:bank_id) ──────────
+// Dipakai khusus JadwalScreen role petugas_bsm.
+class JadwalPenimbanganItem {
+  final String jadwalId;
+  final DateTime tanggal;
+  final String jamMulai;
+  final String jamSelesai;
+  final String namaJadwal;
+  final bool isRutin;
+  final bool isActive;
+  final String statusJadwal;
+
+  JadwalPenimbanganItem({
+    required this.jadwalId,
+    required this.tanggal,
+    required this.jamMulai,
+    required this.jamSelesai,
+    required this.namaJadwal,
+    required this.isRutin,
+    required this.isActive,
+    required this.statusJadwal,
+  });
+
+  factory JadwalPenimbanganItem.fromJson(Map<String, dynamic> json) {
+    return JadwalPenimbanganItem(
+      jadwalId: json['jadwal_id']?.toString() ?? '',
+      tanggal: DateTime.tryParse(json['tanggal']?.toString() ?? '') ?? DateTime.now(),
+      jamMulai: json['jam_mulai']?.toString() ?? '',
+      jamSelesai: json['jam_selesai']?.toString() ?? '',
+      namaJadwal: json['nama_jadwal']?.toString() ?? '',
+      isRutin: json['is_rutin'] == true,
+      isActive: json['is_active'] == true,
+      statusJadwal: json['status_jadwal']?.toString() ?? '',
+    );
+  }
+
+  String get formattedJam {
     String mulai = jamMulai.length >= 5 ? jamMulai.substring(0, 5) : jamMulai;
     String selesai = jamSelesai.length >= 5 ? jamSelesai.substring(0, 5) : jamSelesai;
     return '$mulai - $selesai';

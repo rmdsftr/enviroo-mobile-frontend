@@ -21,6 +21,7 @@ class ProfileCorner extends StatefulWidget {
 
 class _ProfileCornerState extends State<ProfileCorner>{
   Future<Map<String, dynamic>?>? _userDataFuture;
+  int _lastPhotoVersion = -1;
 
   @override
   void initState() {
@@ -29,6 +30,7 @@ class _ProfileCornerState extends State<ProfileCorner>{
       final auth = Provider.of<AuthProvider>(context, listen: false);
       if (auth.userId.isNotEmpty) {
         setState(() {
+          _lastPhotoVersion = auth.profilePhotoVersion;
           _userDataFuture = UserService.getActiveUser(auth.userId);
         });
       }
@@ -51,7 +53,9 @@ class _ProfileCornerState extends State<ProfileCorner>{
         ),
         child: Consumer<AuthProvider>(
           builder: (context, auth, _) {
-            if (_userDataFuture == null && auth.userId.isNotEmpty) {
+            if (auth.userId.isNotEmpty &&
+                (_userDataFuture == null || auth.profilePhotoVersion != _lastPhotoVersion)) {
+              _lastPhotoVersion = auth.profilePhotoVersion;
               _userDataFuture = UserService.getActiveUser(auth.userId);
             }
             return FutureBuilder<Map<String, dynamic>?>(

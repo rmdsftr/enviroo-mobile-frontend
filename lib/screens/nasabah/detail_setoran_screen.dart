@@ -1,58 +1,10 @@
+import 'package:enviroo/models/setoran_nasabah_model.dart';
+import 'package:enviroo/models/setoran_model.dart';
 import 'package:enviroo/screens/lihat_foto_screen.dart';
 import 'package:enviroo/services/setoran_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-// ── Models ───────────────────────────────────────────────────────────────────
-class _DetailHeader {
-  final String setoranId;
-  final String namaPetugas;
-  final String namaNasabah;
-  final DateTime transaksiTimestamp;
-  final int totalItem;
-  final String statusSetoran;
-  final String buktiViaManual;
-
-  _DetailHeader({
-    required this.setoranId,
-    required this.namaPetugas,
-    required this.namaNasabah,
-    required this.transaksiTimestamp,
-    required this.totalItem,
-    required this.statusSetoran,
-    required this.buktiViaManual,
-  });
-
-  factory _DetailHeader.fromJson(Map<String, dynamic> j) => _DetailHeader(
-        setoranId: j['setoran_id'] ?? '',
-        namaPetugas: j['nama_petugas'] ?? '',
-        namaNasabah: j['nama_nasabah'] ?? '',
-        transaksiTimestamp:
-            DateTime.tryParse(j['transaksi_timestamp'] ?? '') ?? DateTime.now(),
-        totalItem: j['total_item'] ?? 0,
-        statusSetoran: j['status_setoran'] ?? '',
-        buktiViaManual: j['bukti_via_manual'] ?? '',
-      );
-}
-
-class _ItemSetoran {
-  final String namaSampah;
-  final double qty;
-  final String satuan;
-
-  _ItemSetoran({
-    required this.namaSampah,
-    required this.qty,
-    required this.satuan,
-  });
-
-  factory _ItemSetoran.fromJson(Map<String, dynamic> j) => _ItemSetoran(
-        namaSampah: j['nama_sampah'] ?? '',
-        qty: (j['qty'] as num?)?.toDouble() ?? 0.0,
-        satuan: j['satuan'] ?? '',
-      );
-}
 
 // ── Screen ───────────────────────────────────────────────────────────────────
 class DetailSetoranScreen extends StatefulWidget {
@@ -67,8 +19,8 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
   static const _teal = Color(0xFF013236);
   static const _accent = Color(0xFF4EA771);
 
-  _DetailHeader? _header;
-  List<_ItemSetoran> _items = [];
+  SetoranDetailHeader? _header;
+  List<SetoranItem> _items = [];
   bool _isLoading = true;
   String? _error;
 
@@ -84,9 +36,9 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
     if (res['success'] == true) {
       final data = res['data'] as Map<String, dynamic>;
       setState(() {
-        _header = _DetailHeader.fromJson(data['header'] ?? {});
+        _header = SetoranDetailHeader.fromJson(data['header'] ?? {});
         final List items = data['items'] ?? [];
-        _items = items.map((e) => _ItemSetoran.fromJson(e)).toList();
+        _items = items.map((e) => SetoranItem.fromJson(e)).toList();
         _isLoading = false;
       });
     } else {
@@ -133,8 +85,7 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
 
   Widget _buildStruk() {
     final h = _header!;
-    final isSuccess = h.statusSetoran == 'berhasil';
-    final statusColor = isSuccess ? _accent : Colors.orange;
+    const statusColor = _accent;
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -150,15 +101,15 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
                   color: statusColor.withOpacity(0.15),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  isSuccess ? Icons.check_circle_rounded : Icons.info_rounded,
+                child: const Icon(
+                  Icons.check_circle_rounded,
                   color: statusColor,
                   size: 36,
                 ),
               ),
               const SizedBox(height: 12),
-              Text(
-                isSuccess ? 'Setoran Berhasil' : h.statusSetoran.toUpperCase(),
+              const Text(
+                'Setoran Berhasil',
                 style: TextStyle(
                   fontFamily: 'Poppins',
                   fontWeight: FontWeight.w700,
@@ -266,7 +217,7 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
 
 
 
-  Widget _buildInfoCard(_DetailHeader h) {
+  Widget _buildInfoCard(SetoranDetailHeader h) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),

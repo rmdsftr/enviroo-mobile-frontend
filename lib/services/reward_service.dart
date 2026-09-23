@@ -1,6 +1,6 @@
 import 'dart:convert';
-import '../config/api_config.dart';
-import 'api_client.dart';
+import 'package:enviroo/core/config/api_config.dart';
+import 'package:enviroo/core/network/api_client.dart';
 
 class RewardService {
   static Future<Map<String, dynamic>> getAllReward() async {

@@ -13,6 +13,7 @@ import '../../providers/penjualan_provider.dart';
 import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import '../admin_bsu/inapp_camera_screen.dart';
+import '../lihat_foto_screen.dart';
 import 'detail_penjualan_screen.dart';
 
 class _C {
@@ -128,24 +129,24 @@ class _HitungPenjualanScreenState extends State<HitungPenjualanScreen> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        GestureDetector(
-                          onTap: _ambilFoto,
-                          child: Container(
-                            width: double.infinity,
-                            height: 200,
-                            decoration: BoxDecoration(
-                              color: _C.cardBg,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: prov.buktiFoto == null
-                                    ? _C.border
-                                    : _C.green,
-                                width: 1.5,
-                              ),
+                        Container(
+                          width: double.infinity,
+                          height: 200,
+                          decoration: BoxDecoration(
+                            color: _C.cardBg,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: prov.buktiFoto == null
+                                  ? _C.border
+                                  : _C.green,
+                              width: 1.5,
                             ),
-                            clipBehavior: Clip.antiAlias,
-                            child: prov.buktiFoto == null
-                                ? const Column(
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: prov.buktiFoto == null
+                              ? GestureDetector(
+                                  onTap: _ambilFoto,
+                                  child: const Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(Icons.photo_camera_rounded,
@@ -170,15 +171,29 @@ class _HitungPenjualanScreenState extends State<HitungPenjualanScreen> {
                                         ),
                                       ),
                                     ],
-                                  )
-                                : Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      Image.file(prov.buktiFoto!,
+                                  ),
+                                )
+                              : Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => LihatFotoScreen(
+                                            photoFile: prov.buktiFoto,
+                                            nama: 'Bukti Serah Terima',
+                                          ),
+                                        ),
+                                      ),
+                                      child: Image.file(prov.buktiFoto!,
                                           fit: BoxFit.cover),
-                                      Positioned(
-                                        right: 10,
-                                        top: 10,
+                                    ),
+                                    Positioned(
+                                      right: 10,
+                                      top: 10,
+                                      child: GestureDetector(
+                                        onTap: _ambilFoto,
                                         child: Container(
                                           padding: const EdgeInsets.all(6),
                                           decoration: BoxDecoration(
@@ -193,9 +208,9 @@ class _HitungPenjualanScreenState extends State<HitungPenjualanScreen> {
                                           ),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                          ),
+                                    ),
+                                  ],
+                                ),
                         ),
                         const SizedBox(height: 16),
                       ],

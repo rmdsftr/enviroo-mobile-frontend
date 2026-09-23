@@ -312,48 +312,30 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
 
   Widget _buildBsuBlock(BhPenerimaItem bsu, int rewardId) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: _C.dark.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.account_balance_rounded,
-                    size: 14, color: _C.dark),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            margin: const EdgeInsets.only(bottom: 6),
+            decoration: BoxDecoration(
+              color: _C.dark.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              bsu.namaBank,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: _C.dark.withValues(alpha: 0.6),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  bsu.namaBank,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    color: _C.dark,
-                  ),
-                ),
-              ),
-              Text(
-                '${bsu.nasabahPenerima.length} nasabah',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  color: _C.dark.withValues(alpha: 0.4),
-                ),
-              ),
-            ],
+            ),
           ),
-          if (bsu.nasabahPenerima.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            ...bsu.nasabahPenerima.map(
-                (n) => _buildNasabahRow(n)),
-          ],
+          if (bsu.nasabahPenerima.isNotEmpty)
+            ...bsu.nasabahPenerima.map((n) => _buildNasabahRow(n)),
         ],
       ),
     );
@@ -468,12 +450,6 @@ IconData _rewardIcon(int rewardId) {
   if (rewardId == 2) return Icons.diamond_rounded;
   if (rewardId == 3) return Icons.toll_rounded;
   return Icons.payments_rounded;
-}
-
-String _fmtVal(double val, int rewardId) {
-  final f = NumberFormat('#,##0.##', 'id_ID');
-  if (rewardId == 3) return '${f.format(val.round())} poin';
-  return 'Rp ${f.format(val)}';
 }
 
 String _fmtBySatuan(double val, String satuan) {

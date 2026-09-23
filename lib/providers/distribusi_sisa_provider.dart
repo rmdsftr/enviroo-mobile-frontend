@@ -58,14 +58,13 @@ class DistribusiSisaProvider extends ChangeNotifier {
   Future<bool> submitDistribusiSisa(
     String bagiHasilId,
     String adminId,
-    List<Map<String, dynamic>> pengirimanBsu,
   ) async {
     _submitting = true;
     _submitError = null;
     _newDistribusiId = null;
     notifyListeners();
 
-    final res = await DistribusiSisaService.submitDistribusiSisa(bagiHasilId, adminId, pengirimanBsu);
+    final res = await DistribusiSisaService.submitDistribusiSisa(bagiHasilId, adminId);
     _submitting = false;
     if (res['success'] == true) {
       _newDistribusiId = res['distribusi_id']?.toString();

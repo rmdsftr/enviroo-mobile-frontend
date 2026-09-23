@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:enviroo/widgets/success_bottom_sheet.dart';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -9,8 +8,10 @@ import 'package:provider/provider.dart';
 import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/penarikan_petugas_provider.dart';
-import '../../screens/admin_bsu/inapp_camera_screen.dart';
+import '../../widgets/penarikan_detail_widgets.dart';
 import '../../widgets/topbar_back.dart';
+import 'deadline_penarikan_screen.dart';
+import 'scanner_penarikan_screen.dart';
 
 class DetailTransaksiPenarikanScreen extends StatefulWidget {
   final String penarikanId;
@@ -36,61 +37,46 @@ class _DetailTransaksiPenarikanScreenState
     });
   }
 
-  String _fmtDate(DateTime? d) {
-    if (d == null) return '-';
-    return DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(d);
-  }
+  // ── Formatters ────────────────────────────────────────────────────────────
 
-  String _fmtNum(double n) {
+  String _fmtNominal(double v, String satuan, {bool isUang = false}) {
     final f = NumberFormat.decimalPattern('id_ID');
     f.maximumFractionDigits = 4;
     f.minimumFractionDigits = 0;
-    return f.format(n);
+    if (isUang) return 'Rp ${f.format(v)}';
+    return '${f.format(v)} ${satuan.isEmpty ? 'poin' : satuan}';
   }
 
-  String _nominalText(PenarikanDetail d) {
-    final lower = d.satuanPenarikan.toLowerCase();
-    if (lower.contains('rupiah') || d.namaReward.toLowerCase().contains('uang')) {
-      return 'Rp ${_fmtNum(d.nominalPenarikan)}';
-    }
-    return '${_fmtNum(d.nominalPenarikan)} ${d.satuanPenarikan.isEmpty ? 'poin' : d.satuanPenarikan}';
+  String _fmtDeadline(DateTime? dt) {
+    if (dt == null) return '-';
+    final dateStr = DateFormat('d MMMM yyyy', 'id_ID').format(dt);
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$dateStr, $h.$m WIB';
   }
 
-  Future<void> _handleKonfirmasi(String penarikanId) async {
-    final File? photoFile = await Navigator.push<File?>(
+  String _capitalize(String s) =>
+      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}';
+
+  // ── Konfirmasi ────────────────────────────────────────────────────────────
+
+  /// Buka scanner QR nasabah — begitu QR cocok, penarikan langsung
+  /// diselesaikan di dalam scanner (atau lewat konfirmasi manual di sana).
+  /// Di sini tinggal refresh & kasih feedback sukses.
+  Future<void> _handleKonfirmasiFlow(String penarikanId, String nasabahId) async {
+    final completed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => const InAppCameraScreen(
-          hint: 'Ambil foto nasabah sebagai bukti penarikan',
+        builder: (_) => ScannerPenarikanScreen(
+          penarikanId: penarikanId,
+          nasabahId: nasabahId,
         ),
       ),
     );
-    if (photoFile == null || !mounted) return;
+    if (completed != true || !mounted) return;
 
-    final bytes = await photoFile.readAsBytes();
-    final base64str = base64Encode(bytes);
-
-    if (!mounted) return;
-    final success = await context
-        .read<PenarikanPetugasProvider>()
-        .konfirmasi(penarikanId: penarikanId, buktiFoto: base64str);
-
-    if (!mounted) return;
-    if (success) {
-      _showSuccessDialog();
-    } else {
-      final errMsg = context.read<PenarikanPetugasProvider>().errorDetail;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
-          content: Text(
-            errMsg ?? 'Gagal mengkonfirmasi penarikan',
-            style: const TextStyle(fontFamily: 'Poppins'),
-          ),
-        ),
-      );
-    }
+    await context.read<PenarikanPetugasProvider>().loadDetail(penarikanId);
+    if (mounted) _showSuccessDialog();
   }
 
   Future<void> _showSuccessDialog() async {
@@ -101,6 +87,54 @@ class _DetailTransaksiPenarikanScreenState
       onDismiss: () => Navigator.pop(context),
     );
   }
+
+  Future<void> _openTolak(String penarikanId) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DeadlinePenarikanScreen.tolak(penarikanId: penarikanId),
+      ),
+    );
+    if (!mounted) return;
+    context.read<PenarikanPetugasProvider>().loadDetail(penarikanId);
+    if (result == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Color(0xFFEF4444),
+          content: Text(
+            'Pengajuan penarikan berhasil ditolak',
+            style: TextStyle(fontFamily: 'Poppins'),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _openSetujui(String penarikanId) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DeadlinePenarikanScreen.setujui(penarikanId: penarikanId),
+      ),
+    );
+    if (!mounted) return;
+    context.read<PenarikanPetugasProvider>().loadDetail(penarikanId);
+    if (result == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: primary,
+          content: Text(
+            'Pengajuan penarikan berhasil disetujui',
+            style: TextStyle(fontFamily: 'Poppins'),
+          ),
+        ),
+      );
+    }
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -114,233 +148,229 @@ class _DetailTransaksiPenarikanScreenState
           ),
         ),
         child: SafeArea(
-        child: Consumer<PenarikanPetugasProvider>(
-          builder: (_, prov, __) {
-            return Stack(
-              children: [
-                Column(
-                  children: [
-                    const TopBarBack(title: 'Detail Penarikan'),
-                    Expanded(
-                      child: prov.loadingDetail
-                          ? const Center(
-                              child: CircularProgressIndicator(color: primary))
-                          : prov.detail == null
-                              ? _buildError(prov.errorDetail)
-                              : _buildBody(prov.detail!),
-                    ),
-                  ],
-                ),
-                if (prov.detail?.status == StatusPenarikan.pending)
-                  Positioned(
-                    left: 20,
-                    right: 20,
-                    bottom: 24,
-                    child: _buildKonfirmasiButton(prov),
+          child: Consumer<PenarikanPetugasProvider>(
+            builder: (_, prov, __) {
+              return Column(
+                children: [
+                  const TopBarBack(title: 'Detail Penarikan'),
+                  Expanded(
+                    child: prov.loadingDetail
+                        ? const Center(
+                            child: CircularProgressIndicator(color: primary))
+                        : prov.detail == null
+                            ? _buildError(prov.errorDetail)
+                            : _buildBody(prov.detail!, prov),
                   ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
-      ),
       ),
     );
   }
 
-  Widget _buildBody(PenarikanDetail d) {
-    final isSembako = d.namaReward.toLowerCase().contains('sembako');
+  Widget _buildBody(PenarikanDetail d, PenarikanPetugasProvider prov) {
+    final hasAction = d.status == StatusPenarikan.pending ||
+        d.status == StatusPenarikan.approved;
+
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(
-          20, 8, 20, d.status == StatusPenarikan.pending ? 100 : 32),
+      padding: const EdgeInsets.only(top: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildStatusCard(d),
-          const SizedBox(height: 16),
-          _buildInfoSection(d),
-          if (isSembako && d.detailSembako.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _buildSembakoSection(d.detailSembako),
-          ],
-          if (d.buktiFoto != null && d.buktiFoto!.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _buildBuktiFoto(d.buktiFoto!),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PenarikanDetailHeader(
+                  nominal: d.nominalPenarikan,
+                  satuan: d.satuanPenarikan,
+                  isUang: d.isUang,
+                  status: d.status,
+                  penarikanId: d.penarikanId,
+                ),
+                const SizedBox(height: 20),
+                _buildNasabahCard(d),
+                const SizedBox(height: 12),
+                _buildInfoSection(d),
+                if (d.isSembako && d.detailSembako.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildBarangCard(d),
+                ],
+                const SizedBox(height: 12),
+                _buildEstimasiCard(d),
+                if (d.buktiFoto != null && d.buktiFoto!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildBuktiFotoCard(d.buktiFoto!),
+                ],
+                const SizedBox(height: 12),
+                PenarikanRiwayatCard(riwayat: d.riwayat),
+                if (!hasAction) const SizedBox(height: 24),
+              ],
+            ),
+          ),
+          if (hasAction) ...[
+            const SizedBox(height: 20),
+            _buildActionBar(d, prov),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildStatusCard(PenarikanDetail d) {
-    final color = _statusColor(d.status);
-    final label = _statusLabel(d.status);
-    final icon = _statusIcon(d.status);
+  // ── Bar tombol aksi: full-bleed, rounded di atas, mentok ke bawah layar ──
 
+  Widget _buildActionBar(PenarikanDetail d, PenarikanPetugasProvider prov) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          width: 1,
-          color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(
+          top: BorderSide(
+            width: 1,
+            color: const Color(0xFF013236).withValues(alpha: 0.1),
+          ),
         ),
       ),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      child: _buildActionButtons(d, prov),
+    );
+  }
+
+  // ── Tombol aksi (tergantung status terkini) ──────────────────────────────
+
+  Widget _buildActionButtons(PenarikanDetail d, PenarikanPetugasProvider prov) {
+    if (d.status == StatusPenarikan.pending) {
+      return Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  d.namaNasabah?.isNotEmpty == true
-                      ? d.namaNasabah!
-                      : d.nasabahId ?? '-',
-                  style: const TextStyle(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFEF4444),
+                backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.06),
+                side: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50)),
+              ),
+              onPressed: () => _openTolak(d.penarikanId),
+              child: const Text(
+                'Tolak Pengajuan',
+                style: TextStyle(
                     fontFamily: 'Poppins',
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: dark,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _nominalText(d),
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    color: Colors.black.withValues(alpha: 0.55),
-                  ),
-                ),
-              ],
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13),
+              ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(50),
-            ),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: color,
+          const SizedBox(width: 10),
+          Expanded(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50)),
+              ),
+              onPressed: () => _openSetujui(d.penarikanId),
+              child: const Text(
+                'Setujui Pengajuan',
+                style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13),
               ),
             ),
           ),
         ],
-      ),
-    );
+      );
+    }
+
+    // status == approved
+    return _buildKonfirmasiButton(d, prov);
   }
 
-  Widget _buildInfoSection(PenarikanDetail d) {
-    return _Section(
-      title: 'Informasi Penarikan',
+  // ── Informasi Nasabah ────────────────────────────────────────────────────
+
+  Widget _buildNasabahCard(PenarikanDetail d) {
+    return SectionCard(
+      icon: Icons.person_rounded,
+      title: 'Informasi Nasabah',
       children: [
-        if (d.namaNasabah?.isNotEmpty == true)
-          _InfoRow(label: 'Nasabah', value: d.namaNasabah!),
-        if (d.nasabahId?.isNotEmpty == true)
-          _InfoRow(label: 'ID Nasabah', value: d.nasabahId!),
-        _InfoRow(
-          label: 'Jenis Reward',
-          value: d.namaReward.isEmpty
-              ? '-'
-              : '${d.namaReward[0].toUpperCase()}${d.namaReward.substring(1).toLowerCase()}',
+        PenarikanInfoRow(
+          label: 'Nama Nasabah',
+          value: d.namaNasabah?.isNotEmpty == true ? d.namaNasabah! : '-',
         ),
-        _InfoRow(label: 'Nominal', value: _nominalText(d)),
-        _InfoRow(label: 'Diajukan', value: _fmtDate(d.createdAt)),
-        if (d.status != StatusPenarikan.pending)
-          _InfoRow(label: 'Diperbarui', value: _fmtDate(d.updatedAt)),
+        PenarikanInfoRow(
+          label: 'ID Nasabah',
+          value: d.nasabahId?.isNotEmpty == true ? d.nasabahId! : '-',
+        ),
       ],
     );
   }
 
-  Widget _buildSembakoSection(List<DetailSembakoItem> items) {
-    return _Section(
-      title: 'Detail Sembako',
-      children: items.map((item) {
-        return Container(
-          margin: const EdgeInsets.symmetric(vertical: 5),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF0FAF4),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: SizedBox(
-                  width: 38,
-                  height: 38,
-                  child: (item.photoUrl == null || item.photoUrl!.isEmpty)
-                      ? Container(
-                          color: primary.withValues(alpha: 0.15),
-                          child: const Icon(Icons.shopping_basket_rounded,
-                              color: primary, size: 18),
-                        )
-                      : Image.network(
-                          item.photoUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: primary.withValues(alpha: 0.15),
-                            child: const Icon(Icons.shopping_basket_rounded,
-                                color: primary, size: 18),
-                          ),
-                        ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  item.namaSembako.isEmpty ? '-' : item.namaSembako,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: dark,
-                  ),
-                ),
-              ),
-              Text(
-                'x${_fmtNum(item.qty)}',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  color: Colors.black.withValues(alpha: 0.5),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                '${_fmtNum(item.subtotalPoin)} pts',
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: dark,
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
+  // ── Informasi Penarikan ──────────────────────────────────────────────────
+
+  Widget _buildInfoSection(PenarikanDetail d) {
+    return SectionCard(
+      icon: Icons.receipt_long_rounded,
+      title: 'Informasi Penarikan',
+      children: [
+        PenarikanInfoRow(label: 'Insentif', value: _capitalize(d.namaReward)),
+        PenarikanInfoRow(label: 'ID Transaksi', value: d.penarikanId),
+        PenarikanInfoRow(
+          label: 'Nominal',
+          value: _fmtNominal(d.nominalPenarikan, d.satuanPenarikan,
+              isUang: d.isUang),
+        ),
+        PenarikanInfoRow(label: 'Status', value: d.status.label),
+      ],
     );
   }
 
-  Widget _buildBuktiFoto(String buktiFoto) {
+  // ── Detail Barang (sembako) ──────────────────────────────────────────────
+
+  Widget _buildBarangCard(PenarikanDetail d) {
+    final items = d.detailSembako;
+    return SectionCard(
+      icon: Icons.shopping_basket_rounded,
+      title: 'Detail Barang',
+      children: [
+        for (int i = 0; i < items.length; i++) ...[
+          if (i > 0) const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          DetailBarangRow(item: items[i]),
+        ],
+      ],
+    );
+  }
+
+  // ── Estimasi Konfirmasi ──────────────────────────────────────────────────
+
+  Widget _buildEstimasiCard(PenarikanDetail d) {
+    return SectionCard(
+      icon: Icons.event_available_rounded,
+      title: 'Estimasi Konfirmasi',
+      children: [
+        PenarikanInfoRow(
+          label: 'Pengajuan',
+          value: _fmtDeadline(d.deadlineKonfirmasi),
+        ),
+        PenarikanInfoRow(
+          label: 'Pengambilan',
+          value: _fmtDeadline(d.deadlineJemput),
+        ),
+      ],
+    );
+  }
+
+  // ── Bukti Penyerahan Insentif ────────────────────────────────────────────
+
+  Widget _buildBuktiFotoCard(String buktiFoto) {
     Widget imgWidget;
     if (buktiFoto.startsWith('http')) {
       imgWidget = Image.network(
@@ -361,8 +391,9 @@ class _DetailTransaksiPenarikanScreenState
       }
     }
 
-    return _Section(
-      title: 'Bukti Foto',
+    return SectionCard(
+      icon: Icons.photo_camera_rounded,
+      title: 'Bukti Penyerahan Insentif',
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(14),
@@ -375,40 +406,48 @@ class _DetailTransaksiPenarikanScreenState
     );
   }
 
-  Widget _buildKonfirmasiButton(PenarikanPetugasProvider prov) {
-    return SafeArea(
-      top: false,
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: dark,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(50)),
-          ),
-          onPressed: prov.submitting
-              ? null
-              : () => _handleKonfirmasi(widget.penarikanId),
-          icon: prov.submitting
-              ? const SizedBox(
-                  width: 15,
-                  height: 15,
-                  child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2.5),
-                )
-              : const Icon(Icons.camera_alt_rounded, size: 17),
-          label: Text(
-            prov.submitting ? 'Memproses...' : 'Konfirmasi Penarikan',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
-          ),
+  Widget _buildKonfirmasiButton(PenarikanDetail d, PenarikanPetugasProvider prov) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: dark,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(50)),
         ),
+        onPressed: prov.submitting
+            ? null
+            : () => _handleKonfirmasiFlow(d.penarikanId, d.nasabahId ?? ''),
+        child: prov.submitting
+            ? const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2.5),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Memproses...',
+                    style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13),
+                  ),
+                ],
+              )
+            : const Text(
+                'Konfirmasi Penyerahan Insentif',
+                style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13),
+              ),
       ),
     );
   }
@@ -444,131 +483,6 @@ class _DetailTransaksiPenarikanScreenState
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Color _statusColor(StatusPenarikan s) {
-    switch (s) {
-      case StatusPenarikan.pending:
-        return const Color(0xFFF59E0B);
-      case StatusPenarikan.berhasil:
-        return const Color(0xFF4EA771);
-      case StatusPenarikan.dibatalkan:
-        return const Color(0xFFEF4444);
-      case StatusPenarikan.kadaluarsa:
-        return const Color(0xFF9CA3AF);
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _statusLabel(StatusPenarikan s) {
-    switch (s) {
-      case StatusPenarikan.pending:
-        return 'Menunggu';
-      case StatusPenarikan.berhasil:
-        return 'Berhasil';
-      case StatusPenarikan.dibatalkan:
-        return 'Dibatalkan';
-      case StatusPenarikan.kadaluarsa:
-        return 'Kadaluarsa';
-      default:
-        return 'Unknown';
-    }
-  }
-
-  IconData _statusIcon(StatusPenarikan s) {
-    switch (s) {
-      case StatusPenarikan.pending:
-        return Icons.access_time_rounded;
-      case StatusPenarikan.berhasil:
-        return Icons.check_circle_rounded;
-      case StatusPenarikan.dibatalkan:
-        return Icons.cancel_rounded;
-      case StatusPenarikan.kadaluarsa:
-        return Icons.timer_off_rounded;
-      default:
-        return Icons.help_outline_rounded;
-    }
-  }
-}
-
-// ── Reusable widgets ──────────────────────────────────────────────────────────
-
-class _Section extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
-  const _Section({required this.title, required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          width: 1,
-          color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Colors.black.withValues(alpha: 0.9),
-            ),
-          ),
-          const SizedBox(height: 10),
-          ...children,
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _InfoRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: Colors.black.withValues(alpha: 0.5),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF013236),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

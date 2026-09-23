@@ -88,6 +88,8 @@ class _PreviewRequestPenarikanScreenState
       rewardId: preview.rewardId,
       nominalPenarikan: preview.nominalRequest,
       itemSembako: preview.itemSembakoRequest,
+      deadlineKonfirmasi: widget.formData.batasKonfirmasi,
+      catatan: widget.formData.catatanPetugas,
     );
 
     if (!mounted) return;
@@ -124,15 +126,24 @@ class _PreviewRequestPenarikanScreenState
 
   // ── Formatters ────────────────────────────────────────────────────────────
 
-  String _fmtNominal(double v, String satuan) {
+  String _fmtNominal(double v, String satuan, {bool isUang = false}) {
     final f = NumberFormat.decimalPattern('id_ID');
     f.maximumFractionDigits = 4;
     f.minimumFractionDigits = 0;
-    final lower = satuan.toLowerCase();
-    if (lower.contains('rupiah') || lower.contains('uang')) {
-      return 'Rp ${f.format(v)}';
-    }
+    if (isUang) return 'Rp ${f.format(v)}';
     return '${f.format(v)} ${satuan.isEmpty ? 'poin' : satuan}';
+  }
+
+  String _fmtDeadlineDate(DateTime? dt) {
+    if (dt == null) return '-';
+    return DateFormat('d MMMM yyyy', 'id_ID').format(dt);
+  }
+
+  String _fmtDeadlineTime(DateTime? dt) {
+    if (dt == null) return '-';
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h.$m WIB';
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -248,6 +259,7 @@ class _PreviewRequestPenarikanScreenState
 
   Widget _buildContent() {
     final p = _preview!;
+    final catatan = widget.formData.catatanPetugas;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
       child: Column(
@@ -256,13 +268,18 @@ class _PreviewRequestPenarikanScreenState
           // Summary Card
           _buildSummaryCard(p),
           const SizedBox(height: 16),
-          // Sembako breakdown
-          if (p.isSembako && p.itemSembako.isNotEmpty)
-            _buildSembakoBreakdown(p),
-          if (p.isSembako && p.itemSembako.isNotEmpty)
-            const SizedBox(height: 16),
           // Saldo info card
           _buildSaldoCard(p),
+          // Sembako breakdown
+          if (p.isSembako && p.itemSembako.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildSembakoBreakdown(p),
+          ],
+          // Catatan untuk petugas (kalau diisi)
+          if (catatan != null && catatan.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildCatatanCard(catatan),
+          ],
           const SizedBox(height: 16),
           // Disclaimer
           _buildDisclaimer(),
@@ -272,19 +289,15 @@ class _PreviewRequestPenarikanScreenState
   }
 
   Widget _buildSummaryCard(PenarikanPreviewData p) {
-    final f = NumberFormat.decimalPattern('id_ID');
-    f.maximumFractionDigits = 4;
-    f.minimumFractionDigits = 0;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
+        color: Colors.white.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+          color: const Color(0xFF013236).withValues(alpha: 0.1),
         ),
       ),
       child: Column(
@@ -292,79 +305,44 @@ class _PreviewRequestPenarikanScreenState
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  p.isUang
-                      ? Icons.payments_rounded
-                      : Icons.shopping_basket_rounded,
-                  color: primary,
-                  size: 22,
-                ),
+              Icon(
+                p.isUang
+                    ? Icons.payments_rounded
+                    : Icons.shopping_basket_rounded,
+                size: 16,
+                color: primary,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Penarikan ${_capitalize(p.namaReward)}',
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: dark,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                      child: const Text(
-                        'Pending',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFF59E0B),
-                        ),
-                      ),
-                    ),
-                  ],
+              const SizedBox(width: 8),
+              const Text(
+                'Ringkasan Penarikan',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: dark,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           _InfoRow(
-            label: 'Jenis Reward',
+            label: 'Insentif',
             value: _capitalize(p.namaReward),
           ),
-          if (!p.isSembako)
-            _InfoRow(
-              label: 'Nominal',
-              value: _fmtNominal(p.nominalPenarikan, p.satuan),
-              highlight: true,
-            ),
-          if (p.isSembako)
-            _InfoRow(
-              label: 'Total Poin',
-              value: '${f.format(p.nominalPenarikan)} poin',
-              highlight: true,
-            ),
           _InfoRow(
-            label: 'Est. Konfirmasi',
-            value: 'Dalam 2 jam',
+            label: 'Nominal',
+            value: _fmtNominal(p.nominalPenarikan, p.satuan, isUang: p.isUang),
+            highlight: true,
+          ),
+          _InfoRow(
+            label: 'Estimasi Tanggal',
+            value: _fmtDeadlineDate(widget.formData.batasKonfirmasi),
+          ),
+          _InfoRow(
+            label: 'Estimasi Waktu',
+            value: _fmtDeadlineTime(widget.formData.batasKonfirmasi),
           ),
         ],
       ),
@@ -378,73 +356,22 @@ class _PreviewRequestPenarikanScreenState
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
+        color: Colors.white.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+          color: const Color(0xFF013236).withValues(alpha: 0.1),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Detail Sembako',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: dark,
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
-          const SizedBox(height: 10),
-          ...p.itemSembako.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.shopping_basket_rounded,
-                        size: 16, color: primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        item.namaSembako,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: dark,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      'x${f.format(item.qty)}',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        color: Colors.black.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      '${f.format(item.subtotalPoin)} poin',
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: dark,
-                      ),
-                    ),
-                  ],
-                ),
-              )),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
-          const SizedBox(height: 10),
-          Row(
+          const Row(
             children: [
-              const Text(
-                'Total',
+              Icon(Icons.shopping_basket_rounded, size: 16, color: primary),
+              SizedBox(width: 8),
+              Text(
+                'Detail Barang',
                 style: TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 13,
@@ -452,17 +379,116 @@ class _PreviewRequestPenarikanScreenState
                   color: dark,
                 ),
               ),
-              const Spacer(),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const SizedBox(height: 4),
+          for (int i = 0; i < p.itemSembako.length; i++) ...[
+            if (i > 0) const Divider(height: 1, color: Color(0xFFF0F0F0)),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          p.itemSembako[i].namaSembako,
+                          style: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: dark,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${f.format(p.itemSembako[i].nilaiPoin)} poin',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 11.5,
+                            color: Colors.black.withValues(alpha: 0.45),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${f.format(p.itemSembako[i].qty)} item',
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: primary,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${f.format(p.itemSembako[i].subtotalPoin)} poin',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11.5,
+                          color: Colors.black.withValues(alpha: 0.45),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCatatanCard(String catatan) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          width: 1,
+          color: const Color(0xFF013236).withValues(alpha: 0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.sticky_note_2_rounded, size: 16, color: primary),
+              SizedBox(width: 8),
               Text(
-                '${f.format(p.nominalPenarikan)} poin',
-                style: const TextStyle(
+                'Catatan Untuk Petugas',
+                style: TextStyle(
                   fontFamily: 'Poppins',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: dark,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const SizedBox(height: 10),
+          Text(
+            catatan,
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 13,
+              color: dark.withValues(alpha: 0.75),
+              height: 1.5,
+            ),
           ),
         ],
       ),
@@ -474,41 +500,48 @@ class _PreviewRequestPenarikanScreenState
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
+        color: Colors.white.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+          color: const Color(0xFF013236).withValues(alpha: 0.1),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Informasi Saldo',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: dark,
-            ),
+          const Row(
+            children: [
+              Icon(Icons.account_balance_wallet_rounded,
+                  size: 16, color: primary),
+              SizedBox(width: 8),
+              Text(
+                'Informasi Saldo',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: dark,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
           const SizedBox(height: 10),
           _InfoRow(
             label: 'Saldo Sekarang',
-            value: _fmtNominal(p.saldoSekarang, p.satuanSaldo),
+            value: _fmtNominal(p.saldoSekarang, p.satuanSaldo, isUang: p.isUang),
           ),
           _InfoRow(
             label: 'Penarikan',
-            value: '- ${_fmtNominal(p.nominalPenarikan, p.satuan)}',
+            value: _fmtNominal(p.nominalPenarikan, p.satuanSaldo, isUang: p.isUang),
           ),
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
           const SizedBox(height: 10),
           _InfoRow(
             label: 'Estimasi Sisa',
-            value: _fmtNominal(p.saldoSetelah, p.satuanSaldo),
+            value: _fmtNominal(p.saldoSetelah, p.satuanSaldo, isUang: p.isUang),
             highlight: true,
           ),
           if (!p.saldoCukup) ...[
@@ -562,7 +595,8 @@ class _PreviewRequestPenarikanScreenState
           const SizedBox(width: 10),
           const Expanded(
             child: Text(
-              'Jika dalam 2 jam pengajuan penarikan belum dikonfirmasi petugas bank sampah, pengajuan otomatis akan dibatalkan dan saldo dikembalikan ke rekeningmu.',
+              'Petugas akan melakukan konfirmasi pengajuan dalam waktu yang sudah kamu tentukan. '
+              'Jika melewati tenggat, maka pengajuan akan otomatis dibatalkan oleh sistem dan saldo dikembalikan ke tabunganmu.',
               style: TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 12,

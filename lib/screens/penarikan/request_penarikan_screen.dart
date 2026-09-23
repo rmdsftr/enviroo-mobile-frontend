@@ -9,7 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/penarikan_nasabah_provider.dart';
 import '../../widgets/search.dart';
 import '../../widgets/topbar_back.dart';
-import 'preview_request_penarikan_screen.dart';
+import 'deadline_penarikan_screen.dart';
 
 // ── Thousands formatter for Rupiah ─────────────────────────────────────────────
 
@@ -127,11 +127,11 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
   String? _validateSembako(List<KatalogSembakoModel> items) {
     final prov = context.read<PenarikanNasabahProvider>();
     final hasItem = _sembakoQty.values.any((q) => q > 0);
-    if (!hasItem) return 'Pilih minimal satu sembako';
+    if (!hasItem) return 'Pilih minimal satu barang';
     final saldo = prov.saldo?.saldoSembako;
     final total = _totalPoinSembako(items);
     if (saldo != null && total > saldo.nominal) {
-      return 'Total poin melebihi saldo sembako';
+      return 'Total poin melebihi saldo barang';
     }
     return null;
   }
@@ -168,7 +168,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
       }
       itemSembako = _sembakoQty.entries
           .where((e) => e.value > 0)
-          .map((e) => {'sembako_id': e.key, 'qty': e.value})
+          .map((e) => {'produk_id': e.key, 'qty': e.value})
           .toList();
     } else {
       final err = _validateNominal();
@@ -194,7 +194,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => PreviewRequestPenarikanScreen(formData: formData),
+        builder: (_) => DeadlinePenarikanScreen.request(formData: formData),
       ),
     );
   }
@@ -271,7 +271,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
   // ── Tab bar ───────────────────────────────────────────────────────────────
 
   Widget _buildTabs(PenarikanNasabahProvider prov) {
-    final tabs = ['Uang', 'Sembako'];
+    final tabs = ['Uang', 'Barang'];
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       child: Container(
@@ -353,7 +353,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
   Widget _buildSaldoCard(PenarikanNasabahProvider prov) {
     final saldo = _currentSaldo(prov);
     final saldoText = _fmtSaldo(saldo);
-    final tabLabels = ['Uang', 'Sembako'];
+    final tabLabels = ['Uang', 'Barang'];
 
     double? estimasiSisa;
     if (saldo != null) {
@@ -431,7 +431,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
                               size: 14, color: Colors.white60),
                           const SizedBox(width: 6),
                           Text(
-                            'Estimasi sisa: ${_fmtSaldoVal(estimasiSisa, saldo!.satuan)}',
+                            'Estimasi sisa: ${_fmtSaldoVal(estimasiSisa, saldo!.satuan, isUang: saldo.isUang)}',
                             style: const TextStyle(
                               fontFamily: 'Poppins',
                               fontSize: 11,
@@ -452,12 +452,11 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
   }
 
 
-  String _fmtSaldoVal(double val, String satuan) {
+  String _fmtSaldoVal(double val, String satuan, {bool isUang = false}) {
     final f = NumberFormat.decimalPattern('id_ID');
     f.maximumFractionDigits = 4;
     f.minimumFractionDigits = 0;
-    final lower = satuan.toLowerCase();
-    if (lower.contains('rupiah')) return 'Rp ${f.format(val)}';
+    if (isUang) return 'Rp ${f.format(val)}';
     return '${f.format(val)} ${satuan.isEmpty ? 'poin' : satuan}';
   }
 
@@ -565,7 +564,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
       children: [
         Row(
           children: [
-            const _SectionLabel('Pilih Sembako'),
+            const _SectionLabel('Pilih Barang'),
             const Spacer(),
             Container(
               padding: const EdgeInsets.symmetric(
@@ -591,7 +590,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
         const SizedBox(height: 12),
         CustomSearchBar(
           controller: _searchController,
-          hintText: 'Cari nama sembako...',
+          hintText: 'Cari nama barang...',
           searchQuery: _searchQuery,
           onChanged: (val) {
             setState(() {
@@ -629,7 +628,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
                   color: const Color(0xFFFAA324).withValues(alpha: 0.3)),
             ),
             child: const Text(
-              'Belum ada sembako tersedia.',
+              'Belum ada barang tersedia.',
               style: TextStyle(fontFamily: 'Poppins', fontSize: 12),
             ),
           )

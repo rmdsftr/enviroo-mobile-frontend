@@ -25,7 +25,7 @@ class KatalogHistoryModel {
       hargaLama: (json['harga_lama'] as num?)?.toDouble() ?? 0.0,
       hargaBaru: (json['harga_baru'] as num?)?.toDouble() ?? 0.0,
       changedAt: json['changed_at'] != null
-          ? DateTime.parse(json['changed_at'])
+          ? DateTime.parse(json['changed_at']).toLocal()
           : DateTime.now(),
       changedByNama: json['changed_by_nama'] ?? '',
     );

@@ -1,6 +1,6 @@
+import 'package:enviroo/core/messaging/fcm_messaging.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
-import 'package:enviroo/providers/notifikasi_provider.dart';
 import 'package:enviroo/screens/admin_bsi/home_bsi_screen.dart';
 import 'package:enviroo/screens/admin_bsu/home_bsu_screen.dart';
 import 'package:enviroo/screens/admin_bsm/home_bsm_screen.dart';
@@ -8,7 +8,6 @@ import 'package:enviroo/screens/nasabah/home_screen.dart';
 import 'package:enviroo/screens/lupapassword_screen.dart';
 import 'package:enviroo/screens/aktivasi_akun_screen.dart';
 import 'package:enviroo/screens/role_options_screen.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -62,6 +61,22 @@ class _LoginScreenState extends State<LoginScreen>
     ));
 
     _animationController.forward();
+
+    // Sesi sebelumnya diakhiri server (mis. akun dipakai login di perangkat
+    // lain) — sampaikan alasannya sekali, biar user tidak menebak-nebak.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      if (auth.sessionEndedMessage == null) return;
+
+      showCustomSnackBar(
+        context,
+        auth.sessionEndedCode == 'SESSION_REVOKED'
+            ? 'Akun kamu dipakai login di perangkat lain. Silakan login kembali.'
+            : 'Sesi kamu sudah berakhir. Silakan login kembali.',
+      );
+      auth.clearSessionEnded();
+    });
   }
 
   @override
@@ -139,25 +154,8 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _navigateToHome(String role) {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final notifProvider = Provider.of<NotifikasiProvider>(context, listen: false);
-
-    // Fetch daftar notifikasi
-    notifProvider.fetchNotifikasi(
-      userId: auth.userId,
-    );
-
-    // Daftarkan FCM token ke backend — ini yang selama ini HILANG!
-    FirebaseMessaging.instance.getToken().then((fcmToken) {
-      if (fcmToken != null && fcmToken.isNotEmpty) {
-        debugPrint('[Login] FCM token diperoleh, mendaftarkan ke backend...');
-        notifProvider.registerFcmToken(
-          fcmToken: fcmToken,
-        );
-      } else {
-        debugPrint('[Login] FCM token null/kosong, skip register.');
-      }
-    });
+    // Fetch notifikasi + request permission + daftarkan FCM token ke backend.
+    Provider.of<FcmMessaging>(context, listen: false).onLogin(tag: 'Login');
 
     Widget destination;
     if (role == 'nasabah') {

@@ -17,7 +17,7 @@ class RiwayatSesiPengangkutanModel {
   factory RiwayatSesiPengangkutanModel.fromJson(Map<String, dynamic> j) {
     return RiwayatSesiPengangkutanModel(
       status: j['status'] as String? ?? '',
-      changedAt: DateTime.tryParse(j['changed_at'] as String? ?? '') ?? DateTime.now(),
+      changedAt: DateTime.tryParse(j['changed_at'] as String? ?? '')?.toLocal() ?? DateTime.now(),
       changedBy: j['changed_by'] as String? ?? '-',
       catatan: j['catatan'] as String? ?? '',
     );

@@ -47,6 +47,36 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
     }
   }
 
+  // Harga saat ini juga menampilkan harga "eksternal" (pengepul) untuk role
+  // nasabah, biar transparan berapa harga sampah itu saat dijual ke pengepul.
+  // Tab Perubahan Harga tetap pakai _visibleLevels apa adanya (cuma nasabah).
+  List<String> get _visibleLevelsHargaSaatIni {
+    if (widget.role == 'nasabah') return ['nasabah', 'eksternal'];
+    return _visibleLevels;
+  }
+
+  // Untuk nasabah, level "eksternal" ditampilkan sebagai "Pengepul" biar
+  // ga membingungkan (nasabah ga perlu tau istilah internal "eksternal").
+  String _hargaLevelLabel(String level) {
+    if (level.toLowerCase() == 'eksternal') {
+      return 'Pengepul';
+    }
+    return _capLevel(level);
+  }
+
+  // Badge level_user di tab Perubahan Harga dibuat lebih informatif daripada
+  // cuma "Nasabah"/"Eksternal" mentah.
+  String _historyLevelLabel(String level) {
+    switch (level.toLowerCase()) {
+      case 'nasabah':
+        return 'Harga untuk Nasabah';
+      case 'eksternal':
+        return 'Harga dari Pengepul';
+      default:
+        return 'Harga untuk ${_capLevel(level)}';
+    }
+  }
+
   Color _levelColor(String level) {
     switch (level.toLowerCase()) {
       case 'bsu':       return _C.teal;
@@ -127,9 +157,13 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
 
   Widget _buildContent(DetailSampahModel detail) {
     final levels = _visibleLevels;
+    final hargaLevels = _visibleLevelsHargaSaatIni;
     final filteredHarga = detail.hargaPerLevel
-        .where((h) => levels.contains(h.levelUser.toLowerCase()))
-        .toList();
+        .where((h) => hargaLevels.contains(h.levelUser.toLowerCase()))
+        .toList()
+      ..sort((a, b) => hargaLevels
+          .indexOf(a.levelUser.toLowerCase())
+          .compareTo(hargaLevels.indexOf(b.levelUser.toLowerCase())));
     final filteredHistory = detail.historyHarga
         .where((h) => levels.contains(h.levelUser.toLowerCase()))
         .toList();
@@ -240,7 +274,7 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
               controller: _tabController,
               children: [
                 _buildInfoTab(detail, filteredHarga),
-                _buildHistoryTab(filteredHistory),
+                _buildHistoryTab(filteredHistory, detail.hargaPerLevel),
               ],
             ),
           ),
@@ -341,7 +375,7 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                       borderRadius: BorderRadius.circular(50),
                     ),
                     child: Text(
-                      _capLevel(h.levelUser),
+                      _hargaLevelLabel(h.levelUser),
                       style: TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 10,
@@ -370,7 +404,23 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
     );
   }
 
-  Widget _buildHistoryTab(List<HistoryHargaModel> history) {
+  // Riwayat perubahan harga cuma nyimpen angka mentah (schema_id, harga_lama,
+  // harga_baru) tanpa satuan reward-nya. Satuan yang berlaku sekarang untuk
+  // schema itu dipetakan dari harga_per_level biar "Rp"/"poin" tetap tampil.
+  String _satuanForSchema(int schemaId, List<HargaPerLevelModel> hargaPerLevel) {
+    for (final h in hargaPerLevel) {
+      if (h.schemaId == schemaId) return h.satuanReward;
+    }
+    return 'Rp';
+  }
+
+  String _formatHarga(double value, String satuan) {
+    final formatted = _formatDouble(value);
+    return satuan.toLowerCase() == 'poin' ? '$formatted poin' : 'Rp$formatted';
+  }
+
+  Widget _buildHistoryTab(
+      List<HistoryHargaModel> history, List<HargaPerLevelModel> hargaPerLevel) {
     if (history.isEmpty) {
       return Center(
         child: Column(
@@ -400,6 +450,7 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
         final isIncrease = entry.hargaBaru >= entry.hargaLama;
         final isLast = index == history.length - 1;
         final color = _levelColor(entry.levelUser);
+        final satuan = _satuanForSchema(entry.schemaId, hargaPerLevel);
 
         return IntrinsicHeight(
           child: Row(
@@ -461,35 +512,17 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
-                            margin: const EdgeInsets.only(right: 4),
                             decoration: BoxDecoration(
                               color: color.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              _capLevel(entry.levelUser),
+                              _historyLevelLabel(entry.levelUser),
                               style: TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 8,
                                 fontWeight: FontWeight.w700,
                                 color: color,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: _C.accent.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              entry.changedByNama,
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600,
-                                color: _C.accent,
                               ),
                             ),
                           ),
@@ -512,7 +545,7 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  _formatDouble(entry.hargaLama),
+                                  _formatHarga(entry.hargaLama, satuan),
                                   style: TextStyle(
                                     fontFamily: 'Poppins',
                                     fontSize: 13,
@@ -556,7 +589,7 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  _formatDouble(entry.hargaBaru),
+                                  _formatHarga(entry.hargaBaru, satuan),
                                   style: TextStyle(
                                     fontFamily: 'Poppins',
                                     fontSize: 13,

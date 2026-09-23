@@ -1,6 +1,6 @@
 import 'dart:convert';
-import '../config/api_config.dart';
-import 'api_client.dart';
+import 'package:enviroo/core/config/api_config.dart';
+import 'package:enviroo/core/network/api_client.dart';
 
 class BagiHasilService {
   static Future<Map<String, dynamic>> previewBagiHasil(String penjualanId, String bankId) async {
@@ -43,9 +43,19 @@ class BagiHasilService {
     }
   }
 
-  static Future<Map<String, dynamic>> getListBagiHasilNasabah(String nasabahId) async {
+  static Future<Map<String, dynamic>> getListBagiHasilNasabah(
+    String nasabahId, {
+    String? startDate,
+    String? endDate,
+  }) async {
     try {
-      final response = await ApiClient.get(Uri.parse('${ApiConfig.listBagiHasilNasabahUrl}/$nasabahId'));
+      final uri = Uri.parse('${ApiConfig.listBagiHasilNasabahUrl}/$nasabahId').replace(
+        queryParameters: {
+          if (startDate != null) 'start_date': startDate,
+          if (endDate != null) 'end_date': endDate,
+        },
+      );
+      final response = await ApiClient.get(uri);
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) return {'success': true, 'data': body};
       return {'success': false, 'message': body['error'] ?? 'Gagal mengambil list bagi hasil'};
@@ -87,9 +97,16 @@ class BagiHasilService {
     }
   }
 
-  static Future<Map<String, dynamic>> getListDistribusiSisaBsu(String bsuId) async {
+  static Future<Map<String, dynamic>> getListDistribusiSisaBsu(String bsuId, {String? startDate, String? endDate}) async {
     try {
-      final response = await ApiClient.get(Uri.parse('${ApiConfig.listBhBankBsuUrl}/$bsuId'));
+      final base = Uri.parse('${ApiConfig.listBhBankBsuUrl}/$bsuId');
+      final uri = (startDate != null || endDate != null)
+          ? base.replace(queryParameters: {
+              if (startDate != null) 'start_date': startDate,
+              if (endDate != null) 'end_date': endDate,
+            })
+          : base;
+      final response = await ApiClient.get(uri);
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) return {'success': true, 'data': body};
       return {'success': false, 'message': body['error'] ?? 'Gagal memuat distribusi sisa'};

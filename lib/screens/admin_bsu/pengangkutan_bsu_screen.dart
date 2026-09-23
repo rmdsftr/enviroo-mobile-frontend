@@ -1,86 +1,13 @@
+import 'package:enviroo/models/pengangkutan_bsu_model.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:enviroo/widgets/filter_month_year.dart';
 import 'package:enviroo/services/pengangkutan_service.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/pengangkutan_provider.dart';
-import 'package:enviroo/screens/admin_bsu/QR_angkut_sampah_screen.dart';
 import 'package:enviroo/screens/admin_bsi/detail_pengangkutan_screen.dart';
 import 'package:enviroo/screens/admin_bsu/sesi_pengangkutan_screen.dart';
-
-// ─── Model (sama dengan BSI, reuse) ─────────────────────────────────────────
-
-class PengangkutanBsuData {
-  final String id;
-  final String namaBsi;
-  final String namaBsu;
-  final String namaAdminBsu;
-  final String status;
-  final String tanggal;
-  final DateTime? rawDate;
-
-  PengangkutanBsuData({
-    required this.id,
-    required this.namaBsi,
-    required this.namaBsu,
-    required this.namaAdminBsu,
-    required this.status,
-    required this.tanggal,
-    this.rawDate,
-  });
-
-  factory PengangkutanBsuData.fromJson(Map<String, dynamic> json) {
-    String tanggal = '-';
-    DateTime? rawDate;
-    if (json['changed_at'] != null) {
-      try {
-        final parsed = DateTime.parse(json['changed_at'].toString());
-        rawDate = parsed;
-        tanggal = DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID').format(parsed);
-      } catch (_) {
-        tanggal = json['changed_at'].toString();
-      }
-    }
-    final namaAdminBsu = json['nama_admin_bsu'] as String? ?? '-';
-
-    return PengangkutanBsuData(
-      id: json['pengangkutan_id'] ?? '',
-      namaBsi: json['nama_bsi'] as String? ?? '-',
-      namaBsu: json['nama_bsu'] as String? ?? '-',
-      namaAdminBsu: namaAdminBsu,
-      status: json['status_pengangkutan'] ?? '',
-      tanggal: tanggal,
-      rawDate: rawDate,
-    );
-  }
-}
-
-// ─── Model sesi aktif (dari endpoint check-sesi-active) ──────────────────────
-class _SesiActiveData {
-  final bool isActive;
-  final String pengangkutanId;
-  final String bsiId;
-  final String namaBsi;
-  final String statusTerkini;
-
-  const _SesiActiveData({
-    required this.isActive,
-    required this.pengangkutanId,
-    required this.bsiId,
-    required this.namaBsi,
-    required this.statusTerkini,
-  });
-
-  factory _SesiActiveData.fromJson(Map<String, dynamic> j) => _SesiActiveData(
-        isActive: j['is_active'] as bool? ?? false,
-        pengangkutanId: j['pengangkutan_id'] as String? ?? '',
-        bsiId: j['bsi_id'] as String? ?? '',
-        namaBsi: j['nama_bsi'] as String? ?? '-',
-        statusTerkini: j['status_terkini'] as String? ?? '',
-      );
-}
 
 // ─── Screen ─────────────────────────────────────────────────────────────────
 
@@ -94,7 +21,7 @@ class PengangkutanBsuScreen extends StatefulWidget {
 class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
   bool _isLoading = true;
   List<PengangkutanBsuData> _riwayat = [];
-  _SesiActiveData? _sesiAktif; // ← pakai model baru
+  SesiActiveData? _sesiAktif; // ← pakai model baru
 
   PengangkutanProvider? _pengangkutanProvider;
   int _lastRefreshToken = -1;
@@ -146,14 +73,16 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
     final sesiRes = await PengangkutanService.checkSesiActive(bankId);
 
     // ── Fetch riwayat (get-all) ──────────────────────────────────────────────
-    final riwayatRes = await PengangkutanService.getAllPengangkutan(bankId);
+    final startDate = '${_filterStart.year}-${_filterStart.month.toString().padLeft(2, '0')}-01';
+    final endDate = '${_filterEnd.year}-${_filterEnd.month.toString().padLeft(2, '0')}-${DateTime(_filterEnd.year, _filterEnd.month + 1, 0).day.toString().padLeft(2, '0')}';
+    final riwayatRes = await PengangkutanService.getAllPengangkutan(bankId, startDate: startDate, endDate: endDate);
 
     if (!mounted) return;
 
-    _SesiActiveData? sesiAktif;
+    SesiActiveData? sesiAktif;
     if (sesiRes['success'] == true) {
       final data = sesiRes['data'] as Map<String, dynamic>? ?? {};
-      final parsed = _SesiActiveData.fromJson(data);
+      final parsed = SesiActiveData.fromJson(data);
       if (parsed.isActive) sesiAktif = parsed;
     }
 
@@ -183,16 +112,6 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
     }).toList();
   }
 
-  void _snackBar(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: const TextStyle(fontFamily: 'Poppins', color: Colors.white)),
-      backgroundColor: isError ? Colors.red.shade700 : const Color(0xFF4EA771),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      margin: const EdgeInsets.all(16),
-    ));
-  }
-
   // ═══════════════════════════════════════════════════════════════════════════
   //  BUILD
   // ═══════════════════════════════════════════════════════════════════════════
@@ -201,55 +120,77 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9F8),
-      body: SafeArea(
-        child: Column(children: [
-          const TopBarBack(title: 'Pengangkutan'),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadData,
-              color: const Color(0xFF06C0C9),
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: Color(0xFF06C0C9)))
-                  : SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        // ── Sesi aktif ──
-                        if (_sesiAktif != null) ...[
-                          _buildAktifCard(_sesiAktif!),
-                          const SizedBox(height: 20),
-                        ] else ... [
-                          _infoCard(),
-                          const SizedBox(height: 20),
-                        ],
-
-                        // ── Riwayat ──
-                        const Text('Riwayat Pengangkutan', style: TextStyle(
-                          fontFamily: 'Poppins', fontSize: 15,
-                          fontWeight: FontWeight.w700, color: Color(0xFF013236),
-                        )),
-                        const SizedBox(height: 12),
-                        MonthYearFilterRow(
-                          filterStart: _filterStart,
-                          filterEnd: _filterEnd,
-                          onChanged: (start, end) => setState(() {
-                            _filterStart = start;
-                            _filterEnd = end;
-                          }),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildRiwayatList(),
-                      ]),
-                    ),
-            ),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bg_struk2.webp'),
+            fit: BoxFit.cover,
           ),
-        ]),
+        ),
+        child: SafeArea(
+          child: Column(children: [
+            const TopBarBack(title: 'Pengangkutan'),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _loadData,
+                color: const Color(0xFF06C0C9),
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF06C0C9)))
+                    : SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const SizedBox(height: 16),
+
+                          // ── Sesi aktif / info card ──
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: _sesiAktif != null
+                                ? _buildAktifCard(_sesiAktif!)
+                                : _infoCard(),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // ── Riwayat (white container) ──
+                          Container(
+                            width: double.infinity,
+                            constraints: BoxConstraints(
+                              minHeight: MediaQuery.of(context).size.height,
+                            ),
+                            decoration: const BoxDecoration(color: Colors.white),
+                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              const Text('Riwayat Pengangkutan', style: TextStyle(
+                                fontFamily: 'Poppins', fontSize: 14,
+                                fontWeight: FontWeight.w600, color: Color(0xFF013236),
+                              )),
+                              const SizedBox(height: 12),
+                              MonthYearFilterRow(
+                                filterStart: _filterStart,
+                                filterEnd: _filterEnd,
+                                onChanged: (start, end) {
+                                  setState(() {
+                                    _filterStart = start;
+                                    _filterEnd = end;
+                                  });
+                                  _loadData();
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              _buildRiwayatList(),
+                            ]),
+                          ),
+                        ]),
+                      ),
+              ),
+            ),
+          ]),
+        ),
       ),
     );
   }
 
   // ── Card sesi aktif ─────────────────────────────────────────────────────
-  Widget _buildAktifCard(_SesiActiveData sesi) {
+  Widget _buildAktifCard(SesiActiveData sesi) {
     final statusColor = _statusColor(sesi.statusTerkini);
     final statusLabel = _statusLabel(sesi.statusTerkini);
 
@@ -481,8 +422,8 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
         child: Row(children: [
         Container(
           padding: const EdgeInsets.all(9),
-          decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
-          child: Icon(_statusIcon(s.status), color: color, size: 18),
+          decoration: BoxDecoration(color: Color(0xFF013236).withOpacity(0.1), shape: BoxShape.circle),
+          child: Icon(_statusIcon(s.status), color: Color(0xFF013236), size: 18),
         ),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
