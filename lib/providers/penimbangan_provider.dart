@@ -4,21 +4,7 @@ import '../models/penimbangan_model.dart';
 import '../services/penimbangan_service.dart';
 import 'penjualan_provider.dart' show FetchStatus;
 
-/// State untuk modul penimbangan (endpoint `/penimbangan`).
-///
-/// Tiap kebutuhan baca punya slice sendiri (status + data + error). Ini bukan
-/// gaya-gayaan: `PenimbanganScreen` mendorong `PenimbanganAktifScreen`, jadi
-/// keduanya hidup bersamaan di stack. Kalau berbagi satu slot data, fetch milik
-/// layar anak akan menimpa data layar induk dan tampilan induk berubah diam-diam
-/// saat user menekan tombol kembali.
-///
-/// Aksi (update/batal) sengaja dibiarkan meneruskan hasil apa adanya: semuanya
-/// sekali-jalan tanpa data yang perlu bertahan, dan layar pemanggilnya sudah
-/// punya flag loading sendiri. `updatePenimbangan` malah dipanggil dari dua
-/// layar yang hidup bersamaan — satu flag di provider tidak bisa melayani
-/// keduanya.
 class PenimbanganProvider extends ChangeNotifier {
-  // ── Riwayat sesi ───────────────────────────────────────────────────────────
   FetchStatus _riwayatStatus = FetchStatus.idle;
   List<SessionData> _riwayat = [];
   String? _riwayatError;
@@ -27,7 +13,6 @@ class PenimbanganProvider extends ChangeNotifier {
   List<SessionData> get riwayat => _riwayat;
   String? get riwayatError => _riwayatError;
 
-  // ── Sesi aktif hari ini ────────────────────────────────────────────────────
   FetchStatus _sesiAktifStatus = FetchStatus.idle;
   CheckActiveResult? _sesiAktif;
   String? _sesiAktifError;
@@ -36,7 +21,6 @@ class PenimbanganProvider extends ChangeNotifier {
   CheckActiveResult? get sesiAktif => _sesiAktif;
   String? get sesiAktifError => _sesiAktifError;
 
-  // ── Daftar sesi hari ini ───────────────────────────────────────────────────
   FetchStatus _sesiHariIniStatus = FetchStatus.idle;
   List<SesiHariIniItem> _sesiHariIni = [];
   String? _sesiHariIniError;
@@ -45,7 +29,6 @@ class PenimbanganProvider extends ChangeNotifier {
   List<SesiHariIniItem> get sesiHariIni => _sesiHariIni;
   String? get sesiHariIniError => _sesiHariIniError;
 
-  // ── Detail satu sesi (isi layar sesi aktif) ────────────────────────────────
   FetchStatus _detailStatus = FetchStatus.idle;
   SesiPenimbanganAktif? _detail;
   String? _detailError;
@@ -53,10 +36,6 @@ class PenimbanganProvider extends ChangeNotifier {
   FetchStatus get detailStatus => _detailStatus;
   SesiPenimbanganAktif? get detail => _detail;
   String? get detailError => _detailError;
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // Baca
-  // ───────────────────────────────────────────────────────────────────────────
 
   Future<void> fetchRiwayat(String bankId,
       {String? startDate, String? endDate}) async {
@@ -115,7 +94,6 @@ class PenimbanganProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Detail sesi + daftar setoran di dalamnya.
   Future<void> fetchDetail(String penimbanganId) async {
     _detailStatus = FetchStatus.loading;
     _detailError = null;
@@ -135,16 +113,6 @@ class PenimbanganProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Aksi — hasil diteruskan apa adanya, state tidak disentuh
-  // ───────────────────────────────────────────────────────────────────────────
-
-  /// Versi mentah dari [fetchDetail], untuk layar yang mem-parse isi sesi
-  /// dengan bentuk berbeda (`SetoranSummary` + header mentah).
-  ///
-  /// Tidak memakai slice [detail] karena kedua pemakainya sama-sama anak dari
-  /// `PenimbanganScreen` dan bisa hidup bersamaan — berbagi satu slot akan
-  /// membuat keduanya saling menimpa.
   Future<Map<String, dynamic>> getListSetoran(String penimbanganId) =>
       PenimbanganService.getListSetoran(penimbanganId);
 
@@ -156,8 +124,6 @@ class PenimbanganProvider extends ChangeNotifier {
           String penimbanganId, String alasan) =>
       PenimbanganService.batalkanPenimbangan(penimbanganId, alasan);
 
-  /// Batalkan jadwal mendatang yang belum dimulai — beda dari [batalkanSesi]
-  /// yang membatalkan sesi yang sudah aktif.
   Future<Map<String, dynamic>> batalkanJadwal({
     required String jadwalId,
     required String tanggalSesi,

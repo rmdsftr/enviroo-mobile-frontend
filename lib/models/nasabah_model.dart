@@ -18,8 +18,6 @@ class NasabahModel {
   });
 
   factory NasabahModel.fromJson(Map<String, dynamic> json) {
-    // Flat format: nama/email/foto/status at top level (new API)
-    // Nested format: User object (old API)
     final bool isFlat = json.containsKey('nama') || json.containsKey('foto');
     final NasabahUser user = isFlat
         ? NasabahUser(

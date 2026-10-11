@@ -1,3 +1,5 @@
+import 'package:enviroo/core/format/app_date.dart';
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:enviroo/models/tabungan_sampah_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
@@ -6,8 +8,10 @@ import 'package:enviroo/widgets/filter_month_year.dart';
 import 'package:enviroo/widgets/navbar.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class TabunganSampahScreen extends StatefulWidget {
   const TabunganSampahScreen({super.key});
@@ -17,21 +21,15 @@ class TabunganSampahScreen extends StatefulWidget {
 }
 
 class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
-  static const _teal = Color(0xFF013236);
-  static const _accent = Color(0xFF4EA771);
 
   List<SampahTabungan> _sampah = [];
   bool _isLoading = true;
   String? _error;
-  int _selectedTab = 0; // 0 = Cair, 1 = Belum Cair
+  int _selectedTab = 0;
   final Set<String> _expandedCards = {};
 
   late DateTime _filterStart;
   late DateTime _filterEnd;
-
-  final _rupiahFmt =
-      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-  final _dateTimeFmt = DateFormat('dd MMM yyyy, HH.mm', 'id_ID');
 
   @override
   void initState() {
@@ -51,15 +49,12 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final nasabahId = auth.identityId ?? '';
 
-    final fmt = DateFormat('yyyy-MM-dd');
-    final start = DateTime(_filterStart.year, _filterStart.month, 1);
-    final end = DateTime(_filterEnd.year, _filterEnd.month + 1, 0);
 
     final prov = context.read<TabunganSampahProvider>();
     await prov.fetchNasabah(
       nasabahId,
-      startDate: fmt.format(start),
-      endDate: fmt.format(end),
+      startDate: AppDate.apiAwalBulan(_filterStart),
+      endDate: AppDate.apiAkhirBulan(_filterEnd),
     );
 
     if (!mounted) return;
@@ -76,9 +71,6 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
     }
   }
 
-  /// Menyaring per BARIS tabungan, lalu membuang jenis sampah yang jadi
-  /// kosong. Jadi satu jenis sampah bisa muncul di tab Cair maupun Belum Cair
-  /// sekaligus kalau baris-barisnya memang beda status.
   List<SampahTabungan> get _filteredSampah {
     return _sampah
         .map((g) {
@@ -105,7 +97,7 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
     final filtered = _filteredSampah;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -119,12 +111,11 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
               const TopBarBack(title: 'Buku Tabungan Sampah'),
               Expanded(
                 child: RefreshIndicator(
-                  color: _accent,
+                  color: AppColors.green,
                   onRefresh: _fetch,
                   child: CustomScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     slivers: [
-                      // Subtitle + tab navbar — scroll away normally
                       SliverToBoxAdapter(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,7 +131,7 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
                               backgroundColor:
                                   Colors.white.withValues(alpha: 0.6),
                               border: Border.all(
-                                color: const Color(0xFF013236)
+                                color: AppColors.dark
                                     .withValues(alpha: 0.1),
                                 width: 1,
                               ),
@@ -149,7 +140,6 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
                           ],
                         ),
                       ),
-                      // Sticky: "Monitoring tabungan sampah" + filter bulan
                       SliverPersistentHeader(
                         pinned: true,
                         delegate: _StickyHeaderDelegate(
@@ -165,12 +155,7 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
                                       20, 10, 20, 10),
                                   child: Text(
                                     'Monitoring tabungan sampah',
-                                    style: const TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: _teal,
-                                    ),
+                                    style: AppText.w600(14, AppColors.dark),
                                   ),
                                 ),
                                 Padding(
@@ -193,30 +178,33 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
                           ),
                         ),
                       ),
-                      // List / Empty — cuma ini yang scroll di bawah sticky header
-                      SliverToBoxAdapter(
-                        child: Container(
-                          width: double.infinity,
-                          constraints: BoxConstraints(
-                            minHeight: MediaQuery.of(context).size.height,
+                      SliverLayoutBuilder(
+                        builder: (context, sc) => SliverToBoxAdapter(
+                          child: Container(
+                            width: double.infinity,
+                            constraints: BoxConstraints(
+                              minHeight: (sc.viewportMainAxisExtent -
+                                      sc.precedingScrollExtent)
+                                  .clamp(0.0, double.infinity),
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                            ),
+                            padding: const EdgeInsets.only(bottom: 40),
+                            child: _isLoading
+                                ? const Padding(
+                                    padding: EdgeInsets.only(top: 40),
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                          color: AppColors.green),
+                                    ),
+                                  )
+                                : _error != null
+                                    ? _buildError()
+                                    : filtered.isEmpty
+                                        ? _buildEmpty()
+                                        : _buildList(filtered),
                           ),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                          ),
-                          padding: const EdgeInsets.only(bottom: 40),
-                          child: _isLoading
-                              ? const Padding(
-                                  padding: EdgeInsets.only(top: 40),
-                                  child: Center(
-                                    child: CircularProgressIndicator(
-                                        color: _accent),
-                                  ),
-                                )
-                              : _error != null
-                                  ? _buildError()
-                                  : filtered.isEmpty
-                                      ? _buildEmpty()
-                                      : _buildList(filtered),
                         ),
                       ),
                     ],
@@ -235,12 +223,7 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
       child: Text(
         'Lihat status hasil tabungan sampahmu, mulai dari belum cair hingga sudah dicairkan',
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 12,
-          color: _teal.withValues(alpha: 0.6),
-          height: 1.5,
-        ),
+        style: AppText.p(12, color: AppColors.dark.withValues(alpha: 0.6), height: 1.5),
       ),
     );
   }
@@ -274,13 +257,12 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: _teal.withValues(alpha: 0.1),
+          color: AppColors.dark.withValues(alpha: 0.1),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // -- Header: jenis sampahnya --------------------------------------
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             child: Row(
@@ -288,11 +270,11 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: _accent.withValues(alpha: 0.12),
+                    color: AppColors.green.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.recycling_rounded,
-                      size: 18, color: _accent),
+                      size: 18, color: AppColors.green),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -301,20 +283,11 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
                     children: [
                       Text(
                         g.namaSampah,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _teal,
-                        ),
+                        style: AppText.w600(13, AppColors.dark),
                       ),
                       Text(
                         '${g.sampahId}  \u2022  ${g.tabungan.length} tabungan',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 10.5,
-                          color: _teal.withValues(alpha: 0.55),
-                        ),
+                        style: AppText.r(10.5, AppColors.dark.withValues(alpha: 0.55)),
                       ),
                     ],
                   ),
@@ -325,9 +298,8 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
             ),
           ),
 
-          // -- Baris tabungan -----------------------------------------------
           if (isExpanded) ...[
-            const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
+            const Divider(height: 1, thickness: 1, color: AppColors.divider),
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -338,13 +310,12 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
                   thickness: 1,
                   indent: 16,
                   endIndent: 16,
-                  color: Color(0xFFF0F0F0)),
+                  color: AppColors.divider),
               itemBuilder: (_, i) => _buildBarisTabungan(g, g.tabungan[i]),
             ),
           ],
 
-          // -- Toggle --------------------------------------------------------
-          const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
+          const Divider(height: 1, thickness: 1, color: AppColors.divider),
           GestureDetector(
             onTap: () => setState(() {
               if (isExpanded) {
@@ -360,12 +331,7 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
                 children: [
                   Text(
                     isExpanded ? 'Tutup' : 'Lihat detail',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _accent,
-                    ),
+                    style: AppText.w600(12, AppColors.green),
                   ),
                   const SizedBox(width: 4),
                   Icon(
@@ -373,7 +339,7 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
                         ? Icons.keyboard_arrow_up_rounded
                         : Icons.keyboard_arrow_down_rounded,
                     size: 16,
-                    color: _accent,
+                    color: AppColors.green,
                   ),
                 ],
               ),
@@ -394,13 +360,8 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
             children: [
               Expanded(
                 child: Text(
-                  t.createdAt != null ? _dateTimeFmt.format(t.createdAt!) : '-',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: _teal,
-                  ),
+                  t.createdAt != null ? AppDate.tanggalSingkatJam(t.createdAt!) : '-',
+                  style: AppText.w600(12, AppColors.dark),
                 ),
               ),
               const SizedBox(width: 8),
@@ -410,7 +371,6 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
           const SizedBox(height: 8),
           _baris('ID tabungan', t.tabunganId),
           _baris('Dari setoran', t.sourceId),
-          // qty & sisa memakai satuan SAMPAH, bukan satuan nilai.
           _baris('Disetor', '${_fmtQty(t.qty)} ${g.satuanSampah}'),
           _baris('Sisa', '${_fmtQty(t.sisaQty)} ${g.satuanSampah}'),
 
@@ -420,12 +380,7 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
               t.detailPencairan.length > 1
                   ? 'Pencairan (${t.detailPencairan.length}x)'
                   : 'Pencairan',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: _teal.withValues(alpha: 0.65),
-              ),
+              style: AppText.w600(11, AppColors.dark.withValues(alpha: 0.65)),
             ),
             const SizedBox(height: 6),
             ...t.detailPencairan.map((d) => _buildPencairan(g, d)),
@@ -440,9 +395,9 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: _accent.withValues(alpha: 0.06),
+        color: AppColors.green.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _accent.withValues(alpha: 0.15)),
+        border: Border.all(color: AppColors.green.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,24 +408,15 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
               Expanded(
                 child: Text(
                   d.tanggalCair != null
-                      ? _dateTimeFmt.format(d.tanggalCair!)
+                      ? AppDate.tanggalSingkatJam(d.tanggalCair!)
                       : '-',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10.5,
-                    color: _teal.withValues(alpha: 0.55),
-                  ),
+                  style: AppText.r(10.5, AppColors.dark.withValues(alpha: 0.55)),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 _fmtNilai(d.subtotal, g.satuanDiterima),
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: _accent,
-                ),
+                style: AppText.w700(12, AppColors.green),
               ),
             ],
           ),
@@ -478,11 +424,7 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
           Text(
             '${_fmtQty(d.qtyDipakai)} ${g.satuanSampah}'
             '  \u00d7  ${_fmtNilai(d.hargaItem, g.satuanDiterima)} / ${g.satuanSampah}',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 11,
-              color: _teal.withValues(alpha: 0.7),
-            ),
+            style: AppText.r(11, AppColors.dark.withValues(alpha: 0.7)),
           ),
         ],
       ),
@@ -499,22 +441,13 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
             width: 92,
             child: Text(
               label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                color: _teal.withValues(alpha: 0.5),
-              ),
+              style: AppText.r(11, AppColors.dark.withValues(alpha: 0.5)),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: _teal.withValues(alpha: 0.85),
-              ),
+              style: AppText.w500(11, AppColors.dark.withValues(alpha: 0.85)),
             ),
           ),
         ],
@@ -549,118 +482,29 @@ class _TabunganSampahScreenState extends State<TabunganSampahScreen> {
       ),
       child: Text(
         status,
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: small ? 10 : 11,
-          fontWeight: FontWeight.w600,
-          color: fg,
-        ),
+        style: AppText.w600(small ? 10 : 11, fg),
       ),
     );
   }
 
-  Widget _buildEmpty() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 48),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.savings_outlined,
-                size: 64, color: _teal.withValues(alpha: 0.2)),
-            const SizedBox(height: 16),
-            Text(
-              'Belum ada tabungan sampah',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: _teal.withValues(alpha: 0.4),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Data tabungan akan muncul setelah\nAnda melakukan setoran sampah.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: _teal.withValues(alpha: 0.35),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildEmpty() => StateMessage(
+        illustration: StateArt.emptyMoney,
+        message: 'Belum ada tabungan sampah',
+        subtitle: 'Data tabungan akan muncul kalau kamu udah pernah menyetor sampah ya',
+      );
 
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline_rounded,
-                size: 56, color: _teal.withValues(alpha: 0.25)),
-            const SizedBox(height: 16),
-            Text(
-              _error!,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: _teal.withValues(alpha: 0.6),
-              ),
-            ),
-            const SizedBox(height: 20),
-            GestureDetector(
-              onTap: _fetch,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                decoration: BoxDecoration(
-                  color: _accent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'Coba Lagi',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildError() => StateMessage(
+        illustration: StateArt.error,
+        message: _error!,
+        action: StateRetryButton.pill(onPressed: _fetch),
+      );
 
-  String _fmtQty(double v) =>
-      v == v.truncateToDouble() ? v.toInt().toString() : v.toString();
+  String _fmtQty(double v) => AppNumber.desimal(v);
 
-  /// Menulis nilai ekonomi menurut `satuan_diterima` dari backend:
-  /// "Rp" jadi AWALAN (Rp 80), selain itu jadi AKHIRAN (80 poin).
-  ///
-  /// Sengaja menyimpulkan dari satuannya, bukan dari nama_reward seperti kode
-  /// lama — nama_reward ("Uang"/"Barang") tidak mengatakan apa pun soal cara
-  /// menulis angkanya.
-  String _fmtNilai(double v, String satuanDiterima) {
-    final s = satuanDiterima.toLowerCase();
-    if (s.contains('rp') || s.contains('rupiah')) return _rupiahFmt.format(v);
-    final satuan = satuanDiterima.isEmpty ? 'poin' : satuanDiterima;
-    return '${_fmtQty(v)} $satuan';
-  }
+  String _fmtNilai(double v, String satuanDiterima) =>
+      AppNumber.nominalSatuan(v, satuanDiterima);
 }
 
-// ── Sticky header delegate ───────────────────────────────────────────────────
-// Bikin "Monitoring tabungan sampah" + filter bulan nempel (pinned) di bawah
-// TopBarBack saat di-scroll, sementara cuma ListView card yang ikut bergerak.
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   final double height;

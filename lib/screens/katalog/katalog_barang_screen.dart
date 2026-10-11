@@ -1,3 +1,5 @@
+import 'package:enviroo/core/format/app_date.dart';
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:enviroo/models/katalog_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/barang_provider.dart';
@@ -12,15 +14,11 @@ import 'package:enviroo/widgets/pagination.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-class _C {
-  static const bg     = Color(0xFFF2FAF0);
-  static const dark   = Color(0xFF0D3B3E);
-  static const accent = Color(0xFF4EA771);
-  static const teal   = Color(0xFF013236);
-}
 
 class KatalogBarangScreen extends StatefulWidget {
   const KatalogBarangScreen({super.key});
@@ -132,7 +130,7 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
         final filtered = _filtered(barang);
 
         return Scaffold(
-          backgroundColor: _C.bg,
+          backgroundColor: AppColors.surfaceLeaf,
           body: Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -157,7 +155,7 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
                     tabs: const ['Katalog', 'Distribusi'],
                     backgroundColor: Colors.white.withValues(alpha: 0.6),
                     border: Border.all(
-                      color: const Color(0xFF013236).withValues(alpha: 0.1),
+                      color: AppColors.dark.withValues(alpha: 0.1),
                       width: 1,
                     ),
                   ),
@@ -166,13 +164,12 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
 
                 Expanded(
                   child: RefreshIndicator(
-                    color: _C.accent,
+                    color: AppColors.green,
                     onRefresh: () => _refresh(barang),
                     child: ListView(
                       padding: EdgeInsets.zero,
                       physics: const BouncingScrollPhysics(),
                       children: [
-                        // Tab Distribusi (BSI)
                         if (isPetugasBsi && _tabIndex == 1) ...[
                           const SizedBox(height: 10),
                           _buildDistribusiButton(context),
@@ -181,7 +178,6 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
                           const SizedBox(height: 30),
                         ],
 
-                        // Tab Distribusi (BSU)
                         if (isPetugasBsu && _tabIndex == 1) ...[
                           const SizedBox(height: 10),
                           _buildTerimaDistribusiButton(context),
@@ -190,12 +186,10 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
                           const SizedBox(height: 30),
                         ],
 
-                        // Tab Katalog (semua role, atau BSI/BSU tab 0)
                         if ((!isPetugasBsi && !isPetugasBsu) || _tabIndex == 0) ...[
 
                           const SizedBox(height: 10),
 
-                          // Search bar
                           _buildSearchBar(),
                           const SizedBox(height: 16),
 
@@ -209,36 +203,25 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Header label
                                 Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 24),
                                   child: Row(
                                     children: [
-                                      const Text(
+                                      Text(
                                         'Katalog Saya',
-                                        style: TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                          color: _C.dark,
-                                        ),
+                                        style: AppText.w600(13, AppColors.darkAlt),
                                       ),
                                       const Spacer(),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: _C.accent.withValues(alpha: 0.1),
+                                          color: AppColors.green.withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(20),
                                         ),
                                         child: Text(
                                           '${filtered.length} item',
-                                          style: const TextStyle(
-                                            fontFamily: 'Poppins',
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            color: _C.accent,
-                                          ),
+                                          style: AppText.w600(10, AppColors.green),
                                         ),
                                       ),
                                     ],
@@ -246,12 +229,11 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
                                 ),
                                 const SizedBox(height: 12),
 
-                                // Content
                                 if (barang.isLoading)
                                   const Padding(
                                     padding: EdgeInsets.only(top: 80),
                                     child: Center(
-                                      child: CircularProgressIndicator(color: _C.accent),
+                                      child: CircularProgressIndicator(color: AppColors.green),
                                     ),
                                   )
                                 else
@@ -302,22 +284,17 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
-            color : Color(0xFF013236),
+            color : AppColors.dark,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Row(
+          child: Row(
             children: [
               Icon(Icons.local_shipping_rounded, color: Colors.white, size: 20),
               SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Distribusikan Barang ke BSU',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: Colors.white,
-                  ),
+                  style: AppText.w600(13, Colors.white),
                 ),
               ),
               Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 14),
@@ -344,22 +321,17 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
-            color : Color(0xFF013236),
+            color : AppColors.dark,
             borderRadius: BorderRadius.circular(30),
           ),
-          child: const Row(
+          child: Row(
             children: [
               Icon(Icons.qr_code_rounded, color: Colors.white, size: 20),
               SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Terima Distribusi Barang',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: Colors.white,
-                  ),
+                  style: AppText.w600(13, Colors.white),
                 ),
               ),
               Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 14),
@@ -415,7 +387,7 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: _C.dark.withValues(alpha: 0.06),
+              color: AppColors.darkAlt.withValues(alpha: 0.06),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -451,7 +423,7 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
                         child: const Icon(
                           Icons.info_outline_rounded,
                           size: 14,
-                          color: _C.accent,
+                          color: AppColors.green,
                         ),
                       ),
                     ),
@@ -468,14 +440,7 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
                   children: [
                     Text(
                       item.namaBarang,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _C.dark,
-                        letterSpacing: -0.3,
-                        height: 1.2,
-                      ),
+                      style: AppText.p(12, weight: FontWeight.w600, color: AppColors.darkAlt, height: 1.2, letterSpacing: -0.3),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -496,32 +461,25 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
   }
 
   Widget _buildPoinBadge(double poin) {
-    final label = poin == poin.truncateToDouble()
-        ? '${poin.toInt()} poin'
-        : '${poin.toStringAsFixed(2)} poin';
+    final label = AppNumber.denganSatuan(poin, 'poin');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0xFF4EA771).withValues(alpha: 0.08),
+        color: AppColors.green.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: const Color(0xFF4EA771).withValues(alpha: 0.2),
+          color: AppColors.green.withValues(alpha: 0.2),
           width: 0.8,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.stars_rounded, size: 9, color: Color(0xFF4EA771)),
+          const Icon(Icons.stars_rounded, size: 9, color: AppColors.green),
           const SizedBox(width: 3),
           Text(
             label,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF4EA771),
-            ),
+            style: AppText.w600(9, AppColors.green),
           ),
         ],
       ),
@@ -534,12 +492,12 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         color: hasStok
-            ? _C.teal.withValues(alpha: 0.05)
+            ? AppColors.dark.withValues(alpha: 0.05)
             : Colors.orange.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: hasStok
-              ? _C.teal.withValues(alpha: 0.12)
+              ? AppColors.dark.withValues(alpha: 0.12)
               : Colors.orange.withValues(alpha: 0.2),
           width: 0.8,
         ),
@@ -550,17 +508,12 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
           Icon(
             Icons.inventory_2_rounded,
             size: 9,
-            color: hasStok ? _C.teal : Colors.orange,
+            color: hasStok ? AppColors.dark : Colors.orange,
           ),
           const SizedBox(width: 3),
           Text(
             'Stok: ${stok.toInt()}',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              color: hasStok ? _C.teal : Colors.orange,
-            ),
+            style: AppText.w600(9, hasStok ? AppColors.dark : Colors.orange),
           ),
         ],
       ),
@@ -572,35 +525,15 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
       color: const Color(0xFFF2F2F2),
       child: Center(
         child: Icon(Icons.storefront_rounded,
-            size: 36, color: _C.accent.withValues(alpha: 0.5)),
+            size: 36, color: AppColors.green.withValues(alpha: 0.5)),
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48),
-      child: Center(
-        child: Column(
-          children: [
-            Icon(Icons.search_off_rounded,
-                size: 48, color: _C.dark.withValues(alpha: 0.15)),
-            const SizedBox(height: 12),
-            Text(
-              'Tidak ada hasil',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                color: _C.dark.withValues(alpha: 0.4),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Riwayat Distribusi ────────────────────────────────────────────────────
+  Widget _buildEmptyState() => const StateMessage(
+        illustration: StateArt.empty,
+        message: 'Tidak ada hasil',
+      );
 
   Widget _buildRiwayatDistribusiSection(BarangProvider barang, {required bool showNamaBsu}) {
     final filtered = _filteredDistribusi(barang);
@@ -611,7 +544,6 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header + filter
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
             decoration: BoxDecoration(
@@ -620,16 +552,11 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(horizontal: 2),
                   child: Text(
                     'Riwayat Distribusi',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _C.dark,
-                    ),
+                    style: AppText.w600(14, AppColors.darkAlt),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -647,13 +574,12 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
               ],
             ),
           ),
-          // List
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: barang.isListDistribusiLoading
                 ? const Padding(
                     padding: EdgeInsets.symmetric(vertical: 40),
-                    child: Center(child: CircularProgressIndicator(color: _C.accent)),
+                    child: Center(child: CircularProgressIndicator(color: AppColors.green)),
                   )
                 : _buildDistribusiList(filtered, showNamaBsu: showNamaBsu),
           ),
@@ -675,11 +601,7 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
               const SizedBox(height: 10),
               Text(
                 'Belum ada riwayat distribusi',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: Colors.grey[400],
-                ),
+                style: AppText.r(13, Colors.grey[400]),
               ),
             ],
           ),
@@ -704,12 +626,12 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
     switch (status) {
       case 'selesai':
       case 'diterima':
-        statusColor = const Color(0xFF4EA771);
-        statusBg = const Color(0xFFE8F5E9);
+        statusColor = AppColors.green;
+        statusBg = AppColors.mintPale;
         statusLabel = status == 'diterima' ? 'Diterima' : 'Selesai';
         break;
       case 'pending':
-        statusColor = const Color(0xFFF59E0B);
+        statusColor = AppColors.warning;
         statusBg = const Color(0xFFFEF3C7);
         statusLabel = 'Menunggu';
         break;
@@ -719,7 +641,7 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
         statusLabel = d.statusDistribusi;
     }
 
-    final tanggal = '${DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(d.createdAt)} WIB';
+    final tanggal = '${AppDate.tanggalSingkatJam(d.createdAt)} WIB';
 
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -735,7 +657,7 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: _C.dark.withValues(alpha: 0.1),
+          color: AppColors.darkAlt.withValues(alpha: 0.1),
         ),
       ),
       child: Row(
@@ -743,12 +665,12 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
           Container(
             padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
-              color: _C.dark.withValues(alpha: 0.08),
+              color: AppColors.darkAlt.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.local_shipping_rounded,
-              color: _C.dark,
+              color: AppColors.darkAlt,
               size: 18,
             ),
           ),
@@ -759,21 +681,12 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
               children: [
                 Text(
                   showNamaBsu ? d.namaBsu : tanggal,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: _C.dark,
-                  ),
+                  style: AppText.w600(13, AppColors.darkAlt),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   showNamaBsu ? tanggal : '${d.totalItem.toInt()} item',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11.5,
-                    color: Colors.grey[500],
-                  ),
+                  style: AppText.r(11.5, Colors.grey[500]),
                 ),
               ],
             ),
@@ -786,12 +699,7 @@ class _KatalogBarangScreenState extends State<KatalogBarangScreen> {
             ),
             child: Text(
               statusLabel,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                color: statusColor,
-              ),
+              style: AppText.w600(10.5, statusColor),
             ),
           ),
         ],

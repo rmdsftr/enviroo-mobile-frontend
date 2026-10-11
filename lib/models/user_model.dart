@@ -2,7 +2,7 @@ class UserModel {
   final String userId;
   final String email;
   final String nama;
-  final String role;       // finalRole dari backend (e.g. "nasabah", "petugas_bsi", etc.)
+  final String role;
   final String? bankId;
   final String? identityId;
   final String accessToken;

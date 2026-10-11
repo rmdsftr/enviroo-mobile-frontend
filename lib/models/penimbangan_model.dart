@@ -1,9 +1,9 @@
-import 'package:intl/intl.dart';
+import '../core/format/app_date.dart';
 
 class SessionData {
   final String id;
   final String tanggal;
-  final String waktu; // dipakai buat baris kedua di tile riwayat, isinya "N setoran"
+  final String waktu;
   final String fullTanggal;
   final int jumlahSetoran;
   final String status;
@@ -27,7 +27,7 @@ class SessionData {
       try {
         final parsed = DateTime.parse(json['tanggal_sesi']).toLocal();
         rawDate = parsed;
-        tanggal = DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(parsed);
+        tanggal = AppDate.tanggalPenuh(parsed);
       } catch (_) {
         tanggal = json['tanggal_sesi'].toString();
       }
@@ -79,11 +79,11 @@ class CheckActiveDetail {
   }
 
   String get tanggalFmt =>
-      tanggalSesi != null ? DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(tanggalSesi!) : '-';
+      tanggalSesi != null ? AppDate.tanggalPenuh(tanggalSesi!) : '-';
 
-  String get jamMulaiFmt => jamMulai.length >= 5 ? jamMulai.substring(0, 5) : jamMulai;
+  String get jamMulaiFmt => AppDate.jamDariString(jamMulai);
 
-  String get jamSelesaiFmt => jamSelesai.length >= 5 ? jamSelesai.substring(0, 5) : jamSelesai;
+  String get jamSelesaiFmt => AppDate.jamDariString(jamSelesai);
 }
 
 class CheckActiveResult {
@@ -106,14 +106,13 @@ class CheckActiveResult {
   }
 }
 
-/// Item sesi penimbangan hari ini, dari GET /penimbangan/check/:bank_id
 class SesiHariIniItem {
   final String penimbanganId;
   final DateTime? tanggalSesi;
   final String jamMulai;
   final String jamSelesai;
   final String? namaJadwalSpesial;
-  final String statusPenimbangan; // 'pending' | 'aktif' | 'selesai' | 'dibatalkan'
+  final String statusPenimbangan;
 
   SesiHariIniItem({
     required this.penimbanganId,
@@ -142,11 +141,11 @@ class SesiHariIniItem {
   }
 
   String get tanggalFmt =>
-      tanggalSesi != null ? DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(tanggalSesi!) : '-';
+      tanggalSesi != null ? AppDate.tanggalPenuh(tanggalSesi!) : '-';
 
-  String get jamMulaiFmt => jamMulai.length >= 5 ? jamMulai.substring(0, 5) : jamMulai;
+  String get jamMulaiFmt => AppDate.jamDariString(jamMulai);
 
-  String get jamSelesaiFmt => jamSelesai.length >= 5 ? jamSelesai.substring(0, 5) : jamSelesai;
+  String get jamSelesaiFmt => AppDate.jamDariString(jamSelesai);
 }
 
 class PenimbanganSetoranItem {
@@ -181,7 +180,7 @@ class PenimbanganSetoranItem {
     );
   }
 
-  String get waktuFmt => DateFormat('HH:mm', 'id_ID').format(createdAt);
+  String get waktuFmt => AppDate.jam(createdAt);
 }
 
 class SesiPenimbanganAktif {
@@ -204,7 +203,7 @@ class SesiPenimbanganAktif {
     if (j['started_at'] != null) {
       try {
         final parsed = DateTime.parse(j['started_at']).toLocal();
-        startedAt = DateFormat('EEEE, dd MMM yyyy · HH:mm', 'id_ID').format(parsed);
+        startedAt = AppDate.tanggalPenuhJam(parsed);
       } catch (_) {
         startedAt = j['started_at'].toString();
       }

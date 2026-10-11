@@ -5,7 +5,6 @@ import '../providers/penjualan_provider.dart' show FetchStatus;
 import '../services/bagi_hasil_service.dart';
 
 class BagiHasilProvider extends ChangeNotifier {
-  // ── Preview ────────────────────────────────────────────────────────────────
   FetchStatus _previewStatus = FetchStatus.idle;
   PreviewBagiHasilModel? _preview;
   String? _previewError;
@@ -14,14 +13,12 @@ class BagiHasilProvider extends ChangeNotifier {
   PreviewBagiHasilModel? get preview => _preview;
   String? get previewError => _previewError;
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
   bool _submitting = false;
   String? _submitError;
 
   bool get submitting => _submitting;
   String? get submitError => _submitError;
 
-  // ── Detail ─────────────────────────────────────────────────────────────────
   FetchStatus _detailStatus = FetchStatus.idle;
   DetailBagiHasilModel? _detail;
   String? _detailError;
@@ -30,7 +27,6 @@ class BagiHasilProvider extends ChangeNotifier {
   DetailBagiHasilModel? get detail => _detail;
   String? get detailError => _detailError;
 
-  // ── Riwayat bagi hasil nasabah ─────────────────────────────────────────────
   FetchStatus _nasabahListStatus = FetchStatus.idle;
   List<BagiHasilNasabahItem> _nasabahList = [];
   String? _nasabahListError;
@@ -39,7 +35,6 @@ class BagiHasilProvider extends ChangeNotifier {
   List<BagiHasilNasabahItem> get nasabahList => _nasabahList;
   String? get nasabahListError => _nasabahListError;
 
-  // ── Struk bagi hasil nasabah ───────────────────────────────────────────────
   FetchStatus _nasabahDetailStatus = FetchStatus.idle;
   BagiHasilNasabahDetail? _nasabahDetail;
   String? _nasabahDetailError;
@@ -48,7 +43,6 @@ class BagiHasilProvider extends ChangeNotifier {
   BagiHasilNasabahDetail? get nasabahDetail => _nasabahDetail;
   String? get nasabahDetailError => _nasabahDetailError;
 
-  // ─────────────────────────────────────────────────────────────────────────
   Future<void> fetchPreview(String penjualanId, String bankId) async {
     _previewStatus = FetchStatus.loading;
     _previewError = null;
@@ -102,11 +96,6 @@ class BagiHasilProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Riwayat bagi hasil milik seorang nasabah.
-  ///
-  /// ⚠️ Service mengembalikan body mentah, jadi daftarnya ada di
-  /// `data['riwayat_bagi_hasil']` — bukan langsung `data` seperti di
-  /// [fetchDetailNasabah].
   Future<void> fetchListNasabah(
     String nasabahId, {
     required String startDate,

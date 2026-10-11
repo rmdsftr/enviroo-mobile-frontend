@@ -9,15 +9,9 @@ import '../../widgets/custom_snackbar.dart';
 import '../../widgets/filter_chip_row.dart';
 import '../../widgets/topbar_back.dart';
 import 'pilih_sampah_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-class _C {
-  static const dark = Color(0xFF013236);
-  static const green = Color(0xFF94DF0C);
-  static const cardBg = Color(0xFFF7FBF5);
-  static const muted = Color(0xFF8A9A92);
-  static const danger = Color(0xFFD94848);
-  static const border = Color(0xFFE6EDE9);
-}
 
 enum _MitraInputMode { baru, pilih }
 
@@ -39,10 +33,7 @@ class _JenisTransaksiScreenState extends State<JenisTransaksiScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final prov = context.read<PenjualanProvider>();
       final bankId = context.read<AuthProvider>().bankId ?? '';
-      // Pre-fill kalau user balik ke halaman ini
       _namaMitraCtrl.text = prov.namaMitra;
-      // Kalau sebelumnya udah milih mitra existing (misal dari shortcut
-      // "Mitra Pengepul Langganan"), langsung buka di mode "Pilih Mitra".
       if (prov.selectedMitraId != null) {
         setState(() => _mitraMode = _MitraInputMode.pilih);
       }
@@ -94,7 +85,7 @@ class _JenisTransaksiScreenState extends State<JenisTransaksiScreen> {
                 builder: (_, prov, reward, __) {
                   if (reward.allStatus == FetchStatus.loading) {
                     return const Center(
-                      child: CircularProgressIndicator(color: _C.green),
+                      child: CircularProgressIndicator(color: AppColors.neon),
                     );
                   }
                   if (reward.allStatus == FetchStatus.error) {
@@ -104,12 +95,12 @@ class _JenisTransaksiScreenState extends State<JenisTransaksiScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.error_outline_rounded, size: 48, color: _C.muted.withValues(alpha: 0.5)),
+                            Icon(Icons.error_outline_rounded, size: 48, color: AppColors.muted.withValues(alpha: 0.5)),
                             const SizedBox(height: 12),
                             Text(
                               reward.allError ?? 'Gagal memuat data',
                               textAlign: TextAlign.center,
-                              style: const TextStyle(fontFamily: 'Poppins', fontSize: 12.5, color: _C.muted),
+                              style: AppText.r(12.5, AppColors.muted),
                             ),
                             const SizedBox(height: 20),
                             OutlinedButton.icon(
@@ -119,8 +110,8 @@ class _JenisTransaksiScreenState extends State<JenisTransaksiScreen> {
                               icon: const Icon(Icons.refresh_rounded, size: 16),
                               label: const Text('Coba Lagi', style: TextStyle(fontFamily: 'Poppins')),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: _C.dark,
-                                side: const BorderSide(color: _C.border),
+                                foregroundColor: AppColors.dark,
+                                side: const BorderSide(color: AppColors.border),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                               ),
                             ),
@@ -179,11 +170,7 @@ class _JenisTransaksiScreenState extends State<JenisTransaksiScreen> {
                                 hint: 'Contoh: PT Semen Padang',
                                 icon: Icons.store_rounded,
                               ),
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 13,
-                                color: _C.dark,
-                              ),
+                              style: AppText.r(13, AppColors.dark),
                               validator: (v) {
                                 if (v == null || v.trim().isEmpty) {
                                   return 'Nama mitra wajib diisi';
@@ -222,14 +209,12 @@ class _JenisTransaksiScreenState extends State<JenisTransaksiScreen> {
   }
 }
 
-// ─── Helper widgets ─────────────────────────────────────────────────────────
 InputDecoration _inputDecoration({String? hint, IconData? icon}) {
   return InputDecoration(
     hintText: hint,
-    hintStyle: const TextStyle(
-        fontFamily: 'Poppins', fontSize: 12.5, color: _C.muted),
+    hintStyle: AppText.r(12.5, AppColors.muted),
     prefixIcon: icon != null
-        ? Icon(icon, color: _C.dark, size: 20)
+        ? Icon(icon, color: AppColors.dark, size: 20)
         : null,
     filled: true,
     fillColor: Colors.white,
@@ -237,19 +222,19 @@ InputDecoration _inputDecoration({String? hint, IconData? icon}) {
         const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _C.border),
+      borderSide: const BorderSide(color: AppColors.border),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _C.border, width: 1.5),
+      borderSide: const BorderSide(color: AppColors.border, width: 1.5),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _C.danger),
+      borderSide: const BorderSide(color: AppColors.dangerSoft),
     ),
     focusedErrorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _C.danger, width: 1.5),
+      borderSide: const BorderSide(color: AppColors.dangerSoft, width: 1.5),
     ),
   );
 }
@@ -260,12 +245,7 @@ class _LabelField extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
         label,
-        style: const TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: _C.dark,
-        ),
+        style: AppText.w600(12, AppColors.dark),
       );
 }
 
@@ -280,21 +260,12 @@ class _Heading extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: _C.dark,
-            ),
+            style: AppText.w700(16, AppColors.dark),
           ),
           const SizedBox(height: 4),
           Text(
             subtitle,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              color: _C.muted,
-            ),
+            style: AppText.r(12, AppColors.muted),
           ),
         ],
       );
@@ -323,7 +294,7 @@ class _MitraPicker extends StatelessWidget {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(
-          child: CircularProgressIndicator(color: _C.green),
+          child: CircularProgressIndicator(color: AppColors.neon),
         ),
       );
     }
@@ -336,7 +307,7 @@ class _MitraPicker extends StatelessWidget {
             Text(
               error ?? 'Gagal memuat daftar mitra',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontFamily: 'Poppins', fontSize: 12.5, color: _C.muted),
+              style: AppText.r(12.5, AppColors.muted),
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
@@ -344,8 +315,8 @@ class _MitraPicker extends StatelessWidget {
               icon: const Icon(Icons.refresh_rounded, size: 16),
               label: const Text('Coba Lagi', style: TextStyle(fontFamily: 'Poppins')),
               style: OutlinedButton.styleFrom(
-                foregroundColor: _C.dark,
-                side: const BorderSide(color: _C.border),
+                foregroundColor: AppColors.dark,
+                side: const BorderSide(color: AppColors.border),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
               ),
             ),
@@ -359,14 +330,14 @@ class _MitraPicker extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
         decoration: BoxDecoration(
-          color: _C.cardBg,
+          color: AppColors.surfaceMint,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _C.border),
+          border: Border.all(color: AppColors.border),
         ),
-        child: const Text(
+        child: Text(
           'Belum ada mitra terdaftar. Gunakan "Input Baru" untuk mendaftarkan mitra ini.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontFamily: 'Poppins', fontSize: 12.5, color: _C.muted),
+          style: AppText.r(12.5, AppColors.muted),
         ),
       );
     }
@@ -387,7 +358,7 @@ class _MitraPicker extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: isSelected ? _C.green : _C.border,
+                    color: isSelected ? AppColors.neon : AppColors.border,
                     width: isSelected ? 1.5 : 1,
                   ),
                 ),
@@ -396,18 +367,13 @@ class _MitraPicker extends StatelessWidget {
                     Icon(
                       Icons.storefront_rounded,
                       size: 20,
-                      color: isSelected ? _C.green : _C.dark,
+                      color: isSelected ? AppColors.neon : AppColors.dark,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         m.namaMitra,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _C.dark,
-                        ),
+                        style: AppText.w600(13, AppColors.dark),
                       ),
                     ),
                   ],
@@ -427,7 +393,7 @@ class _StepIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const total = 3; // Jenis → Sampah → Foto
+    const total = 3;
     return Row(
       children: List.generate(total, (i) {
         final isActive = i + 1 <= currentStep;
@@ -436,7 +402,7 @@ class _StepIndicator extends StatelessWidget {
             margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
             height: 5,
             decoration: BoxDecoration(
-              color: isActive ? _C.green : _C.border,
+              color: isActive ? AppColors.neon : AppColors.border,
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -456,10 +422,7 @@ class _RewardSelector extends StatelessWidget {
     required this.onChanged,
   });
 
-  // Tambahkan ke _C kalau belum ada
-  static const _lime = Color(0xFF94DF0C);
   static const _limeTint = Color(0xFFF4FBE6);
-  static const _green = Color(0xFF4EA771);
   static const _iconIdleBg = Color(0xFFEDF4EF);
 
   IconData _iconFor(RewardModel r) {
@@ -499,7 +462,7 @@ class _RewardSelector extends StatelessWidget {
                     color: isSelected ? _limeTint : Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: isSelected ? _lime : _C.border,
+                      color: isSelected ? AppColors.neon : AppColors.border,
                       width: 1.5,
                     ),
                   ),
@@ -514,32 +477,23 @@ class _RewardSelector extends StatelessWidget {
                             width: 38,
                             height: 38,
                             decoration: BoxDecoration(
-                              color: isSelected ? _lime : _iconIdleBg,
+                              color: isSelected ? AppColors.neon : _iconIdleBg,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             alignment: Alignment.center,
-                            child: Icon(_iconFor(r), size: 20, color: _C.dark),
+                            child: Icon(_iconFor(r), size: 20, color: AppColors.dark),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Text(
                         r.namaReward,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _C.dark,
-                        ),
+                        style: AppText.w600(13, AppColors.dark),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         _subtitleFor(r),
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                          color: isSelected ? Color(0xFF013236).withValues(alpha: 0.75) : _C.muted,
-                        ),
+                        style: AppText.r(12, isSelected ? AppColors.dark.withValues(alpha: 0.75) : AppColors.muted),
                       ),
                     ],
                   ),
@@ -563,7 +517,7 @@ class _BottomBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: _C.border)),
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: SizedBox(
         width: double.infinity,
@@ -571,16 +525,12 @@ class _BottomBar extends StatelessWidget {
         child: ElevatedButton.icon(
           onPressed: onNext,
           icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-          label: const Text(
+          label: Text(
             'Selanjutnya',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              fontSize: 13.5,
-            ),
+            style: AppText.w600(13.5),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: _C.dark,
+            backgroundColor: AppColors.dark,
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(

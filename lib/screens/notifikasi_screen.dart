@@ -8,6 +8,8 @@ import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class NotifikasiScreen extends StatefulWidget {
   const NotifikasiScreen({super.key});
@@ -36,7 +38,6 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
   }
 
   Future<void> _onTapNotif(NotifikasiModel notif) async {
-    // Await agar backend selesai persist sebelum navigasi — cegah race condition
     if (!notif.isRead) {
       await context.read<NotifikasiProvider>().markAsRead(
             notifId: notif.id,
@@ -45,15 +46,12 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
 
     if (!mounted) return;
 
-    // Navigasi berdasarkan ref_type. Tabel tujuannya ada di NotifRouter supaya
-    // tap dari dalam app dan tap dari system tray tidak bisa beda tujuan.
     final refType = notif.refType;
     final refId = notif.refId;
     if (refType == null || refId == null) return;
     NotifRouter.open(Navigator.of(context), refType: refType, refId: refId);
   }
 
-  // ─── Config per ref_type ──────────────────────────────────────────────────
   bool _isJadwal(String? refType) =>
       refType == 'jadwal_penimbangan' || refType == 'jadwal_pengangkutan';
 
@@ -77,7 +75,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
 
   Color _getColor(String? refType) {
     switch (refType) {
-      case 'setoran':             return const Color(0xFF4EA771);
+      case 'setoran':             return AppColors.green;
       case 'penarikan':           return const Color(0xFF3B82C4);
       case 'bagi_hasil':          return const Color(0xFF7C5CBF);
       case 'kontrak':             return const Color(0xFFE07B39);
@@ -85,21 +83,16 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
       case 'pengangkutan':           return const Color(0xFF0D8A8A);
       case 'pengajuan_pengangkutan': return const Color(0xFF0D8A8A);
       case 'distribusi_barang':   return const Color(0xFFE07B39);
-      case 'penimbangan':         return const Color(0xFFF59E0B);
-      case 'jadwal_penimbangan':  return const Color(0xFFF59E0B);
+      case 'penimbangan':         return AppColors.warning;
+      case 'jadwal_penimbangan':  return AppColors.warning;
       case 'jadwal_pengangkutan': return const Color(0xFF0EA5E9);
-      default:                    return const Color(0xFF013236);
+      default:                    return AppColors.dark;
     }
   }
 
-  // Khusus role petugas_bsm: filter "Penimbangan" gabungin 2 ref_type
-  // (jadwal_penimbangan + penimbangan), filter "Penarikan" cuma ref_type
-  // penarikan.
   bool _isPenimbanganBsm(String? refType) =>
       refType == 'jadwal_penimbangan' || refType == 'penimbangan';
 
-  // Affordance "Lihat detail" ikut tabel di NotifRouter — kalau ref_type +
-  // role ini memang tidak punya tujuan, jangan dibikin kelihatan bisa di-tap.
   bool _isTappable(String? refType, String? refId, String role) =>
       NotifRouter.hasDestination(refType: refType, refId: refId, role: role);
 
@@ -127,7 +120,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                 builder: (context, provider, _) {
                   if (provider.isLoading) {
                     return const Center(
-                      child: CircularProgressIndicator(color: Color(0xFF4EA771)),
+                      child: CircularProgressIndicator(color: AppColors.green),
                     );
                   }
 
@@ -140,22 +133,18 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                           children: [
                             Icon(Icons.error_outline_rounded,
                                 size: 40,
-                                color: Colors.red.withOpacity(0.5)),
+                                color: Colors.red.withValues(alpha: 0.5)),
                             const SizedBox(height: 12),
                             Text(
                               provider.errorMessage!,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 13,
-                                color: Color(0xFF013236),
-                              ),
+                              style: AppText.r(13, AppColors.dark),
                             ),
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _fetch,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF013236),
+                                backgroundColor: AppColors.dark,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12)),
@@ -173,11 +162,6 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                   final isNasabah = role == 'nasabah';
                   final isPetugasBsm = role == 'petugas_bsm';
 
-                  // Migrasi ref_type penimbangan/jadwal_penimbangan ke chat
-                  // cuma berlaku buat nasabah (notifikasi role_target=nasabah
-                  // yang dipindah ke ChatInfoBankSampahScreen). Punya
-                  // petugas_bsm sendiri (role_target=admin) tetap tampil di
-                  // sini dengan filter "Penimbangan".
                   final allNotifs = isNasabah
                       ? provider.notifikasi.where((n) => !n.isChatInfoBank).toList()
                       : provider.notifikasi;
@@ -196,7 +180,6 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
 
                   return Column(
                     children: [
-                      // ── Filter chips ─────────────────────────────────────
                       Padding(
                         padding: const EdgeInsets.fromLTRB(0, 8, 0, 4),
                         child: FilterChipRow<String>(
@@ -223,7 +206,6 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                         ),
                       ),
-                      // ── Header row ──────────────────────────────────────
                       if (allNotifs.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 6, 20, 4),
@@ -235,45 +217,30 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF4EA771),
+                                      color: AppColors.green,
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
                                       '$unread belum dibaca',
-                                      style: const TextStyle(
-                                        fontFamily: 'Poppins',
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.white,
-                                      ),
+                                      style: AppText.w500(11, Colors.white),
                                     ),
                                   )
-                                : const Text(
+                                : Text(
                                     'Semua sudah dibaca',
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 11,
-                                      color: Color(0xFF013236),
-                                    ),
+                                    style: AppText.r(11, AppColors.dark),
                                   ),
                             if (unread > 0)
                               GestureDetector(
                                 onTap: _markAllRead,
-                                child: const Text(
+                                child: Text(
                                   'Tandai semua dibaca',
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF4EA771),
-                                  ),
+                                  style: AppText.w600(11, AppColors.green),
                                 ),
                               ),
                           ],
                         ),
                       ),
                       if (allNotifs.isNotEmpty) const SizedBox(height: 10),
-                      // ── List ────────────────────────────────────────────
                       Expanded(
                         child: notifs.isEmpty
                             ? Center(
@@ -282,16 +249,12 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                                   children: [
                                     Icon(CupertinoIcons.bell_slash,
                                         size: 48,
-                                        color: const Color(0xFF013236)
-                                            .withOpacity(0.2)),
+                                        color: AppColors.dark
+                                            .withValues(alpha: 0.2)),
                                     const SizedBox(height: 12),
-                                    const Text(
+                                    Text(
                                       'Belum ada notifikasi',
-                                      style: TextStyle(
-                                        fontFamily: 'Poppins',
-                                        fontSize: 13,
-                                        color: Color(0xFF013236),
-                                      ),
+                                      style: AppText.r(13, AppColors.dark),
                                     ),
                                   ],
                                 ),
@@ -347,12 +310,12 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
           border: Border.all(
             color: notif.isRead
                 ? Colors.transparent
-                : const Color(0xFF4EA771).withOpacity(0.35),
+                : AppColors.green.withValues(alpha: 0.35),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF013236).withOpacity(0.05),
+              color: AppColors.dark.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -362,18 +325,16 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Icon ─────────────────────────────────────────────────
             Container(
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(13),
               ),
               child: Icon(_getIcon(notif.refType), color: color, size: 20),
             ),
             const SizedBox(width: 12),
-            // ── Text ─────────────────────────────────────────────────
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,36 +344,22 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                       Expanded(
                         child: Text(
                           notif.judul,
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: notif.isRead
+                          style: AppText.p(13, weight: notif.isRead
                                 ? FontWeight.w600
-                                : FontWeight.w700,
-                            fontSize: 13,
-                            color: const Color(0xFF013236),
-                          ),
+                                : FontWeight.w700, color: AppColors.dark),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         _formatWaktu(notif.createdAt),
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 10,
-                          color: const Color(0xFF013236).withValues(alpha: 0.4),
-                        ),
+                        style: AppText.r(10, AppColors.dark.withValues(alpha: 0.4)),
                       ),
                     ],
                   ),
                   const SizedBox(height: 3),
                   Text(
                     notif.pesan,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      height: 1.5,
-                      color: const Color(0xFF013236).withOpacity(0.6),
-                    ),
+                    style: AppText.p(11, color: AppColors.dark.withValues(alpha: 0.6), height: 1.5),
                   ),
                   if (tappable) ...[
                     const SizedBox(height: 6),
@@ -420,12 +367,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                       children: [
                         Text(
                           'Lihat detail',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: color,
-                          ),
+                          style: AppText.w600(10, color),
                         ),
                         const SizedBox(width: 2),
                         Icon(CupertinoIcons.chevron_right,
@@ -436,7 +378,6 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                 ],
               ),
             ),
-            // ── Unread dot ───────────────────────────────────────────
             if (!notif.isRead)
               Padding(
                 padding: const EdgeInsets.only(left: 8, top: 2),
@@ -444,7 +385,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                   width: 8,
                   height: 8,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF4EA771),
+                    color: AppColors.green,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -457,12 +398,6 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
 
   Widget _buildJadwalCard(NotifikasiModel notif) {
     final color = _getColor(notif.refType);
-    // Badge cuma valid kalau judulnya emang literally bilang gitu ("Jadwal
-    // ... Hari Ini" / "... Besok"). Sebelumnya default ke 'Besok' apa pun
-    // judulnya — makanya notifikasi 3 hari lalu bisa kebaca "Besok", padahal
-    // footer waktu (createdAt) udah bener. Kalau judul gak nyebut
-    // salah satu, jangan nampilin badge sama sekali — biar gak dobel &
-    // kontradiksi sama waktu aslinya.
     final isHariIni = notif.judul.contains('Hari Ini');
     final isBesok = notif.judul.contains('Besok');
     final badgeLabel = isHariIni ? 'Hari Ini' : (isBesok ? 'Besok' : null);
@@ -493,16 +428,13 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // ── Left accent bar ───────────────────────────────────
                 Container(width: 5, color: color),
-                // ── Content ───────────────────────────────────────────
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Icon besar
                         Container(
                           width: 44,
                           height: 44,
@@ -514,31 +446,23 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                               color: color, size: 22),
                         ),
                         const SizedBox(width: 12),
-                        // Teks
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Baris judul + badge waktu
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Expanded(
                                     child: Text(
                                       notif.judul,
-                                      style: TextStyle(
-                                        fontFamily: 'Poppins',
-                                        fontWeight: notif.isRead
+                                      style: AppText.p(13, weight: notif.isRead
                                             ? FontWeight.w600
-                                            : FontWeight.w700,
-                                        fontSize: 13,
-                                        color: const Color(0xFF013236),
-                                      ),
+                                            : FontWeight.w700, color: AppColors.dark),
                                     ),
                                   ),
                                   if (badgeLabel != null) ...[
                                     const SizedBox(width: 6),
-                                    // Badge hari ini / besok
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 8, vertical: 3),
@@ -548,12 +472,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                                       ),
                                       child: Text(
                                         badgeLabel,
-                                        style: TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w700,
-                                          color: color,
-                                        ),
+                                        style: AppText.w700(9, color),
                                       ),
                                     ),
                                   ],
@@ -562,31 +481,20 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
                               const SizedBox(height: 5),
                               Text(
                                 notif.pesan,
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 11,
-                                  height: 1.5,
-                                  color:
-                                      const Color(0xFF013236).withValues(alpha: 0.6),
-                                ),
+                                style: AppText.p(11, color: AppColors.dark.withValues(alpha: 0.6), height: 1.5),
                               ),
                               const SizedBox(height: 6),
-                              // Footer: waktu + status
                               Row(
                                 children: [
                                   Icon(CupertinoIcons.clock,
                                       size: 10,
-                                      color: const Color(0xFF013236)
+                                      color: AppColors.dark
                                           .withValues(alpha: 0.35)),
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatWaktu(notif.createdAt),
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 10,
-                                      color: const Color(0xFF013236)
-                                          .withValues(alpha: 0.35),
-                                    ),
+                                    style: AppText.r(10, AppColors.dark
+                                          .withValues(alpha: 0.35)),
                                   ),
                                   if (!notif.isRead) ...[
                                     const Spacer(),

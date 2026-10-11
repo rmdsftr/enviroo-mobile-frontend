@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format/app_date.dart';
+import '../../core/format/app_number.dart';
 import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/penarikan_nasabah_provider.dart';
@@ -12,6 +13,9 @@ import '../../widgets/topbar_back.dart';
 import 'detail_penarikan_screen.dart';
 import 'penarikan_ongoing_screen.dart';
 import 'request_penarikan_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class PenarikanNasabahScreen extends StatefulWidget {
   const PenarikanNasabahScreen({super.key});
@@ -22,11 +26,10 @@ class PenarikanNasabahScreen extends StatefulWidget {
 }
 
 class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
   static const Color neon = Color(0xFF88CC0C);
 
-  // 'semua' | 'uang' | 'barang'
   String _rewardFilter = 'semua';
 
   static const _rewardChips = [
@@ -92,22 +95,12 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
                   Text(
                     'Ajukan',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: Colors.white,
-                    ),
+                    style: AppText.w600(13, Colors.white),
                   ),
                   Text(
                     'Penarikan',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: Colors.white,
-                    ),
+                    style: AppText.w600(13, Colors.white),
                   ),
                 ]
               )
@@ -148,12 +141,7 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
                   const SizedBox(width: 6),
                   Text(
                     '$jumlah',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 20,
-                      color: dark,
-                    ),
+                    style: AppText.w700(20, dark),
                   ),
                 ],
               ),
@@ -161,12 +149,7 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
               Text(
                 'Sedang dalam proses',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w500,
-                  fontSize: 11,
-                  color: dark.withValues(alpha: 0.6),
-                ),
+                style: AppText.w500(11, dark.withValues(alpha: 0.6)),
               ),
             ],
           ),
@@ -178,7 +161,7 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -211,7 +194,6 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
                       child: CustomScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         slivers: [
-                          // 1. Ajukan penarikan + sedang dalam proses — scroll away normally
                           SliverToBoxAdapter(
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -231,7 +213,6 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
                               ),
                             ),
                           ),
-                          // Sticky: "Riwayat Penarikan" + filter bulan + filter chip reward
                           SliverPersistentHeader(
                             pinned: true,
                             delegate: _StickyHeaderDelegate(
@@ -246,12 +227,7 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
                                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                                       child : Text(
                                         'Riwayat Penarikan',
-                                        style: TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: dark,
-                                        ),
+                                        style: AppText.w600(14, dark),
                                       )
                                     ),
                                     Padding(
@@ -263,7 +239,6 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 12),
-                                    // 2. Chip filter jenis reward
                                     FilterChipRow<String>(
                                       items: _rewardChips,
                                       selectedValue: _rewardFilter,
@@ -275,72 +250,75 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
                               ),
                             ),
                           ),
-                          // List / Empty — cuma ini yang scroll di bawah sticky header
-                          SliverToBoxAdapter(
-                            child: Container(
-                              width: double.infinity,
-                              constraints: BoxConstraints(
-                                minHeight: MediaQuery.of(context).size.height,
-                              ),
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                              ),
-                              padding: const EdgeInsets.only(bottom: 40),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (prov.loadingList && prov.penarikanList.isEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                                      child: Column(
-                                        children: List.generate(
-                                          5,
-                                          (_) => const _ShimmerCard(),
+                          SliverLayoutBuilder(
+                            builder: (context, sc) => SliverToBoxAdapter(
+                              child: Container(
+                                width: double.infinity,
+                                constraints: BoxConstraints(
+                                  minHeight: (sc.viewportMainAxisExtent -
+                                          sc.precedingScrollExtent)
+                                      .clamp(0.0, double.infinity),
+                                ),
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                ),
+                                padding: const EdgeInsets.only(bottom: 40),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (prov.loadingList && prov.penarikanList.isEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                                        child: Column(
+                                          children: List.generate(
+                                            5,
+                                            (_) => const _ShimmerCard(),
+                                          ),
                                         ),
-                                      ),
-                                    )
-                                  else if (prov.errorList != null && prov.penarikanList.isEmpty)
-                                    _ErrorState(
-                                      message: prov.errorList!,
-                                      onRetry: () => prov.loadList(refresh: true),
-                                    )
-                                  else if (visibleList.isEmpty)
-                                    const _EmptyState()
-                                  else
-                                    ListView.builder(
-                                      shrinkWrap: true,
-                                      physics: const NeverScrollableScrollPhysics(),
-                                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                                      itemCount: visibleList.length + 1,
-                                      itemBuilder: (ctx, i) {
-                                        if (i == visibleList.length) {
-                                          return prov.hasMore
-                                              ? const Padding(
-                                                  padding: EdgeInsets.symmetric(vertical: 12),
-                                                  child: Center(
-                                                    child: CircularProgressIndicator(
-                                                      color: primary,
-                                                      strokeWidth: 2,
+                                      )
+                                    else if (prov.errorList != null && prov.penarikanList.isEmpty)
+                                      _ErrorState(
+                                        message: prov.errorList!,
+                                        onRetry: () => prov.loadList(refresh: true),
+                                      )
+                                    else if (visibleList.isEmpty)
+                                      const _EmptyState()
+                                    else
+                                      ListView.builder(
+                                        shrinkWrap: true,
+                                        physics: const NeverScrollableScrollPhysics(),
+                                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                                        itemCount: visibleList.length + 1,
+                                        itemBuilder: (ctx, i) {
+                                          if (i == visibleList.length) {
+                                            return prov.hasMore
+                                                ? const Padding(
+                                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                                    child: Center(
+                                                      child: CircularProgressIndicator(
+                                                        color: primary,
+                                                        strokeWidth: 2,
+                                                      ),
                                                     ),
-                                                  ),
-                                                )
-                                              : const SizedBox.shrink();
-                                        }
-                                        final item = visibleList[i];
-                                        return _PenarikanCard(
-                                          item: item,
-                                          onTap: () => Navigator.push(
-                                            ctx,
-                                            MaterialPageRoute(
-                                              builder: (_) => DetailPenarikanScreen(
-                                                penarikanId: item.penarikanId,
+                                                  )
+                                                : const SizedBox.shrink();
+                                          }
+                                          final item = visibleList[i];
+                                          return _PenarikanCard(
+                                            item: item,
+                                            onTap: () => Navigator.push(
+                                              ctx,
+                                              MaterialPageRoute(
+                                                builder: (_) => DetailPenarikanScreen(
+                                                  penarikanId: item.penarikanId,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                ],
+                                          );
+                                        },
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -358,37 +336,27 @@ class _PenarikanNasabahScreenState extends State<PenarikanNasabahScreen> {
   }
 }
 
-// ── Saldo Summary Card ────────────────────────────────────────────────────────
-
-// ── Penarikan Card ────────────────────────────────────────────────────────────
-
 class _PenarikanCard extends StatelessWidget {
   final PenarikanItem item;
   final VoidCallback onTap;
 
   const _PenarikanCard({required this.item, required this.onTap});
 
-  static const Color dark = Color(0xFF013236);
+  static const Color dark = AppColors.dark;
 
   Color get _statusColor => item.status.color;
 
   String get _statusLabel => item.status.label;
 
-  String get _nominalText {
-    final f = NumberFormat.decimalPattern('id_ID');
-    f.maximumFractionDigits = 4;
-    f.minimumFractionDigits = 0;
-    final lower = item.satuanPenarikan.toLowerCase();
-    if (lower.contains('rupiah') || item.isUang) {
-      return 'Rp ${f.format(item.nominalPenarikan)}';
-    }
-    return '${f.format(item.nominalPenarikan)} ${item.satuanPenarikan.isEmpty ? 'poin' : item.satuanPenarikan}';
-  }
+  String get _nominalText => AppNumber.nominal(
+        item.nominalPenarikan,
+        satuan: item.satuanPenarikan,
+        isUang: item.isUang || AppNumber.tampakRupiah(item.satuanPenarikan),
+      );
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = DateFormat('dd MMM yyyy, HH:mm', 'id_ID')
-        .format(item.createdAt);
+    final dateStr = AppDate.tanggalSingkatJam(item.createdAt);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -397,7 +365,7 @@ class _PenarikanCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withValues(alpha: 0.1),
+          color: AppColors.dark.withValues(alpha: 0.1),
         ),
       ),
       child: Material(
@@ -416,12 +384,7 @@ class _PenarikanCard extends StatelessWidget {
                     children: [
                       Text(
                         dateStr,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: dark,
-                        ),
+                        style: AppText.w600(13, dark),
                       ),
                       const SizedBox(height: 6),
                       Container(
@@ -433,12 +396,7 @@ class _PenarikanCard extends StatelessWidget {
                         ),
                         child: Text(
                           _statusLabel,
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: _statusColor,
-                          ),
+                          style: AppText.w700(10, _statusColor),
                         ),
                       ),
                     ],
@@ -447,12 +405,7 @@ class _PenarikanCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Text(
                   _nominalText,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: dark,
-                  ),
+                  style: AppText.w700(15, dark),
                 ),
               ],
             ),
@@ -462,8 +415,6 @@ class _PenarikanCard extends StatelessWidget {
     );
   }
 }
-
-// ── Shimmer placeholder ───────────────────────────────────────────────────────
 
 class _ShimmerCard extends StatelessWidget {
   const _ShimmerCard();
@@ -481,51 +432,18 @@ class _ShimmerCard extends StatelessWidget {
   }
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
-
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
   @override
   Widget build(BuildContext context) {
-    const dark = Color(0xFF013236);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inbox_rounded,
-                size: 64, color: dark.withValues(alpha: 0.12)),
-            const SizedBox(height: 14),
-            Text(
-              'Belum ada riwayat penarikan',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: dark.withValues(alpha: 0.4),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Transaksi penarikan kamu akan muncul di sini',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: dark.withValues(alpha: 0.3),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return StateMessage(
+      illustration: StateArt.empty,
+      message: 'Belum ada riwayat penarikan',
+      subtitle: 'Transaksi penarikan kamu akan tampil kalau kamu mengajukan penarikan saldo',
     );
   }
 }
-
-// ── Error state ───────────────────────────────────────────────────────────────
 
 class _ErrorState extends StatelessWidget {
   final String message;
@@ -534,44 +452,19 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline_rounded,
-                color: Colors.redAccent, size: 48),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontFamily: 'Poppins', fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4EA771),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50)),
-              ),
-              onPressed: onRetry,
-              child: const Text('Coba lagi',
-                  style: TextStyle(fontFamily: 'Poppins')),
-            ),
-          ],
-        ),
+    return StateMessage(
+      illustration: StateArt.error,
+      message: message,
+      action: StateRetryButton(
+        onPressed: onRetry,
+        label: 'Coba lagi',
+        color: AppColors.green,
+        radius: 50,
       ),
     );
   }
 }
 
-// ── Sticky header delegate ───────────────────────────────────────────────────
-// Bikin "Riwayat Penarikan" + filter bulan + filter chip reward nempel
-// (pinned) di bawah TopBarBack saat di-scroll, sementara cuma ListView card
-// yang ikut bergerak.
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   final double height;

@@ -14,6 +14,7 @@ import 'package:enviroo/screens/jadwal/jadwal_screen.dart';
 import 'package:enviroo/screens/petugas/profil_bank_screen.dart';
 import 'package:enviroo/providers/katalog_provider.dart';
 import 'package:enviroo/providers/konten_provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
 
 class HomeBsuScreen extends StatefulWidget {
   const HomeBsuScreen({Key? key}) : super(key: key);
@@ -47,7 +48,7 @@ class _HomeBsuScreenState extends State<HomeBsuScreen> {
     return Consumer<DashboardProvider>(
       builder: (context, dashboardProv, child) {
         if (dashboardProv.isLoading) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFF4EA771)));
+          return const Center(child: CircularProgressIndicator(color: AppColors.green));
         }
         if (dashboardProv.error.isNotEmpty) {
           return Center(child: Text(dashboardProv.error, style: TextStyle(color: Colors.red)));
@@ -64,8 +65,8 @@ class _HomeBsuScreenState extends State<HomeBsuScreen> {
                 child: Column(
                   children: [
                     TopBarCustom(
-                      bgFoto: Color(0xFF06C0C9),
-                      backgroundColor: Color(0xFFEAF8E7),
+                      bgFoto: AppColors.cyan,
+                      backgroundColor: AppColors.mintSoft,
                     ),
                     ProfilBsuScreen(
                       namaBank: data.namaBank,
@@ -132,23 +133,23 @@ class _HomeBsuScreenState extends State<HomeBsuScreen> {
       _buildDashboardBody(),
       PopScope(
         canPop: false,
-        onPopInvoked: (_) => _goHome(),
+        onPopInvokedWithResult: (_, __) => _goHome(),
         child: KatalogScreen(onBack: _goHome, role: authRole),
       ),
       PopScope(
         canPop: false,
-        onPopInvoked: (_) => _goHome(),
+        onPopInvokedWithResult: (_, __) => _goHome(),
         child: JadwalScreen(key: ValueKey(_jadwalVisitKey), onBack: _goHome),
       ),
       PopScope(
         canPop: false,
-        onPopInvoked: (_) => _goHome(),
+        onPopInvokedWithResult: (_, __) => _goHome(),
         child: ProfilBankScreen(onBack: _goHome),
       ),
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF8E7),
+      backgroundColor: AppColors.mintSoft,
       extendBodyBehindAppBar: true,
       body: Stack(
         children: [

@@ -42,6 +42,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+android/build/
 
 # Android local config (berisi path SDK lokal)
 android/local.properties
@@ -54,6 +55,7 @@ android/key.properties
 # Firebase config (berisi API key — jangan dipush ke repo publik)
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
 
 # Environment / secrets
 .env
@@ -64,5 +66,3 @@ secrets.dart
 .claude/
 
 refactor_plan.md
-pubspec.yaml
-pubspec.lock

@@ -6,8 +6,9 @@ import 'package:enviroo/screens/penimbangan/scanner_penimbangan_screen.dart';
 import 'package:enviroo/screens/setoran/detail_setoran_screen.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
-
-// ─── Screen ──────────────────────────────────────────────────────────────────
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class PenimbanganAktifScreen extends StatefulWidget {
   final String penimbanganId;
@@ -78,14 +79,14 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
     final isSelesai = status == 'selesai';
 
     final IconData icon     = isSelesai ? Icons.check_circle_outline_rounded : Icons.cancel_outlined;
-    final Color iconBg      = isSelesai ? const Color(0xFFE8F5E9) : const Color(0xFFFFEEEA);
-    final Color iconColor   = isSelesai ? const Color(0xFF4EA771) : const Color(0xFFFF5A36);
+    final Color iconBg      = isSelesai ? AppColors.mintPale : const Color(0xFFFFEEEA);
+    final Color iconColor   = isSelesai ? AppColors.green : const Color(0xFFFF5A36);
     final String title      = isSelesai ? 'Tutup Sesi Penimbangan' : 'Batalkan Penimbangan';
     final String subtitle   = isSelesai
         ? 'Apakah sesi penimbangan ini sudah benar-benar selesai?'
         : 'Apakah Anda yakin ingin membatalkan sesi ini?\nSemua data akan dihapus.';
     final String labelAksi  = isSelesai ? 'Ya, Tutup' : 'Ya, Batalkan';
-    final Color colorAksi   = isSelesai ? const Color(0xFF4EA771) : const Color(0xFFFF5A36);
+    final Color colorAksi   = isSelesai ? AppColors.green : const Color(0xFFFF5A36);
 
     showModalBottomSheet(
       context: context,
@@ -116,23 +117,13 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
             const SizedBox(height: 16),
             Text(
               title,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-                color: Color(0xFF013236),
-              ),
+              style: AppText.w700(15, AppColors.dark),
             ),
             const SizedBox(height: 8),
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                height: 1.6,
-                color: const Color(0xFF013236).withValues(alpha: 0.5),
-              ),
+              style: AppText.p(12, color: AppColors.dark.withValues(alpha: 0.5), height: 1.6),
             ),
             const SizedBox(height: 28),
             Row(
@@ -141,12 +132,12 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF013236),
-                      side: BorderSide(color: const Color(0xFF013236).withValues(alpha: 0.25)),
+                      foregroundColor: AppColors.dark,
+                      side: BorderSide(color: AppColors.dark.withValues(alpha: 0.25)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                     ),
-                    child: const Text('Tidak', style: TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600)),
+                    child: Text('Tidak', style: AppText.w600(13)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -163,7 +154,7 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                     ),
-                    child: Text(labelAksi, style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600)),
+                    child: Text(labelAksi, style: AppText.w600(13)),
                   ),
                 ),
               ],
@@ -174,12 +165,10 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
     );
   }
 
-  // ─── Build ────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9F8),
+      backgroundColor: AppColors.surfaceCool,
       body: SafeArea(
         child: Column(
           children: [
@@ -188,12 +177,12 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
               child: _isLoading
                   ? const Center(
                       child: CircularProgressIndicator(
-                          color: Color(0xFF4EA771)))
+                          color: AppColors.green))
                   : _errorMsg != null
                       ? _buildError()
                       : RefreshIndicator(
                           onRefresh: _fetch,
-                          color: const Color(0xFF4EA771),
+                          color: AppColors.green,
                           child: SingleChildScrollView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding:
@@ -219,23 +208,20 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
     );
   }
 
-  // ── Header card (putih) ───────────────────────────────────────────────────
-
   Widget _buildHeaderCard() {
     final s = _sesi!;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
+        color: Colors.white.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+          color: AppColors.dark.withValues(alpha: 0.1),
         ),
       ),
       child: Column(
         children: [
-          // Title row
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
             child: Row(
@@ -244,24 +230,14 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Sesi Penimbangan',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF013236),
-                      ),
+                      style: AppText.w700(15, AppColors.dark),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'ID: ${s.penimbanganId}',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF013236).withOpacity(0.55),
-                      ),
+                      style: AppText.w500(11, AppColors.dark.withValues(alpha: 0.55)),
                     ),
                   ],
                 ),
@@ -269,7 +245,7 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4EA771).withValues(alpha: 0.15),
+                    color: AppColors.green.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -279,19 +255,14 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
                         width: 6,
                         height: 6,
                         decoration: const BoxDecoration(
-                          color: Color(0xFF4EA771),
+                          color: AppColors.green,
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 5),
-                      const Text(
+                      Text(
                         'AKTIF',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF4EA771),
-                        ),
+                        style: AppText.w700(10, AppColors.green),
                       ),
                     ],
                   ),
@@ -300,9 +271,8 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
             ),
           ),
 
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const Divider(height: 1, color: AppColors.divider),
 
-          // Info rows
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
             child: Column(
@@ -329,10 +299,10 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
         Container(
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            color: const Color(0xFF4EA771).withValues(alpha: 0.06),
+            color: AppColors.green.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, size: 14, color: const Color(0xFF4EA771)),
+          child: Icon(icon, size: 14, color: AppColors.green),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -341,21 +311,12 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10.5,
-                  color: Colors.grey[500],
-                ),
+                style: AppText.r(10.5, Colors.grey[500]),
               ),
               const SizedBox(height: 1),
               Text(
                 value,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF013236),
-                ),
+                style: AppText.w600(13, AppColors.dark),
               ),
             ],
           ),
@@ -363,8 +324,6 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
       ],
     );
   }
-
-  // ── Scanner button ────────────────────────────────────────────────────────
 
   Widget _buildScannerButton() {
     return GestureDetector(
@@ -379,30 +338,23 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 15),
         decoration: BoxDecoration(
-          color: const Color(0xFF013236),
+          color: AppColors.dark,
           borderRadius: BorderRadius.circular(50),
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 20),
             SizedBox(width: 10),
             Text(
               'Scanner Penyetoran Nasabah',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+              style: AppText.w600(13, Colors.white),
             ),
           ],
         ),
       ),
     );
   }
-
-  // ── Setoran section ───────────────────────────────────────────────────────
 
   Widget _buildSetoranSection() {
     final list = _sesi!.listSetoran;
@@ -413,14 +365,9 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 0, 0, 0),
-              child: const Text(
+              child: Text(
                 'Setoran Masuk',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF013236),
-                ),
+                style: AppText.w700(13, AppColors.dark),
               ),
             ),
             const SizedBox(width: 8),
@@ -430,19 +377,14 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
               decoration: BoxDecoration(
                 color: list.isEmpty
                     ? Colors.grey.shade100
-                    : const Color(0xFF013236).withValues(alpha: 0.08),
+                    : AppColors.dark.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 '${list.length}',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: list.isEmpty
+                style: AppText.w700(11, list.isEmpty
                       ? Colors.grey.shade400
-                      : const Color(0xFF013236),
-                ),
+                      : AppColors.dark),
               ),
             ),
           ],
@@ -467,35 +409,19 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 36),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
+        color: Colors.white.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+          color: AppColors.dark.withValues(alpha: 0.1),
         ),
       ),
-      child: Column(
-        children: [
-          Icon(Icons.inbox_rounded, size: 40, color: Colors.grey[300]),
-          const SizedBox(height: 8),
-          Text(
-            'Belum ada setoran',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              color: Colors.grey[400],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Tap "Scanner" untuk mulai mencatat setoran',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 11,
-              color: Colors.grey[350],
-            ),
-          ),
-        ],
+      child: const StateMessage(
+        illustration: StateArt.empty,
+        illustrationWidth: 80,
+        padding: EdgeInsets.symmetric(horizontal: 24),
+        message: 'Belum ada setoran',
+        subtitle: 'Tap "Scanner" untuk mulai mencatat setoran',
       ),
     );
   }
@@ -511,11 +437,11 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.5),
+          color: Colors.white.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             width: 1,
-            color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+            color: AppColors.dark.withValues(alpha: 0.1),
           ),
         ),
         child: Row(
@@ -524,11 +450,11 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: const Color(0xFF4EA771).withValues(alpha: 0.07),
+                color: AppColors.green.withValues(alpha: 0.07),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.person_rounded,
-                  size: 20, color: Color(0xFF4EA771)),
+                  size: 20, color: AppColors.green),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -537,21 +463,12 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
                 children: [
                   Text(
                     item.namaNasabah,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF013236),
-                    ),
+                    style: AppText.w600(13, AppColors.dark),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'Pukul ${item.waktuFmt}',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: Colors.grey[500],
-                    ),
+                    style: AppText.r(11, Colors.grey[500]),
                   ),
                 ],
               ),
@@ -564,8 +481,6 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
     );
   }
 
-  // ── Expandable card akhiri sesi ──────────────────────────────────────────
-
   Widget _buildActionButtons() {
     return GestureDetector(
       onTap: () => setState(() => _isExpanded = !_isExpanded),
@@ -573,16 +488,15 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.5),
+          color: Colors.white.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             width: 1,
-            color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+            color: AppColors.dark.withValues(alpha: 0.1),
           ),
         ),
         child: Column(
           children: [
-            // ── Header selalu tampil ────────────────────────────────────────
             Padding(
               padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -591,18 +505,13 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
                   const Icon(
                     Icons.info_outline_rounded,
                     size: 16,
-                    color: Color(0xFF013236),
+                    color: AppColors.dark,
                   ),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Penimbangan selesai?',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF013236),
-                      ),
+                      style: AppText.w500(12, AppColors.dark),
                     ),
                   ),
                   AnimatedRotation(
@@ -612,21 +521,20 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
                     child: const Icon(
                       Icons.keyboard_arrow_down_rounded,
                       size: 22,
-                      color: Color(0xFF013236),
+                      color: AppColors.dark,
                     ),
                   ),
                 ],
               ),
             ),
 
-            // ── Konten tombol (muncul saat expand) ─────────────────────────
             AnimatedSize(
               duration: const Duration(milliseconds: 250),
               curve: Curves.easeOutCubic,
               child: _isExpanded
                   ? Column(
                       children: [
-                        const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                        const Divider(height: 1, color: AppColors.divider),
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
                           child: _actionLoading
@@ -635,7 +543,7 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
                                     padding:
                                         EdgeInsets.symmetric(vertical: 8),
                                     child: CircularProgressIndicator(
-                                        color: Color(0xFF4EA771),
+                                        color: AppColors.green,
                                         strokeWidth: 2.5),
                                   ),
                                 )
@@ -647,19 +555,14 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
                                     icon: const Icon(
                                         Icons.check_circle_outline_rounded,
                                         size: 15,
-                                        color: Color(0xFF013236)),
-                                    label: const Text(
+                                        color: AppColors.dark),
+                                    label: Text(
                                       'Tutup Sesi Penimbangan',
-                                      style: TextStyle(
-                                        color: Color(0xFF013236),
-                                        fontFamily: 'Poppins',
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12,
-                                      ),
+                                      style: AppText.w600(12, AppColors.dark),
                                     ),
                                     style: OutlinedButton.styleFrom(
                                       side: const BorderSide(
-                                          color: Color(0xFF013236)),
+                                          color: AppColors.dark),
                                       shape: RoundedRectangleBorder(
                                           borderRadius:
                                               BorderRadius.circular(50)),
@@ -679,42 +582,9 @@ class _PenimbanganAktifScreenState extends State<PenimbanganAktifScreen> {
     );
   }
 
-  // ── Error state ───────────────────────────────────────────────────────────
-
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline_rounded, size: 52, color: Colors.grey[300]),
-            const SizedBox(height: 14),
-            Text(
-              _errorMsg!,
-              style: TextStyle(
-                  fontFamily: 'Poppins', fontSize: 13, color: Colors.grey[500]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _fetch,
-              icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Coba Lagi',
-                  style: TextStyle(fontFamily: 'Poppins')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4EA771),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildError() => StateMessage(
+        illustration: StateArt.error,
+        message: _errorMsg!,
+        action: StateRetryButton.icon(onPressed: _fetch),
+      );
 }

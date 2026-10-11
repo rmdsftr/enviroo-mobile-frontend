@@ -9,6 +9,9 @@ import '../../widgets/penarikan_petugas_card.dart';
 import '../../widgets/topbar_back.dart';
 import 'detail_transaksi_penarikan_screen.dart';
 import 'penarikan_waiting_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class PenarikanPetugasScreen extends StatefulWidget {
   const PenarikanPetugasScreen({super.key});
@@ -18,8 +21,8 @@ class PenarikanPetugasScreen extends StatefulWidget {
 }
 
 class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
 
   static const _rewardOptions = ['Semua', 'Uang', 'Barang'];
 
@@ -39,13 +42,15 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
     });
   }
 
-  void _openWaiting(int initialTab) {
-    Navigator.push(
+  Future<void> _openWaiting(int initialTab) async {
+    final prov = context.read<PenarikanPetugasProvider>();
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => PenarikanWaitingScreen(initialTab: initialTab),
       ),
-    ).then((_) => context.read<PenarikanPetugasProvider>().loadList());
+    );
+    await prov.loadList();
   }
 
   Widget _buildStatCard({
@@ -84,12 +89,7 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
                   const SizedBox(width: 6),
                   Text(
                     '$jumlah',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 20,
-                      color: dark,
-                    ),
+                    style: AppText.w700(20, dark),
                   ),
                 ],
               ),
@@ -97,12 +97,7 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w500,
-                  fontSize: 11,
-                  color: dark.withValues(alpha: 0.6),
-                ),
+                style: AppText.w500(11, dark.withValues(alpha: 0.6)),
               ),
             ],
           ),
@@ -114,7 +109,7 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -137,7 +132,6 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
                       child: CustomScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         slivers: [
-                          // Kartu statistik: pending & approved — scroll away normally
                           SliverToBoxAdapter(
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -149,7 +143,7 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
                                       child: _buildStatCard(
                                         icon: Icons.pending_actions_rounded,
                                         jumlah: prov.pendingList.length,
-                                        color : Color(0xFF94DF0C) ,
+                                        color : AppColors.neon ,
                                         label: 'Penarikan menunggu persetujuan',
                                         onTap: () => _openWaiting(0),
                                       ),
@@ -159,7 +153,7 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
                                       child: _buildStatCard(
                                         icon: Icons.inventory_2_rounded,
                                         jumlah: prov.approvedList.length,
-                                        color : Color(0xFF4EA771),
+                                        color : AppColors.green,
                                         label: 'Penarikan menunggu penjemputan',
                                         onTap: () => _openWaiting(1),
                                       ),
@@ -169,8 +163,6 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
                               ),
                             ),
                           ),
-                          // Sticky: "Riwayat Penarikan" + filter bulan + filter reward,
-                          // pin di bawah TopBarBack
                           SliverPersistentHeader(
                             pinned: true,
                             delegate: _StickyHeaderDelegate(
@@ -185,16 +177,10 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
                                       padding : const EdgeInsets.symmetric(horizontal: 22),
                                       child : Text(
                                         "Riwayat Penarikan",
-                                        style: TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                          color: dark,
-                                        ),
+                                        style: AppText.w600(14, dark),
                                       )
                                     ),
                                     const SizedBox(height: 12),
-                                    // Date filter
                                     Padding(
                                       padding: const EdgeInsets.symmetric(horizontal: 20),
                                       child: MonthYearFilterRow(
@@ -204,7 +190,6 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 12),
-                                    // Reward filter chips
                                     FilterChipRow<String>(
                                       items: _rewardOptions
                                           .map((v) => FilterChipItem<String>(value: v, label: v))
@@ -218,55 +203,58 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
                               ),
                             ),
                           ),
-                          // List — cuma ini yang scroll di bawah sticky header
-                          SliverToBoxAdapter(
-                            child: Container(
-                              width: double.infinity,
-                              constraints: BoxConstraints(
-                                minHeight: MediaQuery.of(context).size.height,
-                              ),
-                              color: Colors.white,
-                              padding: const EdgeInsets.only(top: 10, bottom: 32),
-                              child: prov.loadingList
-                                  ? const Padding(
-                                      padding: EdgeInsets.only(top: 40),
-                                      child: Center(child: CircularProgressIndicator(color: primary)),
-                                    )
-                                  : prov.errorList != null && displayList.isEmpty
-                                      ? Padding(
-                                          padding: const EdgeInsets.only(top: 40),
-                                          child: _ErrorState(
-                                            message: prov.errorList!,
-                                            onRetry: prov.loadList,
-                                          ),
-                                        )
-                                      : displayList.isEmpty
-                                          ? const _EmptyState()
-                                          : ListView.builder(
-                                              shrinkWrap: true,
-                                              physics: const NeverScrollableScrollPhysics(),
-                                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                                              itemCount: displayList.length,
-                                              itemBuilder: (ctx, i) {
-                                                final item = displayList[i];
-                                                return PenarikanPetugasCard(
-                                                  item: item,
-                                                  onTap: () async {
-                                                    await Navigator.push(
-                                                      ctx,
-                                                      MaterialPageRoute(
-                                                        builder: (_) => DetailTransaksiPenarikanScreen(
-                                                          penarikanId: item.penarikanId,
-                                                        ),
-                                                      ),
-                                                    );
-                                                    if (ctx.mounted) {
-                                                      ctx.read<PenarikanPetugasProvider>().loadList();
-                                                    }
-                                                  },
-                                                );
-                                              },
+                          SliverLayoutBuilder(
+                            builder: (context, sc) => SliverToBoxAdapter(
+                              child: Container(
+                                width: double.infinity,
+                                constraints: BoxConstraints(
+                                  minHeight: (sc.viewportMainAxisExtent -
+                                          sc.precedingScrollExtent)
+                                      .clamp(0.0, double.infinity),
+                                ),
+                                color: Colors.white,
+                                padding: const EdgeInsets.only(top: 10, bottom: 32),
+                                child: prov.loadingList
+                                    ? const Padding(
+                                        padding: EdgeInsets.only(top: 40),
+                                        child: Center(child: CircularProgressIndicator(color: primary)),
+                                      )
+                                    : prov.errorList != null && displayList.isEmpty
+                                        ? Padding(
+                                            padding: const EdgeInsets.only(top: 40),
+                                            child: _ErrorState(
+                                              message: prov.errorList!,
+                                              onRetry: prov.loadList,
                                             ),
+                                          )
+                                        : displayList.isEmpty
+                                            ? const _EmptyState()
+                                            : ListView.builder(
+                                                shrinkWrap: true,
+                                                physics: const NeverScrollableScrollPhysics(),
+                                                padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                                                itemCount: displayList.length,
+                                                itemBuilder: (ctx, i) {
+                                                  final item = displayList[i];
+                                                  return PenarikanPetugasCard(
+                                                    item: item,
+                                                    onTap: () async {
+                                                      await Navigator.push(
+                                                        ctx,
+                                                        MaterialPageRoute(
+                                                          builder: (_) => DetailTransaksiPenarikanScreen(
+                                                            penarikanId: item.penarikanId,
+                                                          ),
+                                                        ),
+                                                      );
+                                                      if (ctx.mounted) {
+                                                        ctx.read<PenarikanPetugasProvider>().loadList();
+                                                      }
+                                                    },
+                                                  );
+                                                },
+                                              ),
+                              ),
                             ),
                           ),
                         ],
@@ -283,9 +271,6 @@ class _PenarikanPetugasScreenState extends State<PenarikanPetugasScreen> {
   }
 }
 
-// ── Sticky header delegate ───────────────────────────────────────────────────
-// Bikin "Riwayat Penarikan" + filter bulan + filter reward nempel (pinned) di
-// bawah TopBarBack saat di-scroll, sementara cuma list riwayat yang ikut bergerak.
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   final double height;
@@ -309,42 +294,18 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-// ── Empty ─────────────────────────────────────────────────────────────────────
-
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
   @override
   Widget build(BuildContext context) {
-    const dark = Color(0xFF013236);
-    const label = 'Belum ada riwayat selesai';
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inbox_rounded,
-                size: 64, color: dark.withValues(alpha: 0.12)),
-            const SizedBox(height: 14),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: dark.withValues(alpha: 0.4),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return StateMessage(
+      illustration: StateArt.emptyMoney,
+      message: 'Belum ada riwayat penarikan',
+      subtitle : 'Riwayat penarikan akan muncul jika penarikan nasabah telah selesai',
     );
   }
 }
-
-// ── Error ─────────────────────────────────────────────────────────────────────
 
 class _ErrorState extends StatelessWidget {
   final String message;
@@ -353,34 +314,14 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline_rounded,
-                color: Colors.redAccent, size: 48),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontFamily: 'Poppins', fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4EA771),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50)),
-              ),
-              onPressed: onRetry,
-              child: const Text('Coba lagi',
-                  style: TextStyle(fontFamily: 'Poppins')),
-            ),
-          ],
-        ),
+    return StateMessage(
+      illustration: StateArt.error,
+      message: message,
+      action: StateRetryButton(
+        onPressed: onRetry,
+        label: 'Coba lagi',
+        color: AppColors.green,
+        radius: 50,
       ),
     );
   }

@@ -1,13 +1,14 @@
+import 'package:enviroo/core/format/app_date.dart';
 import 'package:enviroo/models/setoran_model.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:enviroo/providers/penimbangan_provider.dart';
 import 'package:enviroo/screens/setoran/detail_setoran_screen.dart';
 import 'package:enviroo/widgets/search.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
-
-// ─── Screen ──────────────────────────────────────────────────────────────────
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class ListSetoranSesiScreen extends StatefulWidget {
   final String penimbanganId;
@@ -30,7 +31,6 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
   Map<String, dynamic>? _headerData;
   String? _errorMsg;
 
-  // ─── Search ───────────────────────────────────────────────────────────────
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -86,12 +86,10 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
     }
   }
 
-  // ─── Build ────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9F8),
+      backgroundColor: AppColors.surfaceCool,
       body: SafeArea(
         child: Column(
           children: [
@@ -99,10 +97,10 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
             Expanded(
               child: _isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: Color(0xFF4EA771)))
+                      child: CircularProgressIndicator(color: AppColors.green))
                   : RefreshIndicator(
                       onRefresh: _fetchData,
-                      color: const Color(0xFF4EA771),
+                      color: AppColors.green,
                       child: CustomScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         slivers: [
@@ -132,7 +130,6 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
   }
 
   Widget _buildListHeader() {
-    // Hitung stats dari data asli (bukan filtered)
     final totalTransaksi = _list.length;
     final totalNasabah = _list
         .map((s) => s.nasabahId)
@@ -144,7 +141,6 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Summary Stats ───────────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
           child: Row(
@@ -164,7 +160,6 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        // ── Search ───────────────────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: CustomSearchBar(
@@ -194,7 +189,7 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
         color: Colors.white.withValues(alpha:0.5),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF013236).withValues(alpha:0.08),
+          color: AppColors.dark.withValues(alpha:0.08),
           width: 1,
         ),
       ),
@@ -203,10 +198,10 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF013236).withValues(alpha:0.06),
+              color: AppColors.dark.withValues(alpha:0.06),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 16, color: const Color(0xFF013236)),
+            child: Icon(icon, size: 16, color: AppColors.dark),
           ),
           const SizedBox(width: 10),
           Column(
@@ -214,21 +209,11 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
             children: [
               Text(
                 value,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF013236),
-                  height: 1.1,
-                ),
+                style: AppText.p(18, weight: FontWeight.w700, color: AppColors.dark, height: 1.1),
               ),
               Text(
                 label,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  color: const Color(0xFF013236).withValues(alpha:0.5),
-                ),
+                style: AppText.r(10, AppColors.dark.withValues(alpha:0.5)),
               ),
             ],
           ),
@@ -247,11 +232,7 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
             flex: 2,
             child: Text(
               label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: const Color(0xFF013236).withValues(alpha:0.55),
-              ),
+              style: AppText.r(12, AppColors.dark.withValues(alpha:0.55)),
             ),
           ),
           Expanded(
@@ -259,12 +240,7 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF013236),
-              ),
+              style: AppText.w600(12, AppColors.dark),
             ),
           ),
         ],
@@ -281,7 +257,7 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
     if (_headerData!['started_at'] != null) {
        try {
          final dt = DateTime.parse(_headerData!['started_at']).toLocal();
-         startedAtStr = DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID').format(dt);
+         startedAtStr = AppDate.tanggalPenuhJam(dt);
        } catch (_) {}
     }
 
@@ -289,7 +265,7 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
     if (_headerData!['ended_at'] != null) {
        try {
          final dt = DateTime.parse(_headerData!['ended_at']).toLocal();
-         endedAtStr = DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID').format(dt);
+         endedAtStr = AppDate.tanggalPenuhJam(dt);
        } catch (_) {}
     }
 
@@ -297,13 +273,13 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
     final isDibatalkan = status == 'dibatalkan';
     final isPending    = status == 'pending';
 
-    final Color badgeBg    = isSelesai    ? const Color(0xFFE8F5E9)
+    final Color badgeBg    = isSelesai    ? AppColors.mintPale
                            : isDibatalkan ? const Color(0xFFFFEEEA)
-                           : isPending    ? const Color(0xFFE8F5E9)
+                           : isPending    ? AppColors.mintPale
                            :                const Color(0xFFE3F2FD);
-    final Color badgeColor = isSelesai    ? const Color(0xFF4EA771)
+    final Color badgeColor = isSelesai    ? AppColors.green
                            : isDibatalkan ? const Color(0xFFFF5A36)
-                           : isPending    ? const Color(0xFF4EA771)
+                           : isPending    ? AppColors.green
                            :                const Color(0xFF1E88E5);
     final String badgeLabel = isSelesai    ? 'SELESAI'
                             : isDibatalkan ? 'DIBATALKAN'
@@ -322,7 +298,7 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withValues(alpha:0.1),
+          color: AppColors.dark.withValues(alpha:0.1),
         ),
       ),
       child: Column(
@@ -339,7 +315,7 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
               border: hasInfoRows
                   ? Border(
                       bottom: BorderSide(
-                        color: const Color(0xFF013236).withValues(alpha:0.04),
+                        color: AppColors.dark.withValues(alpha:0.04),
                         width: 1,
                       ),
                     )
@@ -350,35 +326,25 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF013236).withValues(alpha:0.06),
+                    color: AppColors.dark.withValues(alpha:0.06),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.scale_rounded,
-                      color: Color(0xFF013236), size: 16),
+                      color: AppColors.dark, size: 16),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Sesi Penimbangan',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF013236),
-                        ),
+                        style: AppText.w700(14, AppColors.dark),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         'ID: ${_headerData!['penimbangan_id'] ?? widget.penimbanganId}',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF013236).withValues(alpha:0.5),
-                        ),
+                        style: AppText.w500(11, AppColors.dark.withValues(alpha:0.5)),
                       ),
                     ],
                   ),
@@ -391,12 +357,7 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
                   ),
                   child: Text(
                     badgeLabel,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: badgeColor,
-                    ),
+                    style: AppText.w700(10, badgeColor),
                   ),
                 ),
               ],
@@ -434,37 +395,27 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withValues(alpha: 0.1),
+          color: AppColors.dark.withValues(alpha: 0.1),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Alasan Pembatalan',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF013236),
-            ),
+            style: AppText.w700(13, AppColors.dark),
           ),
           const SizedBox(height: 10),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFF013236).withValues(alpha: 0.04),
+              color: AppColors.dark.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Text(
               alasan,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12.5,
-                height: 1.5,
-                color: const Color(0xFF013236).withValues(alpha: 0.75),
-              ),
+              style: AppText.p(12.5, color: AppColors.dark.withValues(alpha: 0.75), height: 1.5),
             ),
           ),
         ],
@@ -479,7 +430,7 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
     if (data['tanggal_sesi'] != null) {
       try {
         final dt = DateTime.parse(data['tanggal_sesi']).toLocal();
-        tanggalStr = DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(dt);
+        tanggalStr = AppDate.tanggalPenuh(dt);
       } catch (_) {}
     }
 
@@ -502,7 +453,7 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF4EA771).withValues(alpha: 0.5),
+          color: AppColors.green.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -515,22 +466,17 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
                 Container(
                   padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4EA771),
+                    color: AppColors.green,
                     borderRadius: BorderRadius.circular(50),
                   ),
                   child: Icon(Icons.notifications,
                       color: Colors.white, size: 18),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Jangan lupa persiapkan bank sampah anda untuk sesi penimbangan pada:',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF013236),
-                    ),
+                    style: AppText.w500(12, AppColors.dark),
                   ),
                 ),
               ],
@@ -542,14 +488,14 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: const Color(0xFF4EA771).withValues(alpha: 0.04),
+                color: AppColors.green.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
                 children: [
                   _persiapanRow(Icons.calendar_today_rounded, tanggalStr),
                   if (jamStr != null) ...[
-                    Divider(height: 1, color: const Color(0xFF013236).withValues(alpha: 0.08)),
+                    Divider(height: 1, color: AppColors.dark.withValues(alpha: 0.08)),
                     _persiapanRow(Icons.access_time_rounded, jamStr),
                   ],
                 ],
@@ -566,17 +512,12 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          Icon(icon, size: 15, color: const Color(0xFF4EA771)),
+          Icon(icon, size: 15, color: AppColors.green),
           const SizedBox(width: 18),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF013236),
-              ),
+              style: AppText.w600(12, AppColors.dark),
             ),
           ),
         ],
@@ -593,7 +534,7 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
           child: Center(
             child: Text(
               'Tidak ada setoran yang cocok',
-              style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: Colors.grey[400]),
+              style: AppText.r(13, Colors.grey[400]),
             ),
           ),
         ),
@@ -624,52 +565,38 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          // 1. Warna Latar Semi-Transparan (Glassmorphic vibe)
           color: Colors.white.withValues(alpha:0.5),
 
-          // 2. Sudut Rounded yang Cukup Besar (Modern & Friendly)
           borderRadius: BorderRadius.circular(25),
 
-          // 3. Batas Garis Super Tipis & Halus (Magic Formula!)
           border: Border.all(
             width: 1,
-            color: const Color(0xFF013236).withValues(alpha:0.1), // Brand color dengan opacity cuma 10%
+            color: AppColors.dark.withValues(alpha:0.1),
           ),
         ),
         child: Row(
           children: [
-            // Avatar icon
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF4EA771).withValues(alpha: 0.08),
+                color: AppColors.green.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.person_rounded, color: Color(0xFF4EA771), size: 20),
+              child: const Icon(Icons.person_rounded, color: AppColors.green, size: 20),
             ),
             const SizedBox(width: 14),
-            // Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     s.namaNasabah,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF013236),
-                    ),
+                    style: AppText.w600(13.5, AppColors.dark),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     s.transaksiTimestamp,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: Colors.grey[500],
-                    ),
+                    style: AppText.r(11, Colors.grey[500]),
                   ),
                   const SizedBox(height: 6),
                   _chipInfo(Icons.category_outlined, '${s.totalItem} jenis'),
@@ -692,11 +619,7 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
         const SizedBox(width: 3),
         Text(
           text,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 11,
-            color: Colors.grey[500],
-          ),
+          style: AppText.r(11, Colors.grey[500]),
         ),
       ],
     );
@@ -707,33 +630,11 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         const SizedBox(height: 80),
-        Center(
-          child: Column(
-            children: [
-              Icon(Icons.inbox_rounded, size: 56, color: Colors.grey[300]),
-              const SizedBox(height: 14),
-              Text(
-                'Belum ada setoran',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[400],
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Sesi penimbangan ini belum memiliki\ndata setoran nasabah.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  color: Colors.grey[400],
-                  height: 1.5,
-                ),
-              ),
-            ],
-          ),
+        const StateMessage(
+          illustration: StateArt.empty,
+          message: 'Belum ada setoran',
+          subtitle: 'Sesi penimbangan ini belum memiliki '
+              'data setoran nasabah.',
         ),
       ],
     );
@@ -744,38 +645,10 @@ class _ListSetoranSesiScreenState extends State<ListSetoranSesiScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         const SizedBox(height: 80),
-        Center(
-          child: Column(
-            children: [
-              Icon(Icons.error_outline_rounded, size: 56, color: Colors.grey[300]),
-              const SizedBox(height: 14),
-              Text(
-                _errorMsg!,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: Colors.grey[500],
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: _fetchData,
-                icon: const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text('Coba Lagi',
-                    style: TextStyle(fontFamily: 'Poppins')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4EA771),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
-              ),
-            ],
-          ),
+        StateMessage(
+          illustration: StateArt.error,
+          message: _errorMsg!,
+          action: StateRetryButton.icon(onPressed: _fetchData),
         ),
       ],
     );

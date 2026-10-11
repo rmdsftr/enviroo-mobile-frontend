@@ -1,5 +1,3 @@
-// RewardModel dulu dideklarasi kembar di sini. Sekarang satu definisi saja,
-// tinggal di penjualan_model.dart.
 import 'penjualan_model.dart';
 
 class KategoriSampahModel {
@@ -63,19 +61,12 @@ class KatalogSampahModel {
     );
   }
 
-  // Backward-compat — new list endpoint does not return prices; these return 0.
-  // Screens needing real prices (setoran, penjualan) must use the detail endpoint.
   double get poinNasabah => 0.0;
-  double get poinBsu => 0.0;
   double get poinEksternal => 0.0;
   bool get hasAnyPrice => false;
 }
 
 class HargaPerLevelModel {
-  // String, bukan int: backend mengirim id sebagai teks ("12010010010022").
-  // Dulu bertipe int, dan karena `json[...]` itu dynamic, analyzer diam —
-  // gagalnya baru muncul saat runtime sebagai TypeError yang lalu ditelan
-  // `catch` di KatalogProvider dan tampil sebagai "Data tidak tersedia".
   final String schemaId;
   final String levelUser;
   final double harga;
@@ -99,7 +90,6 @@ class HargaPerLevelModel {
 }
 
 class HistoryHargaModel {
-  // Sama seperti HargaPerLevelModel: id dikirim backend sebagai teks.
   final String historyId;
   final String schemaId;
   final String levelUser;
@@ -185,7 +175,7 @@ class DetailSampahModel {
   }
 }
 
-// ── Barang models ────────────────────────────────────────────────────────────
+
 
 class KatalogBarangModel {
   final String produkId;
@@ -221,7 +211,7 @@ class KatalogBarangModel {
   bool get hasNilaiPoin => nilaiPoin > 0;
 }
 
-// ── Riwayat distribusi barang ────────────────────────────────────────────────
+
 
 class RiwayatDistribusiBarangModel {
   final String disbaId;
@@ -265,7 +255,7 @@ class DetailBarangWithRiwayat {
   });
 }
 
-// ── Detail distribusi barang ─────────────────────────────────────────────────
+
 
 class DetailDistribusiItemModel {
   final String produkId;
@@ -347,7 +337,7 @@ class DetailDistribusiBarangModel {
   }
 }
 
-// ── List distribusi barang (BSI → BSU) ──────────────────────────────────────
+
 
 class ListDistribusiBarangModel {
   final String disbaId;
@@ -381,7 +371,7 @@ class ListDistribusiBarangModel {
   }
 }
 
-// ── Preview distribusi barang ─────────────────────────────────────────────────
+
 
 class PreviewDistribusiItemModel {
   final String produkId;

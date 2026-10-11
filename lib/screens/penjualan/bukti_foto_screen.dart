@@ -3,9 +3,9 @@ import 'package:enviroo/widgets/success_bottom_sheet.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format/app_number.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../providers/katalog_provider.dart';
@@ -13,15 +13,9 @@ import '../../providers/penjualan_provider.dart';
 import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import '../petugas/inapp_camera_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-class _C {
-  static const dark = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
-  static const accent = Color(0xFF94DF0C);
-  static const cardBg = Color(0xFFF7FBF5);
-  static const muted = Color(0xFF8A9A92);
-  static const border = Color(0xFFE6EDE9);
-}
 
 class BuktiFotoScreen extends StatefulWidget {
   const BuktiFotoScreen({super.key});
@@ -65,7 +59,6 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
     if (ok) {
       final katalog = context.read<KatalogProvider>();
       final dashboard = context.read<DashboardProvider>();
-      // Refresh riwayat lalu kembali ke Screen 1
       await prov.fetchRiwayat(auth.bankId ?? '');
       katalog.silentRefresh(auth.bankId ?? '');
       dashboard.requestSaldoRefresh();
@@ -89,8 +82,6 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
   @override
   Widget build(BuildContext context) {
     final prov = context.watch<PenjualanProvider>();
-    final fmt = NumberFormat('#,##0.##########', 'id_ID');
-
     final totalHarga = prov.totalHarga;
 
     return Scaffold(
@@ -111,71 +102,51 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
                       children: [
                         const _StepIndicator(currentStep: 3),
                         const SizedBox(height: 16),
-                        const Text(
+                        Text(
                           'Bukti Serah Terima',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: _C.dark,
-                          ),
+                          style: AppText.w700(16, AppColors.dark),
                         ),
                         const SizedBox(height: 4),
-                        const Text(
+                        Text(
                           'Ambil foto fisik serah terima sampah dengan pihak eksternal sebagai bukti.',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 11.5,
-                            color: _C.muted,
-                          ),
+                          style: AppText.r(11.5, AppColors.muted),
                         ),
                         const SizedBox(height: 16),
 
-                        // ── Photo card ───────────────────────────────
                         GestureDetector(
                           onTap: _ambilFoto,
                           child: Container(
                             height: 220,
                             decoration: BoxDecoration(
-                              color: _C.cardBg,
+                              color: AppColors.surfaceMint,
                               borderRadius:
                                   BorderRadius.circular(16),
                               border: Border.all(
                                   color: prov.buktiFoto == null
-                                      ? _C.border
-                                      : _C.green,
+                                      ? AppColors.border
+                                      : AppColors.green,
                                   width: 1.5),
                             ),
                             clipBehavior: Clip.antiAlias,
                             child: prov.buktiFoto == null
-                                ? const Column(
+                                ? Column(
                                     mainAxisAlignment:
                                         MainAxisAlignment.center,
                                     children: [
                                       Icon(
                                           Icons
                                               .photo_camera_rounded,
-                                          color: _C.green,
+                                          color: AppColors.green,
                                           size: 38),
                                       SizedBox(height: 8),
                                       Text(
                                         'Ketuk untuk ambil foto',
-                                        style: TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontSize: 13,
-                                          fontWeight:
-                                              FontWeight.w600,
-                                          color: _C.dark,
-                                        ),
+                                        style: AppText.w600(13, AppColors.dark),
                                       ),
                                       SizedBox(height: 2),
                                       Text(
                                         'Kamera in-app akan terbuka',
-                                        style: TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontSize: 11,
-                                          color: _C.muted,
-                                        ),
+                                        style: AppText.r(11, AppColors.muted),
                                       ),
                                     ],
                                   )
@@ -189,12 +160,12 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
                                         top: 10,
                                         child: Container(
                                           padding:
-                                              const EdgeInsets
+                                              EdgeInsets
                                                   .all(6),
                                           decoration:
                                               BoxDecoration(
                                             color: Colors.black
-                                                .withOpacity(
+                                                .withValues(alpha: 
                                                     0.55),
                                             shape:
                                                 BoxShape.circle,
@@ -213,15 +184,9 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
 
                         const SizedBox(height: 18),
 
-                        // ── Ringkasan ────────────────────────────────
-                        const Text(
+                        Text(
                           'Ringkasan Transaksi',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: _C.dark,
-                          ),
+                          style: AppText.w700(13, AppColors.dark),
                         ),
                         const SizedBox(height: 8),
                         Container(
@@ -231,7 +196,7 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
                             borderRadius:
                                 BorderRadius.circular(14),
                             border:
-                                Border.all(color: _C.border),
+                                Border.all(color: AppColors.border),
                           ),
                           child: Column(
                             children: [
@@ -248,32 +213,17 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Total Penjualan',
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: _C.dark,
-                                    ),
+                                    style: AppText.w600(12.5, AppColors.dark),
                                   ),
                                   Builder(builder: (context) {
                                     final satuan =
                                         prov.selectedReward?.satuan ?? '';
-                                    final isRp = satuan.toLowerCase() ==
-                                            'rupiah' ||
-                                        satuan.toLowerCase() == 'rp';
-
                                     return Text(
-                                      isRp
-                                          ? 'Rp ${fmt.format(totalHarga)}'
-                                          : '${fmt.format(totalHarga)} $satuan',
-                                      style: const TextStyle(
-                                        fontFamily: 'Poppins',
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: _C.green,
-                                      ),
+                                      AppNumber.nominalSatuan(
+                                          totalHarga, satuan),
+                                      style: AppText.w700(16, AppColors.green),
                                     );
                                   }),
                                 ],
@@ -295,9 +245,9 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
             ),
             if (prov.submitting)
               Container(
-                color: Colors.black.withOpacity(0.35),
+                color: Colors.black.withValues(alpha: 0.35),
                 child: const Center(
-                  child: CircularProgressIndicator(color: _C.accent),
+                  child: CircularProgressIndicator(color: AppColors.neon),
                 ),
               ),
           ],
@@ -314,25 +264,14 @@ class _BuktiFotoScreenState extends State<BuktiFotoScreen> {
             SizedBox(
               width: 110,
               child: Text(k,
-                  style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11.5,
-                      color: _C.muted)),
+                  style: AppText.r(11.5, AppColors.muted)),
             ),
-            const Text(': ',
-                style: TextStyle(
-                    fontFamily: 'Poppins',
-                    color: _C.muted,
-                    fontSize: 11.5)),
+            Text(': ',
+                style: AppText.r(11.5, AppColors.muted)),
             Expanded(
               child: Text(
                 v,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: _C.dark,
-                ),
+                style: AppText.w600(12, AppColors.dark),
               ),
             ),
           ],
@@ -357,7 +296,7 @@ class _BottomBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: _C.border)),
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: SizedBox(
         width: double.infinity,
@@ -374,16 +313,12 @@ class _BottomBar extends StatelessWidget {
               : const Icon(Icons.check_rounded, size: 20),
           label: Text(
             loading ? 'Mengirim…' : 'Submit Transaksi',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              fontSize: 13.5,
-            ),
+            style: AppText.w600(13.5),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: _C.dark,
+            backgroundColor: AppColors.dark,
             foregroundColor: Colors.white,
-            disabledBackgroundColor: _C.muted.withOpacity(0.5),
+            disabledBackgroundColor: AppColors.muted.withValues(alpha: 0.5),
             disabledForegroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -410,7 +345,7 @@ class _StepIndicator extends StatelessWidget {
             margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
             height: 5,
             decoration: BoxDecoration(
-              color: isActive ? _C.green : _C.border,
+              color: isActive ? AppColors.green : AppColors.border,
               borderRadius: BorderRadius.circular(4),
             ),
           ),

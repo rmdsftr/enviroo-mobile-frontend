@@ -10,13 +10,10 @@ import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-class _C {
-  static const bg     = Color(0xFFF2FAF0);
-  static const dark   = Color(0xFF0D3B3E);
-  static const accent = Color(0xFF4EA771);
-  static const teal   = Color(0xFF013236);
-}
 
 class InputDistribusiBarangScreen extends StatefulWidget {
   const InputDistribusiBarangScreen({super.key});
@@ -124,7 +121,7 @@ class _InputDistribusiBarangScreenState
         final filtered = _filtered(barang);
 
         return Scaffold(
-          backgroundColor: _C.bg,
+          backgroundColor: AppColors.surfaceLeaf,
           body: SafeArea(
             child: Column(
               children: [
@@ -145,7 +142,7 @@ class _InputDistribusiBarangScreenState
                         const Padding(
                           padding: EdgeInsets.only(top: 60),
                           child: Center(
-                            child: CircularProgressIndicator(color: _C.accent),
+                            child: CircularProgressIndicator(color: AppColors.green),
                           ),
                         )
                       else if (filtered.isEmpty)
@@ -205,14 +202,9 @@ class _InputDistribusiBarangScreenState
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
-          const Text(
+          Text(
             'Pilih Item Barang',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-              color: _C.dark,
-            ),
+            style: AppText.w600(13, AppColors.darkAlt),
           ),
           const Spacer(),
           if (barang.hasDistribusiItems)
@@ -220,17 +212,12 @@ class _InputDistribusiBarangScreenState
               padding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: _C.accent.withValues(alpha: 0.1),
+                color: AppColors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 '${barang.distribusiQty.length} dipilih',
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: _C.accent,
-                ),
+                style: AppText.w600(10, AppColors.green),
               ),
             ),
         ],
@@ -259,13 +246,13 @@ class _InputDistribusiBarangScreenState
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: hasQty
-                  ? _C.accent.withValues(alpha: 0.5)
+                  ? AppColors.green.withValues(alpha: 0.5)
                   : Colors.grey.withValues(alpha: 0.15),
               width: hasQty ? 1.5 : 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: _C.dark.withValues(alpha: 0.05),
+                color: AppColors.darkAlt.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
@@ -292,13 +279,13 @@ class _InputDistribusiBarangScreenState
                               errorBuilder: (_, __, ___) => Icon(
                                 Icons.storefront_rounded,
                                 size: 22,
-                                color: _C.accent.withValues(alpha: 0.5),
+                                color: AppColors.green.withValues(alpha: 0.5),
                               ),
                             )
                           : Icon(
                               Icons.storefront_rounded,
                               size: 22,
-                              color: _C.accent.withValues(alpha: 0.5),
+                              color: AppColors.green.withValues(alpha: 0.5),
                             ),
                     ),
                     const SizedBox(width: 12),
@@ -308,23 +295,14 @@ class _InputDistribusiBarangScreenState
                         children: [
                           Text(
                             item.namaBarang,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: _C.dark,
-                            ),
+                            style: AppText.w600(13, AppColors.darkAlt),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'Stok: ${item.stok.toInt()} item',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 11,
-                              color: _C.dark.withValues(alpha: 0.5),
-                            ),
+                            style: AppText.r(11, AppColors.darkAlt.withValues(alpha: 0.5)),
                           ),
                         ],
                       ),
@@ -335,24 +313,19 @@ class _InputDistribusiBarangScreenState
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _C.accent.withValues(alpha: 0.1),
+                          color: AppColors.green.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           '$qty item',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: _C.accent,
-                          ),
+                          style: AppText.w700(11, AppColors.green),
                         ),
                       ),
                     Icon(
                       isExpanded
                           ? Icons.keyboard_arrow_up_rounded
                           : Icons.keyboard_arrow_down_rounded,
-                      color: _C.dark.withValues(alpha: 0.35),
+                      color: AppColors.darkAlt.withValues(alpha: 0.35),
                       size: 20,
                     ),
                   ],
@@ -384,11 +357,7 @@ class _InputDistribusiBarangScreenState
           children: [
             Text(
               'Jumlah distribusi:',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: _C.dark.withValues(alpha: 0.6),
-              ),
+              style: AppText.r(12, AppColors.darkAlt.withValues(alpha: 0.6)),
             ),
             const Spacer(),
             _qtyButton(
@@ -407,23 +376,18 @@ class _InputDistribusiBarangScreenState
               decoration: BoxDecoration(
                 color: atMax
                     ? Colors.orange.withValues(alpha: 0.08)
-                    : _C.accent.withValues(alpha: 0.06),
+                    : AppColors.green.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: atMax
                       ? Colors.orange.withValues(alpha: 0.35)
-                      : _C.accent.withValues(alpha: 0.2),
+                      : AppColors.green.withValues(alpha: 0.2),
                 ),
               ),
               child: Text(
                 '$qty',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: atMax ? Colors.orange : _C.accent,
-                ),
+                style: AppText.w700(13, atMax ? Colors.orange : AppColors.green),
               ),
             ),
             const SizedBox(width: 8),
@@ -442,12 +406,7 @@ class _InputDistribusiBarangScreenState
           const SizedBox(height: 6),
           Text(
             'Maksimal stok tersedia ($maxQty item)',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 10,
-              color: Colors.orange,
-              fontWeight: FontWeight.w500,
-            ),
+            style: AppText.w500(10, Colors.orange),
           ),
         ],
       ],
@@ -462,7 +421,7 @@ class _InputDistribusiBarangScreenState
         width: 25,
         height: 25,
         decoration: BoxDecoration(
-          color: onTap != null ? _C.accent : Colors.grey.shade200,
+          color: onTap != null ? AppColors.green : Colors.grey.shade200,
           borderRadius: BorderRadius.circular(30),
         ),
         child: Icon(
@@ -474,28 +433,10 @@ class _InputDistribusiBarangScreenState
     );
   }
 
-  Widget _buildEmptyState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48),
-      child: Center(
-        child: Column(
-          children: [
-            Icon(Icons.search_off_rounded,
-                size: 48, color: _C.dark.withValues(alpha: 0.15)),
-            const SizedBox(height: 12),
-            Text(
-              'Tidak ada barang',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                color: _C.dark.withValues(alpha: 0.4),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildEmptyState() => const StateMessage(
+        illustration: StateArt.empty,
+        message: 'Tidak ada barang',
+      );
 
   Widget _buildBottomBar(BarangProvider barang) {
     final canPreview = _selectedBsuId != null && barang.hasDistribusiItems;
@@ -508,7 +449,7 @@ class _InputDistribusiBarangScreenState
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
-            color: _C.teal.withValues(alpha: 0.08),
+            color: AppColors.dark.withValues(alpha: 0.08),
             blurRadius: 24,
             offset: const Offset(0, -8),
           ),
@@ -517,7 +458,7 @@ class _InputDistribusiBarangScreenState
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: canPreview ? const Color(0xFF013236) : Colors.grey.shade300,
+          color: canPreview ? AppColors.dark : Colors.grey.shade300,
           borderRadius: BorderRadius.circular(30),
         ),
         child: ElevatedButton(
@@ -551,12 +492,7 @@ class _InputDistribusiBarangScreenState
                           : _selectedBsuId == null
                               ? 'Pilih BSU tujuan dulu'
                               : 'Pilih item dulu',
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        letterSpacing: 0.2,
-                      ),
+                      style: AppText.p(13, weight: FontWeight.w600, letterSpacing: 0.2),
                     ),
                   ],
                 ),

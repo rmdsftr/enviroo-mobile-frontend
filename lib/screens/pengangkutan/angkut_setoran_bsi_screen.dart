@@ -1,3 +1,4 @@
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:enviroo/models/pengangkutan_bsi_model.dart';
 import 'package:enviroo/screens/pengangkutan/detail_pengangkutan_screen.dart';
 import 'package:enviroo/screens/pengangkutan/preview_setoran_bsu_screen.dart';
@@ -8,8 +9,9 @@ import 'package:enviroo/widgets/search.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-// ─── Screen ─────────────────────────────────────────────────────────────────
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class AngkutSetoranBsiScreen extends StatefulWidget {
   final String pengangkutanId;
@@ -17,9 +19,6 @@ class AngkutSetoranBsiScreen extends StatefulWidget {
   final String bsuId;
   final String namaBsu;
 
-  /// admin_bsu_id yang sudah tercatat di sesi pengangkutan (mis. saat sesi
-  /// dimulai dari sisi BSU). Jika kosong, scan QR petugas BSU wajib dilakukan
-  /// untuk menentukan admin_bsu_id pada saat input.
   final String adminBsuIdAwal;
 
   const AngkutSetoranBsiScreen({
@@ -113,9 +112,7 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
       final qty = double.tryParse(ctrl.text) ?? 0;
       if (qty > 0) {
         if (qty > _filtered[i].stok) {
-          final fmtStok = _filtered[i].stok == _filtered[i].stok.truncateToDouble()
-              ? _filtered[i].stok.toInt().toString()
-              : _filtered[i].stok.toStringAsFixed(2).replaceAll('.', ',');
+          final fmtStok = AppNumber.desimal(_filtered[i].stok);
           errorItems.add('${_filtered[i].namaSampah} (Maks: $fmtStok ${_filtered[i].satuan})');
           continue;
         }
@@ -185,7 +182,7 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -194,7 +191,7 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
               child: _isLoading
                   ? const Center(
                       child: CircularProgressIndicator(
-                          color: Color(0xFF4EA771)))
+                          color: AppColors.green))
                   : _errorMsg != null
                       ? _buildErrorView()
                       : ListView(
@@ -242,14 +239,13 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
     );
   }
 
-  // ── BSU header card ────────────────────────────────────────────────────────
   Widget _buildBsuCard() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF013236),
+          color: AppColors.dark,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -258,12 +254,12 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: const Color(0xFF94DF0C).withOpacity(0.09),
+                color: AppColors.neon.withValues(alpha: 0.09),
                 borderRadius: BorderRadius.circular(15),
               ),
               child: const Icon(
                 Icons.local_shipping_rounded,
-                color: Color(0xFF94DF0C),
+                color: AppColors.neon,
                 size: 24,
               ),
             ),
@@ -274,23 +270,14 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
                 children: [
                   Text(
                     widget.namaBsu,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: Color(0xFFFFFFFF),
-                    ),
+                    style: AppText.w700(14, Colors.white),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 1),
                   Text(
                     'Sesi #${widget.pengangkutanId}',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: const Color(0xFFFFFFFF).withOpacity(0.5),
-                    ),
+                    style: AppText.r(11, Colors.white.withValues(alpha: 0.5)),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -303,7 +290,6 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
     );
   }
 
-  // ── Search ─────────────────────────────────────────────────────────────────
   Widget _buildSearchBar() {
     return CustomSearchBar(
       controller: _searchController,
@@ -343,30 +329,20 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
-          const Text(
+          Text(
             'Daftar Sampah BSU',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-              color: Color(0xFF013236),
-            ),
+            style: AppText.w600(12, AppColors.dark),
           ),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.65),
+              color: Colors.white.withValues(alpha: 0.65),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               '${_filtered.length} item',
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF4EA771),
-              ),
+              style: AppText.w500(10, AppColors.green),
             ),
           ),
         ],
@@ -382,7 +358,7 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF013236).withOpacity(0.08),
+            color: AppColors.dark.withValues(alpha: 0.08),
             blurRadius: 24,
             offset: const Offset(0, -8),
           ),
@@ -394,7 +370,7 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
         child: Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color : Color(0xFF013236),
+            color : AppColors.dark,
             borderRadius: BorderRadius.circular(30),
           ),
           child: ElevatedButton(
@@ -418,17 +394,12 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
                       strokeWidth: 2.5,
                     ),
                   )
-                : const Row(
+                : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         'Preview Setoran BSU',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          letterSpacing: 0.2,
-                        ),
+                        style: AppText.p(13, weight: FontWeight.w600, letterSpacing: 0.2),
                       ),
                       SizedBox(width: 8),
                       Icon(Icons.arrow_forward_rounded, size: 18),
@@ -440,49 +411,13 @@ class _AngkutSetoranBsiScreenState extends State<AngkutSetoranBsiScreen> {
     );
   }
 
-  Widget _buildErrorView() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline_rounded, size: 56, color: Colors.grey[300]),
-            const SizedBox(height: 14),
-            Text(
-              _errorMsg!,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: Colors.grey[500],
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _fetchSampah,
-              icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Coba Lagi',
-                  style: TextStyle(fontFamily: 'Poppins')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4EA771),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildErrorView() => StateMessage(
+        illustration: StateArt.error,
+        message: _errorMsg!,
+        action: StateRetryButton.icon(onPressed: _fetchSampah),
+      );
 
 }
-
-// ─── Card Input — expandable ─────────────────────────────────────────────────
 
 class _CardInputSampah extends StatefulWidget {
   final SampahPengangkutan item;
@@ -562,18 +497,18 @@ class _CardInputSampahState extends State<_CardInputSampah>
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: _isExceedingStok
-                  ? Colors.red.withOpacity(0.8)
+                  ? Colors.red.withValues(alpha: 0.8)
                   : _hasValue
-                      ? const Color(0xFF4EA771).withOpacity(0.6)
+                      ? AppColors.green.withValues(alpha: 0.6)
                       : _expanded
-                          ? const Color(0xFF4EA771).withOpacity(0.25)
+                          ? AppColors.green.withValues(alpha: 0.25)
                           : Colors.transparent,
               width: 1,
             ),
             boxShadow: _expanded
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF013236).withOpacity(0.08),
+                      color: AppColors.dark.withValues(alpha: 0.08),
                       blurRadius: 14,
                       offset: const Offset(0, 5),
                     ),
@@ -605,12 +540,7 @@ class _CardInputSampahState extends State<_CardInputSampah>
                         children: [
                           Text(
                             widget.item.namaSampah,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                              color: Color(0xFF013236),
-                            ),
+                            style: AppText.w600(13, AppColors.dark),
                           ),
                         ],
                       ),
@@ -620,17 +550,12 @@ class _CardInputSampahState extends State<_CardInputSampah>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 9, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF4EA771).withValues(alpha: 0.12),
+                          color: AppColors.green.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           widget.item.namaReward,
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF4EA771),
-                          ),
+                          style: AppText.w600(10, AppColors.green),
                         ),
                       ),
                     if (_hasValue && !_expanded)
@@ -638,17 +563,12 @@ class _CardInputSampahState extends State<_CardInputSampah>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF4EA771).withValues(alpha: 0.13),
+                          color: AppColors.green.withValues(alpha: 0.13),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           '${widget.controller.text} ${widget.item.satuan}',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: _isExceedingStok ? Colors.red : const Color(0xFF4EA771),
-                          ),
+                          style: AppText.w700(10, _isExceedingStok ? Colors.red : AppColors.green),
                         ),
                       ),
                     if (!_hasValue || _expanded)
@@ -658,7 +578,7 @@ class _CardInputSampahState extends State<_CardInputSampah>
                         child: Icon(
                           Icons.keyboard_arrow_down_rounded,
                           size: 20,
-                          color: const Color(0xFF013236).withOpacity(0.3),
+                          color: AppColors.dark.withValues(alpha: 0.3),
                         ),
                       ),
                   ],
@@ -674,15 +594,14 @@ class _CardInputSampahState extends State<_CardInputSampah>
                         const SizedBox(height: 12),
                         Divider(
                             height: 1,
-                            color: const Color(0xFF013236).withOpacity(0.07)),
+                            color: AppColors.dark.withValues(alpha: 0.07)),
                         const SizedBox(height: 10),
-                        // Stok BSU info row
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                           decoration: BoxDecoration(
                             color: widget.item.stok > 0
-                                ? const Color(0xFF4EA771).withOpacity(0.07)
-                                : Colors.orange.withOpacity(0.07),
+                                ? AppColors.green.withValues(alpha: 0.07)
+                                : Colors.orange.withValues(alpha: 0.07),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
@@ -691,29 +610,20 @@ class _CardInputSampahState extends State<_CardInputSampah>
                                 Icons.inventory_2_rounded,
                                 size: 13,
                                 color: widget.item.stok > 0
-                                    ? const Color(0xFF4EA771)
+                                    ? AppColors.green
                                     : Colors.orange,
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 'Stok tersedia di BSU:',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 11,
-                                  color: const Color(0xFF013236).withOpacity(0.5),
-                                ),
+                                style: AppText.r(11, AppColors.dark.withValues(alpha: 0.5)),
                               ),
                               const Spacer(),
                               Text(
                                 '${_fmtStok(widget.item.stok)} ${widget.item.satuan}',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: widget.item.stok > 0
-                                      ? const Color(0xFF4EA771)
-                                      : Colors.orange,
-                                ),
+                                style: AppText.w700(11, widget.item.stok > 0
+                                      ? AppColors.green
+                                      : Colors.orange),
                               ),
                             ],
                           ),
@@ -727,22 +637,13 @@ class _CardInputSampahState extends State<_CardInputSampah>
                                 children: [
                                   Text(
                                     'Jumlah diangkut',
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 11,
-                                      color: const Color(0xFF013236)
-                                          .withOpacity(0.45),
-                                    ),
+                                    style: AppText.r(11, AppColors.dark
+                                          .withValues(alpha: 0.45)),
                                   ),
                                   const SizedBox(height: 1),
                                   Text(
                                     'Masukkan dalam ${widget.item.satuan}',
-                                    style: const TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF013236),
-                                    ),
+                                    style: AppText.w600(11, AppColors.dark),
                                   ),
                                 ],
                               ),
@@ -754,16 +655,16 @@ class _CardInputSampahState extends State<_CardInputSampah>
                                 height: 48,
                                 decoration: BoxDecoration(
                                   color: _isExceedingStok
-                                      ? Colors.red.withOpacity(0.05)
-                                      : const Color(0xFF4EA771).withOpacity(0.05),
+                                      ? Colors.red.withValues(alpha: 0.05)
+                                      : AppColors.green.withValues(alpha: 0.05),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: _isExceedingStok
-                                        ? Colors.red.withOpacity(0.6)
+                                        ? Colors.red.withValues(alpha: 0.6)
                                         : _focusNode.hasFocus
-                                            ? const Color(0xFF4EA771)
-                                            : const Color(0xFF4EA771)
-                                                .withOpacity(0.2),
+                                            ? AppColors.green
+                                            : AppColors.green
+                                                .withValues(alpha: 0.2),
                                     width: 1.5,
                                   ),
                                 ),
@@ -779,29 +680,14 @@ class _CardInputSampahState extends State<_CardInputSampah>
                                         RegExp(r'^\d*\.?\d*')),
                                   ],
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
-                                    color: Color(0xFF013236),
-                                  ),
+                                  style: AppText.w700(15, AppColors.dark),
                                   decoration: InputDecoration(
                                     hintText: '0',
-                                    hintStyle: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 15,
-                                      color: const Color(0xFF013236)
-                                          .withOpacity(0.18),
-                                    ),
+                                    hintStyle: AppText.w700(15, AppColors.dark
+                                          .withValues(alpha: 0.18)),
                                     suffixText: widget.item.satuan,
-                                    suffixStyle: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                      color: const Color(0xFF4EA771)
-                                          .withOpacity(0.7),
-                                    ),
+                                    suffixStyle: AppText.w500(11, AppColors.green
+                                          .withValues(alpha: 0.7)),
                                     border: InputBorder.none,
                                     contentPadding: const EdgeInsets.symmetric(
                                         horizontal: 10, vertical: 12),
@@ -821,12 +707,7 @@ class _CardInputSampahState extends State<_CardInputSampah>
                                 const SizedBox(width: 4),
                                 Text(
                                   'Melebihi stok BSU',
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.red,
-                                  ),
+                                  style: AppText.w600(10, Colors.red),
                                 ),
                               ],
                             ),
@@ -848,20 +729,12 @@ class _CardInputSampahState extends State<_CardInputSampah>
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: const Color(0xFF4EA771).withOpacity(0.12),
+        color: AppColors.green.withValues(alpha: 0.12),
         shape: BoxShape.circle,
       ),
-      child: const Icon(Icons.recycling_rounded, size: 20, color: Color(0xFF4EA771)),
+      child: const Icon(Icons.recycling_rounded, size: 20, color: AppColors.green),
     );
   }
 
-  String _fmtStok(double value) {
-    final intPart = value.truncate();
-    final dec = value - intPart;
-    final formatted = intPart
-        .toString()
-        .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-    if (dec > 0) return '$formatted${dec.toStringAsFixed(2).substring(1)}';
-    return formatted;
-  }
+  String _fmtStok(double value) => AppNumber.desimal(value);
 }

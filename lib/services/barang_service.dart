@@ -4,10 +4,13 @@ import 'package:enviroo/core/network/api_client.dart';
 import 'package:enviroo/core/network/api_failure.dart';
 
 class BarangService {
-  static Future<Map<String, dynamic>> getBarangBank(String bankId, {int page = 1}) async {
+  static Future<Map<String, dynamic>> getBarangBank(String bankId, {int? page}) async {
     try {
+      final uri = page != null
+          ? Uri.parse('${ApiConfig.getKatalogBarangUrl}/$bankId?page=$page')
+          : Uri.parse('${ApiConfig.getKatalogBarangUrl}/$bankId');
       final response = await ApiClient.get(
-        Uri.parse('${ApiConfig.getKatalogBarangUrl}/$bankId?page=$page'),
+        uri,
         timeout: const Duration(seconds: 10),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;

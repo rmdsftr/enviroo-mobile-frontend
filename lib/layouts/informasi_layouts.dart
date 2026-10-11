@@ -4,6 +4,8 @@ import 'package:enviroo/screens/informasi_screen.dart';
 import 'package:enviroo/screens/list_informasi_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class InformasiSection extends StatelessWidget {
   @override
@@ -31,27 +33,18 @@ class InformasiSection extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       "Informasi",
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppText.w600(15),
                     ),
                     GestureDetector(
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => ListInformasiScreen()),
                       ),
-                      child: const Text(
+                      child: Text(
                         "Lihat Semua",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF013236),
-                        ),
+                        style: AppText.w500(12, AppColors.dark),
                       ),
                     ),
                   ],
@@ -96,13 +89,12 @@ class InformasiSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Thumbnail
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             child: Container(
               height: 100,
               width: double.infinity,
-              color: const Color(0xFF4EA771).withValues(alpha: 0.1),
+              color: AppColors.green.withValues(alpha: 0.1),
               child: info.thumbnail.isNotEmpty
                   ? Image.network(
                       info.thumbnail,
@@ -112,7 +104,6 @@ class InformasiSection extends StatelessWidget {
                   : _placeholder(),
             ),
           ),
-          // Judul + Deskripsi
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
@@ -123,25 +114,14 @@ class InformasiSection extends StatelessWidget {
                     info.judul,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF013236),
-                      height: 1.3,
-                    ),
+                    style: AppText.p(11, weight: FontWeight.w600, color: AppColors.dark, height: 1.3),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     info.deskripsi,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      color: const Color(0xFF013236).withValues(alpha: 0.45),
-                      height: 1.3,
-                    ),
+                    style: AppText.p(10, color: AppColors.dark.withValues(alpha: 0.45), height: 1.3),
                   ),
                 ],
               ),
@@ -157,7 +137,7 @@ class InformasiSection extends StatelessWidget {
       child: Icon(
         Icons.image_outlined,
         size: 36,
-        color: const Color(0xFF4EA771).withValues(alpha: 0.3),
+        color: AppColors.green.withValues(alpha: 0.3),
       ),
     );
   }

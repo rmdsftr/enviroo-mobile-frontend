@@ -8,15 +8,9 @@ import 'package:provider/provider.dart';
 import '../../providers/penarikan_petugas_provider.dart';
 import '../../widgets/topbar_back.dart';
 import 'penyerahan_insentif_manual_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-/// Scanner QR penarikan — QR yang ditunjukkan nasabah (lihat
-/// qr_penarikan_screen.dart) berisi JSON `{"type":"ENVIROO-PENARIKAN",
-/// "nasabah_id":"...","penarikan_id":"..."}`. Begitu QR cocok dengan
-/// transaksi yang sedang dibuka petugas, langsung diselesaikan lewat
-/// PATCH /penarikan/selesai (jalur QR — tidak butuh foto lagi).
-///
-/// Pop dengan `true` kalau penarikan berhasil diselesaikan (baik lewat scan
-/// atau lewat konfirmasi manual), `null` kalau dibatalkan.
 class ScannerPenarikanScreen extends StatefulWidget {
   final String penarikanId;
   final String nasabahId;
@@ -34,12 +28,11 @@ class ScannerPenarikanScreen extends StatefulWidget {
 
 class _ScannerPenarikanScreenState extends State<ScannerPenarikanScreen>
     with SingleTickerProviderStateMixin {
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
 
   final MobileScannerController _scannerController = MobileScannerController();
   bool _isProcessing = false;
-  // null = lagi diproses (loading), true = sukses, false = gagal/gak cocok.
   bool? _success;
   String _errorMessage = '';
   late AnimationController _pulseController;
@@ -75,7 +68,7 @@ class _ScannerPenarikanScreenState extends State<ScannerPenarikanScreen>
     try {
       decoded = jsonDecode(raw) as Map<String, dynamic>;
     } catch (_) {
-      return; // bukan QR ENVIROO-PENARIKAN, abaikan & terus scan
+      return;
     }
     if (decoded['type'] != 'ENVIROO-PENARIKAN') return;
 
@@ -138,8 +131,6 @@ class _ScannerPenarikanScreenState extends State<ScannerPenarikanScreen>
     });
     _scannerController.start();
   }
-
-  // ── Konfirmasi manual (kalau QR tidak bisa dipindai) ─────────────────────
 
   Future<void> _openManualScreen() async {
     _scannerController.stop();
@@ -208,15 +199,10 @@ class _ScannerPenarikanScreenState extends State<ScannerPenarikanScreen>
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Text(
               'Scan QR code yang ditunjukkan nasabah untuk langsung menyelesaikan penarikan insentif',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF2D5A1D),
-              ),
+              style: AppText.w500(12, Color(0xFF2D5A1D)),
             ),
           ),
         ],
@@ -277,7 +263,7 @@ class _ScannerPenarikanScreenState extends State<ScannerPenarikanScreen>
   Widget _buildLoadingOverlay() {
     return Container(
       color: Colors.black.withValues(alpha: 0.65),
-      child: const Center(
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -285,11 +271,7 @@ class _ScannerPenarikanScreenState extends State<ScannerPenarikanScreen>
             SizedBox(height: 16),
             Text(
               'Menyelesaikan penarikan...',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: Colors.white,
-              ),
+              style: AppText.r(13, Colors.white),
             ),
           ],
         ),
@@ -320,23 +302,14 @@ class _ScannerPenarikanScreenState extends State<ScannerPenarikanScreen>
               child: const Icon(Icons.check_rounded, color: Colors.white, size: 38),
             ),
             const SizedBox(height: 18),
-            const Text(
+            Text(
               'Penarikan Selesai',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-                color: Colors.white,
-              ),
+              style: AppText.w700(16, Colors.white),
             ),
             const SizedBox(height: 4),
             Text(
               'Insentif berhasil diserahkan ke nasabah',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.7),
-              ),
+              style: AppText.r(12, Colors.white.withValues(alpha: 0.7)),
             ),
           ],
         ),
@@ -354,11 +327,11 @@ class _ScannerPenarikanScreenState extends State<ScannerPenarikanScreen>
             Container(
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
-                color: const Color(0xFFE53935),
+                color: AppColors.dangerAlt,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFE53935).withValues(alpha: 0.45),
+                    color: AppColors.dangerAlt.withValues(alpha: 0.45),
                     blurRadius: 28,
                     spreadRadius: 6,
                   ),
@@ -367,14 +340,9 @@ class _ScannerPenarikanScreenState extends State<ScannerPenarikanScreen>
               child: const Icon(Icons.close_rounded, color: Colors.white, size: 38),
             ),
             const SizedBox(height: 18),
-            const Text(
+            Text(
               'Gagal Menyelesaikan',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-                color: Colors.white,
-              ),
+              style: AppText.w700(16, Colors.white),
             ),
             const SizedBox(height: 6),
             Padding(
@@ -382,11 +350,7 @@ class _ScannerPenarikanScreenState extends State<ScannerPenarikanScreen>
               child: Text(
                 _errorMessage,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.75),
-                ),
+                style: AppText.r(12, Colors.white.withValues(alpha: 0.75)),
               ),
             ),
           ],
@@ -427,15 +391,10 @@ class _ScannerPenarikanScreenState extends State<ScannerPenarikanScreen>
               ),
             ),
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Text(
                 'QR code tidak bekerja? Konfirmasi penyerahan insentif manual',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: Color(0xFF013236),
-                ),
+                style: AppText.w600(13, AppColors.dark),
               ),
             ),
             const Icon(
@@ -450,8 +409,6 @@ class _ScannerPenarikanScreenState extends State<ScannerPenarikanScreen>
   }
 }
 
-// ── Scan frame + brackets (visual sama dengan scanner_penimbangan_screen) ──
-
 class _ScanFrame extends StatelessWidget {
   const _ScanFrame();
 
@@ -460,7 +417,7 @@ class _ScanFrame extends StatelessWidget {
     const double size = 230;
     const double bracketLen = 30;
     const double bracketThick = 3.5;
-    const Color bracketColor = Color(0xFF4EA771);
+    const Color bracketColor = AppColors.green;
 
     return SizedBox(
       width: size,
@@ -496,12 +453,7 @@ class _ScanFrame extends StatelessWidget {
             child: Center(
               child: Text(
                 'Arahkan ke QR Code nasabah',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white.withValues(alpha: 0.75),
-                ),
+                style: AppText.w500(11, Colors.white.withValues(alpha: 0.75)),
               ),
             ),
           ),

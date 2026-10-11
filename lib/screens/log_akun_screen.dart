@@ -1,10 +1,12 @@
+import 'package:enviroo/core/format/app_date.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/profil_provider.dart';
 import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class LogAkunScreen extends StatefulWidget {
   const LogAkunScreen({super.key});
@@ -14,8 +16,6 @@ class LogAkunScreen extends StatefulWidget {
 }
 
 class _LogAkunScreenState extends State<LogAkunScreen> {
-  static const _dark  = Color(0xFF013236);
-  static const _green = Color(0xFF4EA771);
 
   bool _isLoading = true;
   String _error = '';
@@ -69,7 +69,7 @@ class _LogAkunScreenState extends State<LogAkunScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: _green));
+      return const Center(child: CircularProgressIndicator(color: AppColors.green));
     }
     if (_error.isNotEmpty) {
       return Center(
@@ -78,7 +78,7 @@ class _LogAkunScreenState extends State<LogAkunScreen> {
           child: Text(
             _error,
             textAlign: TextAlign.center,
-            style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: _dark.withValues(alpha:0.5)),
+            style: AppText.r(13, AppColors.dark.withValues(alpha:0.5)),
           ),
         ),
       );
@@ -112,16 +112,11 @@ class _LogAkunScreenState extends State<LogAkunScreen> {
           padding: const EdgeInsets.symmetric(vertical: 16),
           child: Row(
             children: [
-              Icon(icon, size: 15, color: _dark.withValues(alpha:0.4)),
+              Icon(icon, size: 15, color: AppColors.dark.withValues(alpha:0.4)),
               const SizedBox(width: 7),
               Text(
                 title,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: _dark.withValues(alpha:0.4),
-                ),
+                style: AppText.w600(12, AppColors.dark.withValues(alpha:0.4)),
               ),
             ],
           ),
@@ -131,7 +126,7 @@ class _LogAkunScreenState extends State<LogAkunScreen> {
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
               'Tidak ada data',
-              style: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: _dark.withValues(alpha:0.3)),
+              style: AppText.r(12, AppColors.dark.withValues(alpha:0.3)),
             ),
           )
         else
@@ -152,13 +147,13 @@ class _LogAkunScreenState extends State<LogAkunScreen> {
     DateTime? joinedAt;
     try { joinedAt = DateTime.parse(item['joined_at'].toString()); } catch (_) {}
     final String tglGabung = joinedAt != null
-        ? DateFormat('dd MMM yyyy', 'id_ID').format(joinedAt)
+        ? AppDate.tanggalPanjang(joinedAt)
         : '-';
 
     Color statusColor;
     Color statusBg;
     if (status == 'aktif') {
-      statusColor = const Color(0xFF06C0C9);
+      statusColor = AppColors.cyan;
       statusBg    = const Color(0xFFD6F4F6);
     } else if (status == 'pending') {
       statusColor = const Color(0xFFFFA726);
@@ -176,7 +171,7 @@ class _LogAkunScreenState extends State<LogAkunScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _dark.withValues(alpha:0.08)),
+        border: Border.all(color: AppColors.dark.withValues(alpha:0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,30 +181,20 @@ class _LogAkunScreenState extends State<LogAkunScreen> {
             children: [
               Text(
                 role,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: _dark,
-                ),
+                style: AppText.w600(13, AppColors.dark),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(20)),
                 child: Text(
                   statusLabel,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                  ),
+                  style: AppText.w600(10, statusColor),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Divider(color: _dark.withValues(alpha:0.06), height: 1),
+          Divider(color: AppColors.dark.withValues(alpha:0.06), height: 1),
           const SizedBox(height: 10),
           _buildInfoRow(Icons.location_city_rounded,  afiliasi),
           const SizedBox(height: 5),
@@ -224,12 +209,12 @@ class _LogAkunScreenState extends State<LogAkunScreen> {
   Widget _buildInfoRow(IconData icon, String text) {
     return Row(
       children: [
-        Icon(icon, size: 13, color: _dark.withValues(alpha:0.35)),
+        Icon(icon, size: 13, color: AppColors.dark.withValues(alpha:0.35)),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             text,
-            style: TextStyle(fontFamily: 'Poppins', fontSize: 11.5, color: _dark.withValues(alpha:0.6)),
+            style: AppText.r(11.5, AppColors.dark.withValues(alpha:0.6)),
             overflow: TextOverflow.ellipsis,
           ),
         ),

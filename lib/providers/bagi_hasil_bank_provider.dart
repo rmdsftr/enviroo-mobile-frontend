@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:intl/intl.dart';
 
+import '../core/format/app_date.dart';
 import '../models/bagi_hasil_bank_model.dart';
 import '../services/bagi_hasil_service.dart';
 
@@ -14,8 +14,6 @@ class BagiHasilBankProvider extends ChangeNotifier {
   BhBankStatus get listStatus => _listStatus;
   BagiHasilBankListResponse? get listData => _listData;
   String? get listError => _listError;
-
-  // Persentase bagi hasil pindah ke RewardProvider — endpoint-nya /nilai-reward.
 
   BhBankStatus _detailStatus = BhBankStatus.idle;
   BagiHasilBankDetail? _detail;
@@ -37,12 +35,8 @@ class BagiHasilBankProvider extends ChangeNotifier {
         : DateTime(now.year, startMonth);
   }
 
-  String _fmt(DateTime dt) => DateFormat('yyyy-MM-dd').format(dt);
-  String get _startStr => _fmt(DateTime(filterStart.year, filterStart.month, 1));
-  String get _endStr {
-    final last = DateTime(filterEnd.year, filterEnd.month + 1, 0);
-    return _fmt(last);
-  }
+  String get _startStr => AppDate.apiAwalBulan(filterStart);
+  String get _endStr => AppDate.apiAkhirBulan(filterEnd);
 
   Future<void> fetchList(String bankId) async {
     _listStatus = BhBankStatus.loading;

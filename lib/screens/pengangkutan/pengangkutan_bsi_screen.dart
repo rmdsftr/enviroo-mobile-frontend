@@ -1,8 +1,8 @@
 import 'dart:async';
+import 'package:enviroo/core/format/app_date.dart';
 import 'package:enviroo/models/pengangkutan_bsi_model.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:enviroo/widgets/search.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
@@ -14,8 +14,8 @@ import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/pengangkutan_provider.dart';
 import 'package:enviroo/screens/pengangkutan/detail_pengangkutan_screen.dart';
 import 'package:enviroo/screens/pengangkutan/alur_sesi_pengangkutan_screen.dart';
-
-// ─── Screen ─────────────────────────────────────────────────────────────────
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class PengangkutanBsiScreen extends StatefulWidget {
   final int initialTab;
@@ -46,7 +46,6 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
   PengangkutanProvider? _pengangkutanProvider;
   int _lastRefreshToken = -1;
 
-  // ── Filter bulan-tahun (default 3 bulan terakhir) ─────────────────────────
   DateTime _filterStart = DateTime(DateTime.now().year, DateTime.now().month - 2);
   DateTime _filterEnd = DateTime(DateTime.now().year, DateTime.now().month);
 
@@ -99,7 +98,6 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
     }
   }
 
-  // ── 1. Load history ──────────────────────────────────────────────────────
   Future<void> _loadHistory() async {
     setState(() => _listLoading = true);
     final auth = Provider.of<AuthProvider>(context, listen: false);
@@ -133,7 +131,6 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
     }
   }
 
-  // ── 1b. Load active sessions from dedicated endpoint ────────────────────
   Future<void> _loadActiveSessions() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final bankId = auth.bankId ?? '';
@@ -187,7 +184,6 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
     }).toList();
   }
 
-  // ── 2. Load BSU list ─────────────────────────────────────────────────────
   Future<void> _loadBsuList() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final bankId = auth.bankId ?? '';
@@ -203,7 +199,6 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
     }
   }
 
-  // ── 3. Pilih BSU lalu mulai sesi ─────────────────────────────────────────
   void _onMulaiSesiTap() {
     if (_bsuList.isEmpty) {
       _showSnackBar('Tidak ada BSU terdaftar', isError: true);
@@ -266,7 +261,6 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
     }
   }
 
-  // ── Buka halaman detail pengangkutan (struk) ─────────────────────────────
   void _openDetailPengangkutan(PengangkutanData s) {
     Navigator.push(
       context,
@@ -287,13 +281,10 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  BUILD
-  // ═══════════════════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9F8),
+      backgroundColor: AppColors.surfaceCool,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -308,9 +299,9 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _init,
-                color: const Color(0xFF4EA771),
+                color: AppColors.green,
                 child: _listLoading
-                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF4EA771)))
+                    ? const Center(child: CircularProgressIndicator(color: AppColors.green))
                     : _selectedTab == 0
                         ? _buildRiwayatTab()
                         : _buildSesiTab(),
@@ -335,7 +326,7 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
           badges: [null, _activeSessions.isEmpty ? null : _activeSessions.length],
           backgroundColor: Colors.white.withValues(alpha: 0.6),
           border: Border.all(
-            color: const Color(0xFF013236).withValues(alpha: 0.1),
+            color: AppColors.dark.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
@@ -369,9 +360,8 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Riwayat Pengangkutan',
-                          style: TextStyle(fontFamily: 'Poppins', fontSize: 14,
-                              fontWeight: FontWeight.w600, color: Color(0xFF013236))),
+                      Text('Riwayat Pengangkutan',
+                          style: AppText.w600(14, AppColors.dark)),
                       const SizedBox(height: 12),
                       MonthYearFilterRow(
                         filterStart: _filterStart,
@@ -427,15 +417,12 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
                     _activeSessions.isEmpty
                         ? 'Tidak ada sesi aktif'
                         : 'Tidak ada sesi dengan status ini',
-                    style: TextStyle(fontFamily: 'Poppins', fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white.withValues(alpha: 0.7)),
+                    style: AppText.w600(13, Colors.white.withValues(alpha: 0.7)),
                   ),
                   if (_activeSessions.isEmpty) ...[
                     const SizedBox(height: 6),
                     Text('Mulai sesi pengangkutan dari tab Riwayat',
-                        style: TextStyle(fontFamily: 'Poppins', fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.5))),
+                        style: AppText.r(12, Colors.white.withValues(alpha: 0.5))),
                   ],
                 ],
               ),
@@ -455,17 +442,16 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
     );
   }
 
-  // ── Tombol mulai sesi ────────────────────────────────────────────────────
   Widget _buildStartSection() {
     final isLoading = _actionLoading;
     final now = DateTime.now();
-    final todayStr = DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(now);
+    final todayStr = AppDate.tanggalPenuh(now);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color : Color(0xFF013236),
+        color : AppColors.dark,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
@@ -473,11 +459,7 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
         children: [
           Text(
             'Hari ini, $todayStr',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 11,
-              color: Colors.white60,
-            ),
+            style: AppText.r(11, Colors.white60),
           ),
           const SizedBox(height: 4),
           Text(
@@ -486,12 +468,7 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
                 : _jadwalHariIni.every((j) => j.isCompleted)
                     ? 'Semua pengangkutan sudah selesai'
                     : 'Ada ${_jadwalHariIni.where((j) => !j.isCompleted).length} Jadwal Pengangkutan',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
+            style: AppText.w600(13, Colors.white),
           ),
           const SizedBox(height: 14),
           GestureDetector(
@@ -501,7 +478,7 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
-                color: isLoading ? Colors.white.withOpacity(0.5) : Colors.white,
+                color: isLoading ? Colors.white.withValues(alpha: 0.5) : Colors.white,
                 borderRadius: BorderRadius.circular(50),
               ),
               child: isLoading
@@ -510,23 +487,18 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
                   height: 18,
                   width: 18,
                   child: CircularProgressIndicator(
-                      color: Color(0xFF013236), strokeWidth: 2),
+                      color: AppColors.dark, strokeWidth: 2),
                 ),
               )
-                  : const Row(
+                  : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.local_shipping_rounded,
-                      color: Color(0xFF013236), size: 16),
+                      color: AppColors.dark, size: 16),
                   SizedBox(width: 8),
                   Text(
                     'Cek Sesi Pengangkutan',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF013236),
-                    ),
+                    style: AppText.w600(13, AppColors.dark),
                   ),
                 ],
               ),
@@ -537,7 +509,6 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
     );
   }
 
-  // ── Card sesi aktif ─────────────────────────────────────────────────────
   Widget _buildActiveCard(PengangkutanAktifBsiData s) {
     final statusColor = _statusColor(s.statusTerkini);
     final statusLabel = _statusLabel(s.statusTerkini);
@@ -551,14 +522,14 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF013236),
+            color: AppColors.dark,
             borderRadius: BorderRadius.circular(20),
             border: isHighlighted
-                ? Border.all(color: const Color(0xFF94DF0C), width: 1)
+                ? Border.all(color: AppColors.neon, width: 1)
                 : null,
             boxShadow: isHighlighted
                 ? [BoxShadow(
-                    color: const Color(0xFF94DF0C).withValues(alpha: 0.4),
+                    color: AppColors.neon.withValues(alpha: 0.4),
                     blurRadius: 18,
                     spreadRadius: 2,
                   )]
@@ -567,14 +538,9 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Pengangkutan Aktif',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
+            style: AppText.w700(14, Colors.white),
           ),
           const SizedBox(height: 16),
           Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
@@ -584,12 +550,7 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
             'BSU',
             Text(
               s.namaBsu,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+              style: AppText.w600(12, Colors.white),
             ),
           ),
           const SizedBox(height: 10),
@@ -604,12 +565,7 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
               ),
               child: Text(
                 statusLabel,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: statusColor,
-                ),
+                style: AppText.w700(10, statusColor),
               ),
             ),
           ),
@@ -619,12 +575,7 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
             'ID Pengangkutan',
             Text(
               s.pengangkutanId,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+              style: AppText.w600(12, Colors.white),
             ),
           ),
           const SizedBox(height: 16),
@@ -639,17 +590,13 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
                 ),
               ),
               icon: const Icon(Icons.open_in_new_rounded, size: 16),
-              label: const Text(
+              label: Text(
                 'Lanjutkan Sesi',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
+                style: AppText.w600(13),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF013236),
+                foregroundColor: AppColors.dark,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(
@@ -668,20 +615,15 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: const BoxDecoration(
-                color: Color(0xFF94DF0C),
+                color: AppColors.neon,
                 borderRadius: BorderRadius.only(
                   topRight: Radius.circular(20),
                   bottomLeft: Radius.circular(12),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Baru',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
+                style: AppText.w700(10, Colors.white),
               ),
             ),
           ),
@@ -707,10 +649,7 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label,
-                  style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      color: Colors.white60)),
+                  style: AppText.r(10, Colors.white60)),
               const SizedBox(height: 2),
               valueWidget,
             ],
@@ -720,7 +659,6 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
     );
   }
 
-  // ── Riwayat list ─────────────────────────────────────────────────────────
   Widget _buildRiwayatList() {
     final filtered = _filteredRiwayat;
     if (filtered.isEmpty) {
@@ -730,7 +668,7 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
           child: Column(children: [
             Icon(Icons.history_toggle_off_rounded, size: 44, color: Colors.grey[300]),
             const SizedBox(height: 10),
-            Text('Belum ada riwayat pengangkutan', style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: Colors.grey[400])),
+            Text('Belum ada riwayat pengangkutan', style: AppText.r(13, Colors.grey[400])),
           ]),
         ),
       );
@@ -746,7 +684,7 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
 
   Widget _buildRiwayatTile(PengangkutanData s) {
     final color = _statusColor(s.status);
-    final bgColor = color.withOpacity(0.1);
+    final bgColor = color.withValues(alpha: 0.1);
     final bool isCompleted = s.status == 'completed';
     final bool isTerminal  = s.status == 'canceled' || s.status == 'rejected';
 
@@ -769,36 +707,35 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.5),
+          color: Colors.white.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             width: 1,
-            color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+            color: AppColors.dark.withValues(alpha: 0.1),
           ),
         ),
         child: Row(children: [
           Container(
             padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(color: Color(0xFF013236).withValues(alpha: 0.1), shape: BoxShape.circle),
-            child: Icon(Icons.house, color: Color(0xFF013236), size: 18),
+            decoration: BoxDecoration(color: AppColors.dark.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: Icon(Icons.house, color: AppColors.dark, size: 18),
           ),
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(s.namaBsu, style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF013236))),
+            Text(s.namaBsu, style: AppText.w600(13, AppColors.dark)),
             const SizedBox(height: 3),
-            Text(s.tanggal, style: TextStyle(fontFamily: 'Poppins', fontSize: 11.5, color: Colors.grey[500])),
+            Text(s.tanggal, style: AppText.r(11.5, Colors.grey[500])),
           ])),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(20)),
-            child: Text(_statusLabel(s.status), style: TextStyle(fontFamily: 'Poppins', fontSize: 10.5, fontWeight: FontWeight.w600, color: color)),
+            child: Text(_statusLabel(s.status), style: AppText.w600(10.5, color)),
           ),
         ]),
       ),
     );
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
   String _statusLabel(String s) {
     switch (s) {
       case 'requested': return 'Diajukan';
@@ -813,20 +750,16 @@ class _PengangkutanBsiScreenState extends State<PengangkutanBsiScreen> {
 
   Color _statusColor(String s) {
     switch (s) {
-      case 'completed': return const Color(0xFF4EA771);
+      case 'completed': return AppColors.green;
       case 'canceled': case 'rejected': return Colors.red.shade400;
-      case 'otw': return const Color(0xFFFAA324);
-      case 'approved': return const Color(0xFF06C0C9);
-      case 'requested': return const Color(0xFF94DF0C);
+      case 'otw': return AppColors.warningAlt;
+      case 'approved': return AppColors.cyan;
+      case 'requested': return AppColors.neon;
       default: return Colors.grey;
     }
   }
 
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// BSU Picker Bottom Sheet
-// ═══════════════════════════════════════════════════════════════════════════════
 
 class _BsuPickerSheet extends StatefulWidget {
   final List<BsuUnit> bsuList;
@@ -868,22 +801,19 @@ class _BsuPickerSheetState extends State<_BsuPickerSheet> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(children: [
-        // Handle
         Container(
           margin: const EdgeInsets.only(top: 12),
           width: 40, height: 4,
           decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
         ),
-        // Title
-        const Padding(
+        Padding(
           padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
-          child: Text('Pilih BSU Tujuan', style: TextStyle(fontFamily: 'Poppins', fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF013236))),
+          child: Text('Pilih BSU Tujuan', style: AppText.w700(16, AppColors.dark)),
         ),
-        const Padding(
+        Padding(
           padding: EdgeInsets.fromLTRB(24, 4, 24, 12),
-          child: Text('Pilih BSU yang akan diangkut sampahnya', style: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: Colors.grey)),
+          child: Text('Pilih BSU yang akan diangkut sampahnya', style: AppText.r(12, Colors.grey)),
         ),
-        // Search
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: CustomSearchBar(
@@ -898,7 +828,6 @@ class _BsuPickerSheetState extends State<_BsuPickerSheet> {
           ),
         ),
         const SizedBox(height: 8),
-        // List
         Expanded(
           child: _filtered.isEmpty
               ? Center(child: Text('BSU tidak ditemukan', style: TextStyle(fontFamily: 'Poppins', color: Colors.grey[400])))
@@ -930,9 +859,9 @@ class _BsuPickerSheetState extends State<_BsuPickerSheet> {
                       iconBg = Colors.grey.withValues(alpha: 0.12);
                       nameColor = Colors.grey[400]!;
                     } else if (hasJadwal) {
-                      iconColor = const Color(0xFF4EA771);
-                      iconBg = const Color(0xFF4EA771).withValues(alpha: 0.12);
-                      nameColor = const Color(0xFF013236);
+                      iconColor = AppColors.green;
+                      iconBg = AppColors.green.withValues(alpha: 0.12);
+                      nameColor = AppColors.dark;
                     } else {
                       iconColor = Colors.grey[400]!;
                       iconBg = Colors.grey.withValues(alpha: 0.08);
@@ -944,42 +873,32 @@ class _BsuPickerSheetState extends State<_BsuPickerSheet> {
                       trailingWidget = Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFAA324).withValues(alpha: 0.12),
+                          color: AppColors.warningAlt.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Text('Sedang Aktif',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFFAA324),
-                            )),
+                        child: Text('Sedang Aktif',
+                            style: AppText.w600(10, AppColors.warningAlt)),
                       );
                     } else if (isCompleted) {
                       trailingWidget = Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF4EA771).withValues(alpha: 0.12),
+                          color: AppColors.green.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.check_circle_rounded, size: 10, color: Color(0xFF4EA771)),
+                            Icon(Icons.check_circle_rounded, size: 10, color: AppColors.green),
                             SizedBox(width: 4),
                             Text('Selesai',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF4EA771),
-                                )),
+                                style: AppText.w600(10, AppColors.green)),
                           ],
                         ),
                       );
                     } else if (hasJadwal) {
                       trailingWidget = const Icon(Icons.arrow_forward_ios_rounded,
-                          size: 14, color: Color(0xFF4EA771));
+                          size: 14, color: AppColors.green);
                     }
 
                     return ListTile(
@@ -992,23 +911,14 @@ class _BsuPickerSheetState extends State<_BsuPickerSheet> {
                       ),
                       title: Text(
                         bsu.namaBank,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: nameColor,
-                        ),
+                        style: AppText.w600(13, nameColor),
                       ),
                       subtitle: keterangan != null
                           ? Text(
                               keterangan,
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 11,
-                                color: (hasJadwal && !isCompleted)
-                                    ? const Color(0xFF4EA771)
-                                    : Colors.grey[400],
-                              ),
+                              style: AppText.r(11, (hasJadwal && !isCompleted)
+                                    ? AppColors.green
+                                    : Colors.grey[400]),
                             )
                           : null,
                       trailing: trailingWidget,
@@ -1020,10 +930,6 @@ class _BsuPickerSheetState extends State<_BsuPickerSheet> {
     );
   }
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Mandiri Picker Bottom Sheet
-// ═══════════════════════════════════════════════════════════════════════════════
 
 class _MandiriPickerSheet extends StatelessWidget {
   final String namaBsu;
@@ -1057,31 +963,21 @@ class _MandiriPickerSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFF013236).withValues(alpha: 0.08),
+              color: AppColors.dark.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.local_shipping_rounded,
-                color: Color(0xFF013236), size: 26),
+                color: AppColors.dark, size: 26),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Metode Pengangkutan',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-              color: Color(0xFF013236),
-            ),
+            style: AppText.w700(15, AppColors.dark),
           ),
           const SizedBox(height: 8),
           Text(
             'Apakah pengangkutan sampah $namaBsu dilakukan secara mandiri atau dijemput BSI ke lokasi?',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12.5,
-              color: const Color(0xFF013236).withValues(alpha: 0.5),
-              height: 1.5,
-            ),
+            style: AppText.p(12.5, color: AppColors.dark.withValues(alpha: 0.5), height: 1.5),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -1091,20 +987,16 @@ class _MandiriPickerSheet extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: () => onSelected(true),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF013236),
+                    foregroundColor: AppColors.dark,
                     side: BorderSide(
-                        color: const Color(0xFF013236).withValues(alpha: 0.3)),
+                        color: AppColors.dark.withValues(alpha: 0.3)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(50)),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Diantar BSU',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppText.w600(13),
                   ),
                 ),
               ),
@@ -1113,20 +1005,16 @@ class _MandiriPickerSheet extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () => onSelected(false),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF013236),
+                    backgroundColor: AppColors.dark,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(50)),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Dijemput BSI',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppText.w600(13),
                   ),
                 ),
               ),

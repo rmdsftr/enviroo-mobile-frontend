@@ -9,6 +9,8 @@ import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/screens/pengangkutan/angkut_setoran_bsi_screen.dart';
 import 'package:enviroo/screens/lihat_foto_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class AlurSesiPengangkutanScreen extends StatefulWidget {
   final String pengangkutanId;
@@ -19,8 +21,6 @@ class AlurSesiPengangkutanScreen extends StatefulWidget {
 }
 
 class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen> {
-  static const _dark  = Color(0xFF013236);
-  static const _green = Color(0xFF4EA771);
   static const _pollInterval = Duration(seconds: 5);
 
   DetailSesiPengangkutanModel? _data;
@@ -44,7 +44,6 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
     super.dispose();
   }
 
-  // ── Data fetch (polling) ────────────────────────────────────────────────────
   Future<void> _fetch() async {
     final result = await PengangkutanService.detailSesiActive(widget.pengangkutanId);
     if (!mounted) return;
@@ -55,7 +54,6 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
     });
   }
 
-  // ── Update status ───────────────────────────────────────────────────────────
   Future<void> _doUpdate(String currentStatus, String newStatus, {String notes = ''}) async {
     setState(() => _actionLoading = true);
     final auth    = Provider.of<AuthProvider>(context, listen: false);
@@ -76,7 +74,6 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
     }
   }
 
-  // ── Navigasi ke input sampah (status arrived → completed via setoran) ───────
   Future<void> _openInputSampah() async {
     final d = _data!;
     final hasil = await Navigator.push<bool>(
@@ -99,7 +96,6 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
     }
   }
 
-  // ── Dialog catatan (untuk aksi yang butuh alasan) ───────────────────────────
   void _showNotesDialog(String currentStatus, String newStatus, String label) {
     final ctrl = TextEditingController();
     showDialog(
@@ -114,26 +110,19 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 'Tulis alasan atau catatan\nsebelum melanjutkan.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12.5,
-                  color: Color(0xFF6B7280),
-                  height: 1.6,
-                ),
+                style: AppText.p(12.5, color: Color(0xFF6B7280), height: 1.6),
               ),
               const SizedBox(height: 18),
-              // ── Text field ────────────────────────────────────────
               TextField(
                 controller: ctrl,
                 maxLines: 3,
-                style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, color: _dark),
+                style: AppText.r(13, AppColors.dark),
                 decoration: InputDecoration(
                   hintText: 'Tulis alasan di sini...',
-                  hintStyle: const TextStyle(
-                      fontFamily: 'Poppins', color: Color(0xFFB0BAC6), fontSize: 13),
+                  hintStyle: AppText.r(13, Color(0xFFB0BAC6)),
                   filled: true,
                   fillColor: const Color(0xFFF5F7FA),
                   border: OutlineInputBorder(
@@ -148,7 +137,6 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
                 ),
               ),
               const SizedBox(height: 20),
-              // ── Tombol ────────────────────────────────────────────
               Row(
                 children: [
                   Expanded(
@@ -160,14 +148,9 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Batal',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: _dark,
-                        ),
+                        style: AppText.w600(13, AppColors.dark),
                       ),
                     ),
                   ),
@@ -192,11 +175,7 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
                       ),
                       child: Text(
                         'Kirim',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
+                        style: AppText.w700(13),
                       ),
                     ),
                   ),
@@ -217,7 +196,6 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
     );
   }
 
-  // ── Tentukan aksi berdasarkan status terkini ────────────────────────────────
   List<_ActionDef> _getNextActions(String status) {
     switch (status) {
       case 'requested':
@@ -245,21 +223,19 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
     }
   }
 
-  // ── Deteksi apakah sesi dimulai dari request BSU ────────────────────────────
   bool get _isBsuRequestFlow =>
       _data?.riwayat.any((r) => r.status == 'requested') ?? false;
 
-  // ── Status helpers ──────────────────────────────────────────────────────────
   Color _statusColor(String s) {
     switch (s.toLowerCase()) {
       case 'otw':       return const Color(0xFF4EA1F6);
-      case 'approved':  return _green;
+      case 'approved':  return AppColors.green;
       case 'arrived':   return const Color(0xFF9772F8);
       case 'completed': return const Color(0xFF23EAA9);
       case 'rejected':
       case 'canceled':  return const Color(0xFFFF5454);
-      case 'requested': return const Color(0xFFF59E0B);
-      default:          return const Color(0xFFF59E0B);
+      case 'requested': return AppColors.warning;
+      default:          return AppColors.warning;
     }
   }
 
@@ -289,13 +265,12 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
     }
   }
 
-  // ─── BUILD ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          color: Color(0xFFF5F7F5),
+          color: AppColors.surface,
           image: DecorationImage(
             image: AssetImage('assets/images/bg_struk.webp'),
             fit: BoxFit.cover,
@@ -314,7 +289,7 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: _dark));
+      return const Center(child: CircularProgressIndicator(color: AppColors.dark));
     }
     if (_error != null) {
       return Center(
@@ -325,7 +300,7 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
             const SizedBox(height: 12),
             Text(_error!,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: Colors.grey[500])),
+                style: AppText.r(13, Colors.grey[500])),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _fetch,
@@ -333,7 +308,7 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
               label: const Text('Coba Lagi',
                   style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _dark,
+                backgroundColor: AppColors.dark,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -346,7 +321,7 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
 
     final d = _data!;
     return RefreshIndicator(
-      color: _dark,
+      color: AppColors.dark,
       onRefresh: _fetch,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -365,13 +340,12 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
     );
   }
 
-  // ── Hero card ───────────────────────────────────────────────────────────────
   Widget _buildHeroCard(DetailSesiPengangkutanModel d) {
     final statusColor = _statusColor(d.statusTerkini);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: _dark, borderRadius: BorderRadius.circular(25)),
+      decoration: BoxDecoration(color: AppColors.dark, borderRadius: BorderRadius.circular(25)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -382,15 +356,12 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
             Icon(_statusIcon(d.statusTerkini), size: 12, color: statusColor),
             const SizedBox(width: 5),
             Text(_statusLabel(d.statusTerkini),
-                style: TextStyle(
-                    fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w700, color: statusColor)),
+                style: AppText.w700(10, statusColor)),
           ]),
         ),
         const SizedBox(height: 7),
         Text(d.pengangkutanId,
-            style: const TextStyle(
-                fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w700,
-                color: Colors.white, letterSpacing: 0.3)),
+            style: AppText.p(13, weight: FontWeight.w700, color: Colors.white, letterSpacing: 0.3)),
         const SizedBox(height: 16),
         Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
         const SizedBox(height: 16),
@@ -413,16 +384,14 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
       Expanded(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label,
-              style: const TextStyle(fontFamily: 'Poppins', fontSize: 10, color: Colors.white60)),
+              style: AppText.r(10, Colors.white60)),
           Text(value,
-              style: const TextStyle(
-                  fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+              style: AppText.w600(12, Colors.white)),
         ]),
       ),
     ]);
   }
 
-  // ── Bukti Foto Button ───────────────────────────────────────────────────────
   Widget _buildBuktiFotoButton(String url) {
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -440,40 +409,33 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _green.withValues(alpha: 0.3)),
+          border: Border.all(color: AppColors.green.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: _green.withValues(alpha: 0.1),
+                color: AppColors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.photo_rounded, color: _green, size: 18),
+              child: const Icon(Icons.photo_rounded, color: AppColors.green, size: 18),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
                 'Lihat Bukti Foto',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: _dark,
-                ),
+                style: AppText.w600(13, AppColors.dark),
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 13, color: _green),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 13, color: AppColors.green),
           ],
         ),
       ),
     );
   }
 
-  // ── Timeline ────────────────────────────────────────────────────────────────
   Widget _buildTimeline(DetailSesiPengangkutanModel d) {
-    // 5 tahap jika dimulai dari request BSU, 3 tahap jika BSI mulai langsung
     final stages = _isBsuRequestFlow
         ? const [
             _Stage('requested', 'Diajukan',              Icons.hourglass_top_rounded),
@@ -493,7 +455,6 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
     final currentIdx     = stages.indexWhere((s) => s.key == statusTerkini);
     final actions        = _getNextActions(statusTerkini);
 
-    // Map riwayat by status untuk lookup O(1)
     final riwayatByStatus = <String, RiwayatSesiPengangkutanModel>{};
     for (final r in d.riwayat) {
       riwayatByStatus.putIfAbsent(r.status, () => r);
@@ -502,7 +463,6 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _buildTimelineHeader(d.riwayat.length, d.statusTerkini),
       const SizedBox(height: 16),
-      // Compute state tiap stage, lalu filter: hanya tampilkan yang bukan waiting
       ...() {
         final entries = <({_Stage stage, _StepState state, bool isPassed})>[];
         for (var i = 0; i < stages.length; i++) {
@@ -552,29 +512,27 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(children: [
-        const Text('Riwayat Sesi',
-            style: TextStyle(fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.w600, color: _dark)),
+        Text('Riwayat Sesi',
+            style: AppText.w600(14, AppColors.dark)),
         const Spacer(),
         if (!isTerminal)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration:
-                BoxDecoration(color: _green.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(8)),
+                BoxDecoration(color: AppColors.green.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(8)),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Container(
                   width: 6, height: 6,
-                  decoration: const BoxDecoration(color: _green, shape: BoxShape.circle)),
+                  decoration: const BoxDecoration(color: AppColors.green, shape: BoxShape.circle)),
               const SizedBox(width: 5),
-              const Text('Live',
-                  style: TextStyle(
-                      fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w600, color: _green)),
+              Text('Live',
+                  style: AppText.w600(10, AppColors.green)),
             ]),
           ),
       ]),
     );
   }
 
-  // ── Step tunggal ────────────────────────────────────────────────────────────
   Widget _buildStep({
     required _Stage stage,
     required _StepState stepState,
@@ -588,10 +546,10 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
     final isAction  = stepState == _StepState.action;
 
     final Color dotColor = switch (stepState) {
-      _StepState.done    => _green,
+      _StepState.done    => AppColors.green,
       _StepState.current => _statusColor(stage.key),
       _StepState.error   => const Color(0xFFFF5454),
-      _StepState.action  => Color(0xFF06C0C9),
+      _StepState.action  => AppColors.cyan,
       _StepState.waiting => Colors.grey[300]!,
     };
 
@@ -599,7 +557,6 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 5),
         child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          // Dot + connector line
           SizedBox(
             width: 32,
             child: Column(children: [
@@ -621,7 +578,7 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
                     child: Container(
                       width: 2,
                       decoration: BoxDecoration(
-                        color: isPassed ? _green : Colors.grey[200],
+                        color: isPassed ? AppColors.green : Colors.grey[200],
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -630,7 +587,6 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
             ]),
           ),
           const SizedBox(width: 14),
-          // Card konten
           Expanded(
             child: Padding(
               padding: EdgeInsets.only(bottom: isLast ? 0 : 16, top: 4),
@@ -643,7 +599,7 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
                     color: isWaiting
                         ? Colors.grey.withValues(alpha: 0.12)
                         : isAction
-                            ? Color(0xFF06C0C9).withValues(alpha: 0.30)
+                            ? AppColors.cyan.withValues(alpha: 0.30)
                             : dotColor.withValues(alpha: 0.25),
                   ),
                   boxShadow: !isWaiting
@@ -663,7 +619,6 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
     );
   }
 
-  // ── Konten riwayat normal (done / current / waiting) ────────────────────────
   Widget _buildRiwayatContent(
     _Stage stage,
     bool isWaiting,
@@ -681,23 +636,18 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
           ),
           child: Text(
             isWaiting ? 'Menunggu' : stage.label,
-            style: TextStyle(
-                fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w700,
-                color: isWaiting ? Colors.grey[400] : dotColor),
+            style: AppText.w700(10, isWaiting ? Colors.grey[400] : dotColor),
           ),
         ),
         const Spacer(),
         if (riwayatItem != null)
           Text(riwayatItem.jamFormatted,
-              style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: Colors.grey[400])),
+              style: AppText.r(10, Colors.grey[400])),
       ]),
       const SizedBox(height: 6),
       Text(
         riwayatItem?.catatan.isNotEmpty == true ? riwayatItem!.catatan : stage.label,
-        style: TextStyle(
-            fontFamily: 'Poppins', fontSize: 13,
-            fontWeight: isWaiting ? FontWeight.w400 : FontWeight.w600,
-            color: isWaiting ? Colors.grey[400] : _dark),
+        style: AppText.p(13, weight: isWaiting ? FontWeight.w400 : FontWeight.w600, color: isWaiting ? Colors.grey[400] : AppColors.dark),
       ),
       if (riwayatItem != null) ...[
         const SizedBox(height: 6),
@@ -705,34 +655,30 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
           Icon(Icons.person_outline_rounded, size: 11, color: Colors.grey[400]),
           const SizedBox(width: 4),
           Text(riwayatItem.changedBy,
-              style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: Colors.grey[400])),
+              style: AppText.r(10, Colors.grey[400])),
           const Spacer(),
           Text(riwayatItem.tanggalFormatted,
-              style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: Colors.grey[400])),
+              style: AppText.r(10, Colors.grey[400])),
         ]),
       ],
     ]);
   }
 
-  // ── Konten aksi petugas BSI ─────────────────────────────────────────────────
   Widget _buildActionContent(List<_ActionDef> actions, String currentStatus) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // Badge
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-            color: Color(0xFF06C0C9).withValues(alpha: 0.10), borderRadius: BorderRadius.circular(20)),
-        child: const Text('Aksi Berikutnya',
-            style: TextStyle(
-                fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF06C0C9))),
+            color: AppColors.cyan.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(20)),
+        child: Text('Aksi Berikutnya',
+            style: AppText.w700(10, AppColors.cyan)),
       ),
       const SizedBox(height: 10),
-      // Tombol
       if (_actionLoading)
         const Center(
           child: Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
-            child: CircularProgressIndicator(color: _dark, strokeWidth: 2.5),
+            child: CircularProgressIndicator(color: AppColors.dark, strokeWidth: 2.5),
           ),
         )
       else
@@ -740,7 +686,6 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
           children: List.generate(actions.length, (i) {
             final a = actions[i];
 
-            // Tentukan callback sesuai jenis aksi
             final VoidCallback onTap;
             if (currentStatus == 'arrived' && a.newStatus == 'completed') {
               onTap = _openInputSampah;
@@ -760,12 +705,7 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
               ),
               label: Text(
                 a.label,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                  color: Colors.red,
-                ),
+                style: AppText.w600(12, Colors.red),
               ),
               style: ElevatedButton.styleFrom(
                 elevation: 0,
@@ -784,10 +724,9 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
                     onPressed: onTap,
                     icon: Icon(a.icon, size: 14),
                     label: Text(a.label,
-                        style: const TextStyle(
-                            fontFamily: 'Poppins', fontWeight: FontWeight.w600, fontSize: 12)),
+                        style: AppText.w600(12)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF06C0C9),
+                      backgroundColor: AppColors.cyan,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
@@ -802,8 +741,6 @@ class _AlurSesiPengangkutanScreenState extends State<AlurSesiPengangkutanScreen>
     ]);
   }
 }
-
-// ─── Data helpers ─────────────────────────────────────────────────────────────
 
 enum _StepState { done, current, waiting, error, action }
 

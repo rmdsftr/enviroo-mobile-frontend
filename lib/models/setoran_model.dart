@@ -1,4 +1,4 @@
-import 'package:intl/intl.dart';
+import '../core/format/app_date.dart';
 
 class SetoranItem {
   final String namaSampah;
@@ -18,13 +18,6 @@ class SetoranItem {
       satuan: json['satuan'] ?? '',
     );
   }
-
-  static String _fmt(double v) {
-    if (v == v.truncateToDouble()) return v.toInt().toString();
-    return v.toStringAsFixed(2).replaceAll('.', ',');
-  }
-
-  String get qtyFmt => _fmt(qty);
 }
 
 class SetoranSummary {
@@ -48,8 +41,8 @@ class SetoranSummary {
     String timestamp = '-';
     if (json['transaksi_timestamp'] != null) {
       try {
-        timestamp = DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID')
-            .format(DateTime.parse(json['transaksi_timestamp']).toLocal());
+        timestamp = AppDate.tanggalPenuhJam(
+            DateTime.parse(json['transaksi_timestamp']).toLocal());
       } catch (_) {
         timestamp = json['transaksi_timestamp'].toString();
       }

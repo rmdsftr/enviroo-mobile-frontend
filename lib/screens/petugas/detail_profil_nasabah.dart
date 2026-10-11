@@ -1,3 +1,5 @@
+import 'package:enviroo/core/format/app_date.dart';
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/screens/lihat_foto_screen.dart';
 import 'package:enviroo/services/dashboard_service.dart';
@@ -6,8 +8,9 @@ import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class DetailProfilNasabahScreen extends StatefulWidget {
   final String nasabahId;
@@ -83,14 +86,14 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
               TopBarBack(title: "Profil Nasabah"),
               Expanded(
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF4EA771)))
+                    ? const Center(child: CircularProgressIndicator(color: AppColors.green))
                     : _error.isNotEmpty
                         ? Center(
                             child: Padding(
                               padding: const EdgeInsets.all(24),
                               child: Text(_error,
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, color: Colors.red)),
+                                  style: AppText.r(13, Colors.red)),
                             ),
                           )
                         : SingleChildScrollView(
@@ -118,7 +121,7 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
     if (_detail == null) return const SizedBox.shrink();
 
     final status = _detail!['status_nasabah']?.toString().toLowerCase() ?? '';
-    Color borderColor = const Color(0xFF4EA771);
+    Color borderColor = AppColors.green;
     if (status == 'nonaktif') {
       borderColor = Colors.red;
     } else if (status == 'pending') {
@@ -134,7 +137,7 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: const Color(0xFF013236),
+          color: AppColors.dark,
           borderRadius: BorderRadius.circular(30),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 28),
@@ -172,39 +175,29 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
             const SizedBox(height: 14),
             Text(
               nama,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                fontSize: 17,
-              ),
+              style: AppText.w700(17, Colors.white),
             ),
             const SizedBox(height: 2),
-            const Text(
+            Text(
               'Nasabah',
-              style: TextStyle(fontFamily: 'Poppins', color: Colors.white, fontSize: 12),
+              style: AppText.r(12, Colors.white),
             ),
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF94DF0C),
+                color: AppColors.neon,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.location_on_rounded, size: 14, color: Color(0xFF013236)),
+                  const Icon(Icons.location_on_rounded, size: 14, color: AppColors.dark),
                   const SizedBox(width: 5),
                   Flexible(
                     child: Text(
                       namaBank,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF013236),
-                      ),
+                      style: AppText.w600(10, AppColors.dark),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -259,22 +252,17 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
         decoration: BoxDecoration(
           color: const Color(0xFFEFFBF0),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF4EA771).withValues(alpha: 0.3)),
+          border: Border.all(color: AppColors.green.withValues(alpha: 0.3)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.admin_panel_settings_rounded, color: Color(0xFF4EA771), size: 24),
+            const Icon(Icons.admin_panel_settings_rounded, color: AppColors.green, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: RichText(
                 text: TextSpan(
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    color: const Color(0xFF013236).withValues(alpha: 0.8),
-                    height: 1.6,
-                  ),
+                  style: AppText.p(10, color: AppColors.dark.withValues(alpha: 0.8), height: 1.6),
                   children: [
                     const TextSpan(text: 'Akun ini juga terasosiasi sebagai akun '),
                     TextSpan(text: roleDisplay, style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -292,8 +280,6 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
     );
   }
 
-  static final _numberFormat = NumberFormat.decimalPattern('id');
-
   Widget _buildSaldoCard() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 17),
@@ -302,7 +288,7 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(width: 1, color: const Color(0xFF013236).withValues(alpha: 0.1)),
+          border: Border.all(width: 1, color: AppColors.dark.withValues(alpha: 0.1)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,21 +301,16 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
                     width: 25,
                     height: 25,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF013236),
+                      color: AppColors.dark,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(CupertinoIcons.money_dollar_circle_fill, color: Colors.white, size: 14),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Informasi Saldo',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF013236),
-                      ),
+                      style: AppText.w600(13, AppColors.dark),
                     ),
                   ),
                   GestureDetector(
@@ -337,7 +318,7 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
                     child: Icon(
                       _isSaldoVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded,
                       size: 18,
-                      color: const Color(0xFF013236).withValues(alpha: 0.5),
+                      color: AppColors.dark.withValues(alpha: 0.5),
                     ),
                   ),
                 ],
@@ -345,7 +326,7 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              child: Container(height: 0.5, color: const Color(0xFF013236).withValues(alpha: 0.08)),
+              child: Container(height: 0.5, color: AppColors.dark.withValues(alpha: 0.08)),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
@@ -355,7 +336,7 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
                       child: SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4EA771)),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.green),
                       ),
                     )
                   : Row(
@@ -363,13 +344,18 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
                         Expanded(
                           child: _buildInfoRow(
                             'Saldo Rupiah',
-                            _isSaldoVisible ? 'Rp${_numberFormat.format(_saldoUang)}' : '••••••',
+                            _isSaldoVisible
+                                ? AppNumber.rupiah(_saldoUang,
+                                    maksDesimal: AppNumber.presisiSistem)
+                                : '••••••',
                           ),
                         ),
                         Expanded(
                           child: _buildInfoRow(
                             'Saldo Poin',
-                            _isSaldoVisible ? '${_numberFormat.format(_saldoPoin)} poin' : '••••••',
+                            _isSaldoVisible
+                                ? AppNumber.denganSatuan(_saldoPoin, 'poin')
+                                : '••••••',
                           ),
                         ),
                       ],
@@ -388,7 +374,7 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
     if (_detail!['joined_at'] != null) {
       try {
         final dt = DateTime.parse(_detail!['joined_at'].toString().replaceAll(' ', 'T'));
-        joinedAtStr = DateFormat('dd MMMM yyyy', 'id_ID').format(dt);
+        joinedAtStr = AppDate.tanggalPanjang(dt);
       } catch (_) {}
     }
 
@@ -396,7 +382,7 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
       children: [
         _buildSectionContainer(
           icon: CupertinoIcons.person_solid,
-          iconBgColor: const Color(0xFF013236),
+          iconBgColor: AppColors.dark,
           title: 'Informasi Pribadi',
           children: [
             _buildInfoRow('ID Pengguna', _detail!['user_id']?.toString() ?? '-'),
@@ -423,21 +409,12 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 10,
-            color: const Color(0xFF013236).withValues(alpha: 0.5),
-          ),
+          style: AppText.r(10, AppColors.dark.withValues(alpha: 0.5)),
         ),
         const SizedBox(height: 2),
         Text(
           value,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF013236),
-          ),
+          style: AppText.w600(13, AppColors.dark),
         ),
       ],
     );
@@ -456,7 +433,7 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(width: 1, color: const Color(0xFF013236).withValues(alpha: 0.1)),
+          border: Border.all(width: 1, color: AppColors.dark.withValues(alpha: 0.1)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -477,19 +454,14 @@ class _DetailProfilNasabahScreenState extends State<DetailProfilNasabahScreen> {
                   const SizedBox(width: 12),
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF013236),
-                    ),
+                    style: AppText.w600(13, AppColors.dark),
                   ),
                 ],
               ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              child: Container(height: 0.5, color: const Color(0xFF013236).withValues(alpha: 0.08)),
+              child: Container(height: 0.5, color: AppColors.dark.withValues(alpha: 0.08)),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),

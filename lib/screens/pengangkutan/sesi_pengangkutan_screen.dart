@@ -7,6 +7,8 @@ import 'package:enviroo/services/pengangkutan_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:enviroo/screens/pengangkutan/qr_angkut_sampah_screen.dart';
 import 'package:enviroo/screens/lihat_foto_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class SesiPengangkutanScreen extends StatefulWidget {
   final String pengangkutanId;
@@ -17,8 +19,6 @@ class SesiPengangkutanScreen extends StatefulWidget {
 }
 
 class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
-  static const _dark = Color(0xFF013236);
-  static const _green = Color(0xFF4EA771);
   static const _pollInterval = Duration(seconds: 5);
 
   DetailSesiPengangkutanModel? _data;
@@ -68,17 +68,15 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
     });
   }
 
-  // ── Flow detection ──────────────────────────────────────────────────────────
   bool get _isBsuRequestFlow =>
       _data?.riwayat.any((r) => r.status == 'requested') ?? false;
 
-  // ── Status helpers ──────────────────────────────────────────────────────────
   Color _statusColor(String s) {
     switch (s.toLowerCase()) {
       case 'otw':
         return const Color(0xFF4EA1F6);
       case 'approved':
-        return _green;
+        return AppColors.green;
       case 'arrived':
         return const Color(0xFF9772F8);
       case 'completed':
@@ -87,7 +85,7 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
       case 'canceled':
         return const Color(0xFFFF5454);
       default:
-        return const Color(0xFFF59E0B);
+        return AppColors.warning;
     }
   }
 
@@ -115,13 +113,12 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          color: Color(0xFFF5F7F5),
+          color: AppColors.surface,
           image: DecorationImage(
             image: AssetImage('assets/images/bg_struk.webp'),
             fit: BoxFit.cover,
@@ -142,7 +139,7 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: _dark));
+      return const Center(child: CircularProgressIndicator(color: AppColors.dark));
     }
     if (_error != null) {
       return Center(
@@ -156,7 +153,7 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: Colors.grey[500]),
+                style: AppText.r(13, Colors.grey[500]),
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
@@ -165,7 +162,7 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
                 label: const Text('Coba Lagi',
                     style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _dark,
+                  backgroundColor: AppColors.dark,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -181,7 +178,7 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
     final statusColor = _statusColor(d.statusTerkini);
 
     return RefreshIndicator(
-      color: _dark,
+      color: AppColors.dark,
       onRefresh: _fetch,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -203,7 +200,6 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
     );
   }
 
-  // ── Bukti Foto Button ───────────────────────────────────────────────────────
   Widget _buildBuktiFotoButton(String url) {
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -221,38 +217,32 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _green.withValues(alpha: 0.3)),
+          border: Border.all(color: AppColors.green.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: _green.withValues(alpha: 0.1),
+                color: AppColors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.photo_rounded, color: _green, size: 18),
+              child: const Icon(Icons.photo_rounded, color: AppColors.green, size: 18),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
                 'Lihat Bukti Foto',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: _dark,
-                ),
+                style: AppText.w600(13, AppColors.dark),
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 13, color: _green),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 13, color: AppColors.green),
           ],
         ),
       ),
     );
   }
 
-  // ── Timeline terpadu: tahapan + riwayat aktual digabung ────────────────────
   Widget _buildUnifiedTimeline(DetailSesiPengangkutanModel d) {
     final stages = _isBsuRequestFlow
         ? [
@@ -272,7 +262,6 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
     final isTerminalError = statusTerkini == 'rejected' || statusTerkini == 'canceled';
     final currentIdx = stages.indexWhere((s) => s.key == statusTerkini);
 
-    // Map riwayat by status supaya mudah dicari
     final riwayatByStatus = <String, RiwayatSesiPengangkutanModel>{};
     for (final r in d.riwayat) {
       riwayatByStatus.putIfAbsent(r.status, () => r);
@@ -281,10 +270,8 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header
         _buildRiwayatHeader(d.riwayat.length),
         const SizedBox(height: 16),
-        // Steps
         ...List.generate(stages.length, (i) {
           final stage = stages[i];
           final isLast = i == stages.length - 1;
@@ -292,7 +279,6 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
 
           _StepState stepState;
           if (isTerminalError) {
-            // Gunakan riwayat untuk deteksi step mana yang sudah terjadi
             stepState = riwayatByStatus.containsKey(stage.key)
                 ? _StepState.error
                 : _StepState.waiting;
@@ -326,7 +312,7 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
     required bool isPassed,
   }) {
     final Color dotColor = stepState == _StepState.done
-        ? _green
+        ? AppColors.green
         : stepState == _StepState.current
             ? _statusColor(stage.key)
             : stepState == _StepState.error
@@ -341,7 +327,6 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Garis + dot ─────────────────────────────────────────
             SizedBox(
               width: 32,
               child: Column(
@@ -350,7 +335,7 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: isWaiting ? Colors.grey[100] : dotColor.withOpacity(0.13),
+                      color: isWaiting ? Colors.grey[100] : dotColor.withValues(alpha: 0.13),
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: isWaiting ? Colors.grey[300]! : dotColor,
@@ -369,7 +354,7 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
                         child: Container(
                           width: 2,
                           decoration: BoxDecoration(
-                            color: isPassed ? _green : Colors.grey[200],
+                            color: isPassed ? AppColors.green : Colors.grey[200],
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -379,7 +364,6 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
               ),
             ),
             const SizedBox(width: 14),
-            // ── Konten card ─────────────────────────────────────────
             Expanded(
               child: Padding(
                 padding: EdgeInsets.only(bottom: isLast ? 0 : 16, top: 4),
@@ -390,11 +374,11 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: isWaiting
-                          ? Colors.grey.withOpacity(0.12)
-                          : dotColor.withOpacity(0.25),
+                          ? Colors.grey.withValues(alpha: 0.12)
+                          : dotColor.withValues(alpha: 0.25),
                     ),
                     boxShadow: !isWaiting
-                        ? [BoxShadow(color: dotColor.withOpacity(0.07), blurRadius: 10, offset: const Offset(0, 4))]
+                        ? [BoxShadow(color: dotColor.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 4))]
                         : null,
                   ),
                   child: Column(
@@ -402,44 +386,32 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
                     children: [
                       Row(
                         children: [
-                          // Badge status / menunggu
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: isWaiting ? Colors.grey[100] : dotColor.withOpacity(0.12),
+                              color: isWaiting ? Colors.grey[100] : dotColor.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(20),
                               border: isWaiting ? Border.all(color: Colors.grey[300]!) : null,
                             ),
                             child: Text(
                               isWaiting ? 'Menunggu' : stage.label,
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: isWaiting ? Colors.grey[400] : dotColor,
-                              ),
+                              style: AppText.w700(10, isWaiting ? Colors.grey[400] : dotColor),
                             ),
                           ),
                           const Spacer(),
                           if (riwayatItem != null)
                             Text(
                               riwayatItem.jamFormatted,
-                              style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: Colors.grey[400]),
+                              style: AppText.r(10, Colors.grey[400]),
                             ),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      // Judul tahap atau catatan
                       Text(
                         riwayatItem?.catatan.isNotEmpty == true
                             ? riwayatItem!.catatan
                             : stage.label,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: isWaiting ? FontWeight.w400 : FontWeight.w600,
-                          color: isWaiting ? Colors.grey[400] : _dark,
-                        ),
+                        style: AppText.p(13, weight: isWaiting ? FontWeight.w400 : FontWeight.w600, color: isWaiting ? Colors.grey[400] : AppColors.dark),
                       ),
                       if (riwayatItem != null) ...
                         [
@@ -449,10 +421,10 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
                               Icon(Icons.person_outline_rounded, size: 11, color: Colors.grey[400]),
                               const SizedBox(width: 4),
                               Text(riwayatItem.changedBy,
-                                  style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: Colors.grey[400])),
+                                  style: AppText.r(10, Colors.grey[400])),
                               const Spacer(),
                               Text(riwayatItem.tanggalFormatted,
-                                  style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: Colors.grey[400])),
+                                  style: AppText.r(10, Colors.grey[400])),
                             ],
                           ),
                         ],
@@ -466,12 +438,12 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
                               MaterialPageRoute(builder: (_) => QRAngkutSampahScreen(pengangkutanId: widget.pengangkutanId)),
                             ),
                             icon: const Icon(Icons.qr_code_rounded, size: 16),
-                            label: const Text(
+                            label: Text(
                               'QR Code Pengangkutan',
-                              style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600, fontSize: 13),
+                              style: AppText.w600(13),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF06C0C9),
+                              backgroundColor: AppColors.cyan,
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
@@ -496,17 +468,16 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: _dark,
+        color: AppColors.dark,
         borderRadius: BorderRadius.circular(25),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Status badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.18),
+              color: statusColor.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
@@ -516,7 +487,7 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
                 const SizedBox(width: 5),
                 Text(
                   _statusLabel(d.statusTerkini),
-                  style: TextStyle(fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w700, color: statusColor),
+                  style: AppText.w700(10, statusColor),
                 ),
               ],
             ),
@@ -524,10 +495,10 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
           const SizedBox(height: 7),
           Text(
             d.pengangkutanId,
-            style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.3),
+            style: AppText.p(13, weight: FontWeight.w700, color: Colors.white, letterSpacing: 0.3),
           ),
           const SizedBox(height: 16),
-          Divider(color: Colors.white.withOpacity(0.1), height: 1),
+          Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
           const SizedBox(height: 16),
           _heroInfoRow(Icons.business_rounded, 'BSI', d.namaBsi),
           const SizedBox(height: 10),
@@ -542,20 +513,20 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child : Row(
         children: [
-          const Text(
+          Text(
             'Riwayat Sesi',
-            style: TextStyle(fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.w600, color: _dark),
+            style: AppText.w600(14, AppColors.dark),
           ),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: _green.withOpacity(0.10), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: AppColors.green.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(8)),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(width: 6, height: 6, decoration: const BoxDecoration(color: _green, shape: BoxShape.circle)),
+                Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.green, shape: BoxShape.circle)),
                 const SizedBox(width: 5),
-                const Text('Live', style: TextStyle(fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w600, color: _green)),
+                Text('Live', style: AppText.w600(10, AppColors.green)),
               ],
             ),
           ),
@@ -570,7 +541,7 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
       children: [
         Container(
           padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(color: Colors.white.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
           child: Icon(icon, size: 13, color: Colors.white70),
         ),
         const SizedBox(width: 10),
@@ -578,8 +549,8 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontFamily: 'Poppins', fontSize: 10, color: Colors.white60)),
-              Text(value, style: const TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+              Text(label, style: AppText.r(10, Colors.white60)),
+              Text(value, style: AppText.w600(12, Colors.white)),
             ],
           ),
         ),
@@ -587,9 +558,7 @@ class _SesiPengangkutanScreenState extends State<SesiPengangkutanScreen> {
     );
   }
 
-} // end _SesiPengangkutanScreenState
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+}
 
 enum _StepState { done, current, waiting, error }
 

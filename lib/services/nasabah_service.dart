@@ -3,13 +3,6 @@ import 'package:enviroo/core/config/api_config.dart';
 import 'package:enviroo/core/network/api_client.dart';
 import 'package:enviroo/core/network/api_failure.dart';
 
-/// Data nasabah dan petugas sebuah bank.
-///
-/// `getBsuByBsiId` dulu di sini juga, tapi isinya daftar bank unit - bukan
-/// orang - jadi sudah pindah ke [BankService] bersama `getAllBankSampah`.
-///
-/// Catatan: [getAdminByBankId] mengembalikan daftar PETUGAS, bukan nasabah.
-/// Belum dipindah karena pemakainya cuma satu layar di modul pengangkutan.
 class NasabahService {
   static Future<Map<String, dynamic>> getNasabahByBankId(String bankId) async {
     try {

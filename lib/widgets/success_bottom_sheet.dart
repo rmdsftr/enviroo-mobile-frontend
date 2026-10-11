@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 Future<void> showSuccessBottomSheet(
   BuildContext context, {
@@ -46,7 +48,6 @@ class _SuccessSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle bar
           Container(
             width: 36,
             height: 4,
@@ -56,45 +57,31 @@ class _SuccessSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
             ),
           ),
-          // Icon
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0xFF4EA771).withValues(alpha: 0.15),
+              color: AppColors.green.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.check_rounded,
               size: 36,
-              color: Color(0xFF4EA771),
+              color: AppColors.green,
             ),
           ),
           const SizedBox(height: 20),
-          // Title
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF013236),
-            ),
+            style: AppText.w700(17, AppColors.dark),
           ),
           const SizedBox(height: 8),
-          // Message
           Text(
             message,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              height: 1.6,
-              color: const Color(0xFF013236).withValues(alpha: 0.5),
-            ),
+            style: AppText.p(12, color: AppColors.dark.withValues(alpha: 0.5), height: 1.6),
           ),
           const SizedBox(height: 28),
-          // Button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -103,7 +90,7 @@ class _SuccessSheet extends StatelessWidget {
                 onDismiss?.call();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4EA771),
+                backgroundColor: AppColors.green,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -113,11 +100,7 @@ class _SuccessSheet extends StatelessWidget {
               ),
               child: Text(
                 buttonLabel,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppText.w600(14),
               ),
             ),
           ),

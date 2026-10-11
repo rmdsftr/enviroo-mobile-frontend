@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format/app_date.dart';
+import '../../core/format/app_number.dart';
 import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/penarikan_nasabah_provider.dart';
@@ -10,6 +11,9 @@ import '../../widgets/penarikan_detail_widgets.dart';
 import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'qr_penarikan_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class DetailPenarikanScreen extends StatefulWidget {
   final String penarikanId;
@@ -22,8 +26,8 @@ class DetailPenarikanScreen extends StatefulWidget {
 }
 
 class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
 
   bool _batalExpanded = false;
 
@@ -40,31 +44,13 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
     });
   }
 
-  // ── Formatters ────────────────────────────────────────────────────────────
-
-  String _fmtNominal(double v, String satuan, {bool isUang = false}) {
-    final f = NumberFormat.decimalPattern('id_ID');
-    f.maximumFractionDigits = 4;
-    f.minimumFractionDigits = 0;
-    if (isUang) return 'Rp ${f.format(v)}';
-    return '${f.format(v)} ${satuan.isEmpty ? 'poin' : satuan}';
-  }
-
   String _fmtDeadline(DateTime? dt) {
     if (dt == null) return '-';
-    // Bulan disingkat ('Sep', bukan 'September'). Versi panjangnya membuat
-    // nilainya melipat ke baris kedua di kartu Estimasi Konfirmasi, sehingga
-    // barisnya terlihat sesak.
-    final dateStr = DateFormat('d MMM yyyy', 'id_ID').format(dt);
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '$dateStr, $h.$m WIB';
+    return '${AppDate.tanggalSingkat(dt)}, ${AppDate.jamWib(dt)}';
   }
 
   String _capitalize(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}';
-
-  // ── Batal ─────────────────────────────────────────────────────────────────
 
   Future<void> _confirmBatal(PenarikanNasabahProvider prov) async {
     final catatanController = TextEditingController();
@@ -103,38 +89,29 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                        color: AppColors.danger.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.cancel_outlined,
-                          color: Color(0xFFEF4444), size: 32),
+                          color: AppColors.danger, size: 32),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const SizedBox(
+                  SizedBox(
                     width: double.infinity,
                     child: Text(
                       'Batalkan Pengajuan?',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: dark,
-                      ),
+                      style: AppText.w700(17, dark),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const SizedBox(
+                  SizedBox(
                     width: double.infinity,
                     child: Text(
                       'Pengajuan penarikan akan dibatalkan dan saldo akan dikembalikan ke rekeningmu.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        color: Colors.black54,
-                      ),
+                      style: AppText.r(13, Colors.black54),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -146,15 +123,10 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
                     textInputAction: TextInputAction.done,
                     inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\n'))],
                     onChanged: (_) => setSheetState(() {}),
-                    style: const TextStyle(
-                        fontFamily: 'Poppins', fontSize: 13, color: dark),
+                    style: AppText.r(13, dark),
                     decoration: InputDecoration(
                       hintText: 'Isi alasan pembatalan pengajuan penarikan',
-                      hintStyle: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        color: dark.withValues(alpha: 0.35),
-                      ),
+                      hintStyle: AppText.r(13, dark.withValues(alpha: 0.35)),
                       filled: true,
                       fillColor: const Color(0xFFF5F7FA),
                       border: OutlineInputBorder(
@@ -164,7 +136,7 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide: const BorderSide(
-                            color: Color(0xFFEF4444), width: 1),
+                            color: AppColors.danger, width: 1),
                       ),
                       contentPadding: const EdgeInsets.all(14),
                     ),
@@ -192,7 +164,7 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
                       Expanded(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFEF4444),
+                            backgroundColor: AppColors.danger,
                             foregroundColor: Colors.white,
                             disabledBackgroundColor: Colors.grey.shade300,
                             padding: const EdgeInsets.symmetric(vertical: 10),
@@ -237,12 +209,10 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -276,48 +246,21 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
     );
   }
 
-  Widget _buildError(PenarikanNasabahProvider prov) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline_rounded,
-                color: Colors.redAccent, size: 48),
-            const SizedBox(height: 12),
-            Text(
-              prov.errorDetail ?? 'Terjadi kesalahan',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontFamily: 'Poppins', fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50)),
-              ),
-              onPressed: () => prov.loadDetail(widget.penarikanId),
-              child: const Text('Coba lagi',
-                  style: TextStyle(fontFamily: 'Poppins')),
-            ),
-          ],
+  Widget _buildError(PenarikanNasabahProvider prov) => StateMessage(
+        illustration: StateArt.error,
+        message: prov.errorDetail ?? 'Terjadi kesalahan',
+        action: StateRetryButton(
+          onPressed: () => prov.loadDetail(widget.penarikanId),
+          label: 'Coba lagi',
+          color: primary,
+          radius: 50,
         ),
-      ),
-    );
-  }
+      );
 
-  Widget _buildEmpty() {
-    return const Center(
-      child: Text(
-        'Detail tidak ditemukan',
-        style: TextStyle(fontFamily: 'Poppins', fontSize: 14),
-      ),
-    );
-  }
+  Widget _buildEmpty() => const StateMessage(
+        illustration: StateArt.emptyMoney,
+        message: 'Detail tidak ditemukan',
+      );
 
   Widget _buildDetail(
       PenarikanDetail detail, PenarikanNasabahProvider prov) {
@@ -366,8 +309,6 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
     );
   }
 
-  // ── Header (struk style) ─────────────────────────────────────────────────
-
   Widget _buildHeader(PenarikanDetail detail) {
     return PenarikanDetailHeader(
       nominal: detail.nominalPenarikan,
@@ -378,8 +319,6 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
     );
   }
 
-  // ── Informasi Penarikan ──────────────────────────────────────────────────
-
   Widget _buildInfoSection(PenarikanDetail detail) {
     return SectionCard(
       icon: Icons.receipt_long_rounded,
@@ -389,15 +328,13 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
         PenarikanInfoRow(label: 'ID Transaksi', value: detail.penarikanId),
         PenarikanInfoRow(
           label: 'Nominal',
-          value: _fmtNominal(detail.nominalPenarikan, detail.satuanPenarikan,
-              isUang: detail.isUang),
+          value: AppNumber.nominal(detail.nominalPenarikan,
+              satuan: detail.satuanPenarikan, isUang: detail.isUang),
         ),
         PenarikanInfoRow(label: 'Status', value: detail.status.label),
       ],
     );
   }
-
-  // ── Detail Barang (barang) ──────────────────────────────────────────────
 
   Widget _buildBarangCard(PenarikanDetail detail) {
     final items = detail.detailBarang;
@@ -407,14 +344,12 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
       title: 'Detail Barang',
       children: [
         for (int i = 0; i < items.length; i++) ...[
-          if (i > 0) const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          if (i > 0) const Divider(height: 1, color: AppColors.divider),
           DetailBarangRow(item: items[i]),
         ],
       ],
     );
   }
-
-  // ── Estimasi Konfirmasi ──────────────────────────────────────────────────
 
   Widget _buildEstimasiCard(PenarikanDetail detail) {
     return SectionCard(
@@ -432,8 +367,6 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
       ],
     );
   }
-
-  // ── Bukti Penyerahan Insentif ────────────────────────────────────────────
 
   Widget _buildBuktiFotoCard(PenarikanDetail detail) {
     return SectionCard(
@@ -461,8 +394,6 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
     );
   }
 
-  // ── QR Penerimaan Insentif (status approved) ─────────────────────────────
-
   Widget _buildQrCard(PenarikanDetail detail) {
     return Container(
       width: double.infinity,
@@ -472,7 +403,7 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
         border: Border(
           top: BorderSide(
             width: 1,
-            color: const Color(0xFF013236).withValues(alpha: 0.1),
+            color: AppColors.dark.withValues(alpha: 0.1),
           ),
         ),
       ),
@@ -483,12 +414,7 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
             'Tunjukkan QR code berikut pada petugas saat pengambilan insentif '
             'sebelum ${_fmtDeadline(detail.deadlineJemput)}',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 11,
-              color: dark.withValues(alpha: 0.6),
-              height: 1.45,
-            ),
+            style: AppText.p(11, color: dark.withValues(alpha: 0.6), height: 1.45),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -513,13 +439,9 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
                 ),
               ),
               icon: const Icon(Icons.qr_code_rounded, size: 16),
-              label: const Text(
+              label: Text(
                 'QR Penerimaan Insentif',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
+                style: AppText.w600(13),
               ),
             ),
           ),
@@ -527,8 +449,6 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
       ),
     );
   }
-
-  // ── Batalkan pengajuan ───────────────────────────────────────────────────
 
   Widget _buildBatalCard(PenarikanNasabahProvider prov) {
     return GestureDetector(
@@ -541,7 +461,7 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             width: 1,
-            color: const Color(0xFF013236).withValues(alpha: 0.1),
+            color: AppColors.dark.withValues(alpha: 0.1),
           ),
         ),
         child: Column(
@@ -552,15 +472,10 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
                 const Icon(Icons.help_outline_rounded,
                     color: Colors.black45, size: 18),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Ingin membatalkan pengajuan?',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF013236),
-                    ),
+                    style: AppText.w500(12, AppColors.dark),
                   ),
                 ),
                 Icon(
@@ -578,8 +493,8 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFEF4444),
-                    side: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+                    foregroundColor: AppColors.danger,
+                    side: const BorderSide(color: AppColors.danger, width: 1.5),
                     backgroundColor: Colors.transparent,
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     elevation: 0,
@@ -592,16 +507,12 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
                           width: 15,
                           height: 15,
                           child: CircularProgressIndicator(
-                              color: Color(0xFFEF4444), strokeWidth: 2.5),
+                              color: AppColors.danger, strokeWidth: 2.5),
                         )
                       : const Icon(Icons.cancel_outlined, size: 15),
-                  label: const Text(
+                  label: Text(
                     'Batalkan Pengajuan',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
+                    style: AppText.w600(12),
                   ),
                 ),
               ),
@@ -612,6 +523,3 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
     );
   }
 }
-
-// Section card, info row, dan riwayat card sekarang dari
-// ../../widgets/penarikan_detail_widgets.dart (dipakai bareng dengan layar petugas).

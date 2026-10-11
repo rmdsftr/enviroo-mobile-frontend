@@ -3,6 +3,8 @@ import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 class QRAngkutSampahScreen extends StatefulWidget {
   final String pengangkutanId;
   final List<Map<String, dynamic>> selectedItems;
@@ -41,7 +43,7 @@ class _QRAngkutSampahScreenState extends State<QRAngkutSampahScreen> {
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          color: Color(0xFFFFFFFF),
+          color: Colors.white,
         ),
         child: SafeArea(
           child: Column(
@@ -50,12 +52,11 @@ class _QRAngkutSampahScreenState extends State<QRAngkutSampahScreen> {
 
               const Spacer(),
 
-              // Instruction Text
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 24),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -63,25 +64,20 @@ class _QRAngkutSampahScreenState extends State<QRAngkutSampahScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF013236).withOpacity(0.1),
+                        color: AppColors.dark.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
                         Icons.qr_code_scanner_rounded,
-                        color: Color(0xFF013236),
+                        color: AppColors.dark,
                         size: 24,
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         "Tunjukkan QR code ini pada petugas BSI untuk konfirmasi pengangkutan sampah",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF2D5A1D),
-                        ),
+                        style: AppText.w500(13, Color(0xFF2D5A1D)),
                       ),
                     ),
                   ],
@@ -90,7 +86,6 @@ class _QRAngkutSampahScreenState extends State<QRAngkutSampahScreen> {
 
               const SizedBox(height: 24),
 
-              // QR Code Card
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 decoration: BoxDecoration(
@@ -98,12 +93,12 @@ class _QRAngkutSampahScreenState extends State<QRAngkutSampahScreen> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF013236).withOpacity(0.15),
+                      color: AppColors.dark.withValues(alpha: 0.15),
                       blurRadius: 30,
                       offset: const Offset(0, 15),
                     ),
                     BoxShadow(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       blurRadius: 20,
                       offset: const Offset(0, -5),
                     ),
@@ -113,62 +108,49 @@ class _QRAngkutSampahScreenState extends State<QRAngkutSampahScreen> {
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
-                      // Label "Admin BSU → Admin BSI"
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF013236).withOpacity(0.08),
+                          color: AppColors.dark.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
+                          children: [
                             Icon(Icons.local_shipping_rounded,
-                                size: 14, color: Color(0xFF013236)),
+                                size: 14, color: AppColors.dark),
                             SizedBox(width: 6),
                             Text(
                               'BSU → BSI',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF013236),
-                              ),
+                              style: AppText.w600(11, AppColors.dark),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 16),
 
-                      // QR Code
                       QrImageView(
                         data: _qrData,
                         version: QrVersions.auto,
                         size: 270.0,
                         eyeStyle: const QrEyeStyle(
                           eyeShape: QrEyeShape.square,
-                          color: Color(0xFF013236),
+                          color: AppColors.dark,
                         ),
                         dataModuleStyle: const QrDataModuleStyle(
                           dataModuleShape: QrDataModuleShape.square,
-                          color: Color(0xFF013236),
+                          color: AppColors.dark,
                         ),
-                        // embeddedImage: const AssetImage(
-                        //     'assets/images/enviroo-logo-small.png'),
-                        // embeddedImageStyle: const QrEmbeddedImageStyle(
-                        //   size: Size(50, 50),
-                        // ),
                       ),
 
-                      // Selected items summary
                       if (widget.selectedItems.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF2FAF0),
+                            color: AppColors.surfaceLeaf,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Column(
@@ -176,12 +158,7 @@ class _QRAngkutSampahScreenState extends State<QRAngkutSampahScreen> {
                             children: [
                               Text(
                                 '${widget.selectedItems.length} jenis sampah diangkut',
-                                style: const TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF2D5A1D),
-                                ),
+                                style: AppText.w600(11, Color(0xFF2D5A1D)),
                               ),
                               const SizedBox(height: 6),
                               ...widget.selectedItems.map((item) => Padding(
@@ -193,7 +170,7 @@ class _QRAngkutSampahScreenState extends State<QRAngkutSampahScreen> {
                                           width: 4,
                                           height: 4,
                                           decoration: const BoxDecoration(
-                                            color: Color(0xFF4EA771),
+                                            color: AppColors.green,
                                             shape: BoxShape.circle,
                                           ),
                                         ),
@@ -201,21 +178,12 @@ class _QRAngkutSampahScreenState extends State<QRAngkutSampahScreen> {
                                         Expanded(
                                           child: Text(
                                             '${item['nama']}',
-                                            style: const TextStyle(
-                                              fontFamily: 'Poppins',
-                                              fontSize: 11,
-                                              color: Color(0xFF0D3B3E),
-                                            ),
+                                            style: AppText.r(11, AppColors.darkAlt),
                                           ),
                                         ),
                                         Text(
                                           '${item['jumlah']} ${item['satuan']}',
-                                          style: const TextStyle(
-                                            fontFamily: 'Poppins',
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF4EA771),
-                                          ),
+                                          style: AppText.w600(11, AppColors.green),
                                         ),
                                       ],
                                     ),
@@ -231,17 +199,12 @@ class _QRAngkutSampahScreenState extends State<QRAngkutSampahScreen> {
 
               const Spacer(),
 
-              // Bottom hint
               Padding(
                 padding: const EdgeInsets.only(bottom: 28),
                 child: Text(
                   'Scan QR code ini menggunakan aplikasi petugas BSI',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    color: const Color(0xFF013236).withOpacity(0.6),
-                  ),
+                  style: AppText.r(12, AppColors.dark.withValues(alpha: 0.6)),
                 ),
               ),
             ],

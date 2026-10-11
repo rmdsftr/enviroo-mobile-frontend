@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format/app_date.dart';
+import '../../core/format/app_number.dart';
 import '../../models/bagi_hasil_bank_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bagi_hasil_bank_provider.dart';
@@ -12,13 +13,10 @@ import '../../widgets/topbar_back.dart';
 import '../../widgets/filter_month_year.dart';
 import '../../screens/penjualan/riwayat_penjualan_screen.dart';
 import 'detail_bagi_hasil_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-class _C {
-  static const dark = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
-  static const muted = Color(0xFF8A9A92);
-  static const accent = Color(0xFF94DF0C);
-}
 
 class RiwayatBagiHasilScreen extends StatefulWidget {
   const RiwayatBagiHasilScreen({super.key});
@@ -54,7 +52,7 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -81,7 +79,6 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
   Widget _buildBody(BagiHasilBankProvider prov) {
     return CustomScrollView(
       slivers: [
-        // Bagian atas — kena background, scroll away normally
         SliverToBoxAdapter(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,12 +87,7 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
                 padding: const EdgeInsets.fromLTRB(28, 8, 28, 12),
                 child: Text(
                   'Pada menu ini kamu bisa melihat semua riwayat bagi hasil yang pernah dilakukan bank sampah',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    color: Color(0xFF013236).withValues(alpha: 0.8),
-                    height: 1.5,
-                  ),
+                  style: AppText.p(13, color: AppColors.dark.withValues(alpha: 0.8), height: 1.5),
                 ),
               ),
               Padding(
@@ -114,8 +106,6 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
             ],
           ),
         ),
-        // Sticky: "Riwayat Bagi Hasil" + filter bulan + filter reward,
-        // pin di bawah TopBarBack
         SliverPersistentHeader(
           pinned: true,
           delegate: _StickyHeaderDelegate(
@@ -130,12 +120,7 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
                       padding : const EdgeInsets.symmetric(horizontal: 5),
                       child : Text(
                         "Riwayat Bagi Hasil",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: _C.dark,
-                        ),
+                        style: AppText.w600(14, AppColors.dark),
                       )
                   ),
                   const SizedBox(height: 12),
@@ -148,28 +133,25 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
             ),
           ),
         ),
-        // List — cuma ini yang scroll di bawah sticky header
-        SliverToBoxAdapter(
-          child: Container(
-            width: double.infinity,
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height,
+        SliverLayoutBuilder(
+          builder: (context, sc) => SliverToBoxAdapter(
+            child: Container(
+              width: double.infinity,
+              constraints: BoxConstraints(
+                minHeight: (sc.viewportMainAxisExtent -
+                        sc.precedingScrollExtent)
+                    .clamp(0.0, double.infinity),
+              ),
+              decoration: const BoxDecoration(color: Colors.white),
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 40),
+              child: _buildList(prov),
             ),
-            decoration: const BoxDecoration(color: Colors.white),
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 40),
-            child: _buildList(prov),
           ),
         ),
       ],
     );
   }
 
-  /// Jenis saldo untuk satu baris persentase: 'saldo rupiah' / 'saldo poin'.
-  ///
-  /// Sumber utamanya `satuan` ("Rp" / "poin"). Kalau kosong atau tak dikenal,
-  /// jatuh ke `namaReward` ("Uang" / "Barang") yang masih dipakai backend.
-  /// Dua-duanya istilah mentah backend, jadi tidak ada yang boleh tampil apa
-  /// adanya ke nasabah.
   String _labelSaldo(PersenBagiHasilReward r) {
     final s = r.satuan.toLowerCase();
     if (s.contains('poin')) return 'saldo poin';
@@ -183,20 +165,13 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
     if (reward.nilaiStatus == FetchStatus.loading) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
-        child: Center(child: CircularProgressIndicator(color: _C.green)),
+        child: Center(child: CircularProgressIndicator(color: AppColors.green)),
       );
     }
     if (reward.persenNasabah.isEmpty) return const SizedBox.shrink();
 
     final items = reward.persenNasabah;
 
-    // Satu kartu per jenis saldo, berdampingan dan sama tinggi walau teks
-    // salah satunya melipat lebih panjang.
-    //
-    // IntrinsicHeight wajib di sini: Row ini hidup di dalam area scroll, jadi
-    // tingginya tidak terbatas. Tanpa pembatas itu, CrossAxisAlignment.stretch
-    // meneruskan tinggi tak hingga ke kartunya dan seluruh layar gagal
-    // di-layout ("BoxConstraints forces an infinite height").
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -216,31 +191,20 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _C.dark.withValues(alpha: 0.08)),
+        border: Border.all(color: AppColors.dark.withValues(alpha: 0.08)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
-            '${r.persenBagiHasil.toStringAsFixed(0)}%',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              height: 1.1,
-              color: _C.green,
-            ),
+            AppNumber.persen(r.persenBagiHasil, maksDesimal: 0),
+            style: AppText.p(20, weight: FontWeight.w700, color: AppColors.green, height: 1.1),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'bagi hasil ${_labelSaldo(r)} nasabah',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 9.5,
-                height: 1.35,
-                color: _C.dark.withValues(alpha: 0.5),
-              ),
+              style: AppText.p(9.5, color: AppColors.dark.withValues(alpha: 0.5), height: 1.35),
             ),
           ),
         ],
@@ -263,7 +227,7 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: _C.dark,
+          color: AppColors.dark,
           borderRadius: BorderRadius.circular(22),
         ),
         child: Row(
@@ -271,34 +235,25 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: _C.accent.withValues(alpha: 0.15),
+                color: AppColors.neon.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(25),
               ),
               child: const Icon(Icons.payments_rounded,
-                  color: _C.accent, size: 22),
+                  color: AppColors.neon, size: 22),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Lakukan Bagi Hasil',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
+                    style: AppText.w700(13, Colors.white),
                   ),
                   SizedBox(height: 2),
                   Text(
                     'Distribusikan hasil penjualan ke nasabah',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: Colors.white60,
-                    ),
+                    style: AppText.r(11, Colors.white60),
                   ),
                 ],
               ),
@@ -327,9 +282,6 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
   Widget _buildRewardChipFilter() {
     return FilterChipRow<String>(
       padding: const EdgeInsets.symmetric(horizontal: 5),
-      // Label memakai jenis SALDO. Nilainya tetap 'uang'/'barang' karena itu
-      // yang dicocokkan ke namaReward dari backend di _buildList() -- jangan
-      // ikut diubah.
       items: const [
         FilterChipItem(value: 'semua', label: 'Semua'),
         FilterChipItem(value: 'uang', label: 'Rupiah'),
@@ -387,57 +339,24 @@ class _RiwayatBagiHasilScreenState extends State<RiwayatBagiHasilScreen> {
     );
   }
 
-  Widget _buildEmpty() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.only(top: 40),
-        child: Column(
-          children: [
-            Icon(Icons.receipt_long_rounded, size: 52, color: Colors.grey[300]),
-            const SizedBox(height: 12),
-            Text(
-              'Belum ada riwayat bagi hasil',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: Colors.grey[500],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildEmpty() => StateMessage(
+        illustration: StateArt.emptyMoney,
+        message: 'Belum ada riwayat bagi hasil',
+        subtitle: 'Pilih menu lakukan bagi hasil untuk mulai melakukan bagi hasil',
+      );
 
-  Widget _buildError(String msg, VoidCallback onRetry) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.only(top: 40),
-        child: Column(
-          children: [
-            Icon(Icons.error_outline_rounded, size: 48, color: Colors.grey[400]),
-            const SizedBox(height: 10),
-            Text(
-              msg,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontFamily: 'Poppins', fontSize: 12),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: onRetry,
-              child: const Text('Coba Lagi',
-                  style: TextStyle(fontFamily: 'Poppins', color: _C.green)),
-            ),
-          ],
+  Widget _buildError(String msg, VoidCallback onRetry) => StateMessage(
+        illustration: StateArt.error,
+        message: msg,
+        action: TextButton(
+          onPressed: onRetry,
+          child: const Text('Coba Lagi',
+              style:
+                  TextStyle(fontFamily: 'Poppins', color: AppColors.green)),
         ),
-      ),
-    );
-  }
+      );
 }
 
-// ── Sticky header delegate ───────────────────────────────────────────────────
-// Bikin "Riwayat Bagi Hasil" + filter bulan + filter reward nempel (pinned) di
-// bawah TopBarBack saat di-scroll, sementara cuma list riwayat yang ikut bergerak.
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   final double height;
@@ -469,24 +388,18 @@ class _BagiHasilCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tanggal =
-        DateFormat('d MMMM yyyy', 'id_ID').format(item.tanggalBagiHasil);
-    final jam =
-        DateFormat('HH:mm', 'id_ID').format(item.tanggalBagiHasil);
+    final tanggal = AppDate.tanggalPanjang(item.tanggalBagiHasil);
+    final jam = AppDate.jam(item.tanggalBagiHasil);
 
-    Color rewardColor;
     IconData rewardIcon;
     switch (item.rewardId) {
       case 2:
-        rewardColor = const Color(0xFFFFC107);
         rewardIcon = Icons.stars_rounded;
         break;
       case 3:
-        rewardColor = const Color(0xFF9B51E0);
         rewardIcon = Icons.toll_rounded;
         break;
       default:
-        rewardColor = const Color(0xFF4EA771);
         rewardIcon = Icons.payments_rounded;
     }
 
@@ -499,7 +412,7 @@ class _BagiHasilCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: const Color(0xFF013236).withOpacity(0.08),
+            color: AppColors.dark.withValues(alpha: 0.08),
             width: 1,
           ),
         ),
@@ -508,10 +421,10 @@ class _BagiHasilCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: _C.dark.withValues(alpha: 0.12),
+                color: AppColors.dark.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(rewardIcon, color: _C.dark, size: 22),
+              child: Icon(rewardIcon, color: AppColors.dark, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -520,21 +433,12 @@ class _BagiHasilCard extends StatelessWidget {
                 children: [
                   Text(
                     '$tanggal · $jam',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: _C.dark,
-                    ),
+                    style: AppText.w600(13, AppColors.dark),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     'ID : ${item.bagiHasilId}',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: _C.muted,
-                    ),
+                    style: AppText.r(11, AppColors.muted),
                   ),
                 ],
               ),

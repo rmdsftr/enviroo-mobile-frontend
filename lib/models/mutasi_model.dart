@@ -24,8 +24,6 @@ class MutasiItem {
 class MutasiResponse {
   final String namaReward;
   final String satuanReward;
-  // totalDebit = saldo keluar (isPositive=false items) in backend terms
-  // totalKredit = saldo masuk (isPositive=true items) in backend terms
   final double totalDebit;
   final double totalKredit;
   final List<MutasiItem> mutasiItems;

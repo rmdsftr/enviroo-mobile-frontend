@@ -1,3 +1,4 @@
+import 'package:enviroo/core/format/app_date.dart';
 import 'package:enviroo/models/setoran_nasabah_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/setoran_provider.dart';
@@ -8,10 +9,11 @@ import 'package:enviroo/providers/penimbangan_provider.dart';
 import 'package:enviroo/widgets/filter_month_year.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-// ── Screen ───────────────────────────────────────────────────────────────────
 class RiwayatSetoranScreen extends StatefulWidget {
   const RiwayatSetoranScreen({super.key});
 
@@ -20,11 +22,7 @@ class RiwayatSetoranScreen extends StatefulWidget {
 }
 
 class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
-  static const _teal = Color(0xFF013236);
-  static const _accent = Color(0xFF4EA771);
-  static const _lime = Color(0xFF94DF0C);
 
-  // ── Data State ──────────────────────────────────────────────────────────────
   List<RiwayatSetoranModel> _list = [];
   bool _isLoading = true;
   String? _error;
@@ -32,7 +30,6 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
   String _penimbanganId = '';
   int _pendingSessions = 0;
 
-  // ── Filter & Search State ───────────────────────────────────────────────────
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -44,7 +41,6 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
   @override
   void initState() {
     super.initState();
-    // Default filter: 3 bulan terakhir
     final now = DateTime.now();
     int startMonth = now.month - 2;
     int startYear = now.year;
@@ -55,7 +51,7 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
     _filterStart = DateTime(startYear, startMonth);
     _filterEnd = DateTime(now.year, now.month);
 
-    _fetchAll();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fetchAll());
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text.toLowerCase());
     });
@@ -106,7 +102,6 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
     }
   }
 
-  // ── Fetch Riwayat ────────────────────────────────────────────────────────────
   Future<void> _fetchRiwayat() async {
     setState(() {
       _isLoading = true;
@@ -116,16 +111,11 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final nasabahId = auth.identityId ?? '';
 
-    // Konversi filter bulan -> rentang tanggal penuh (hari pertama s/d hari terakhir)
-    final start = DateTime(_filterStart.year, _filterStart.month, 1);
-    final end = DateTime(_filterEnd.year, _filterEnd.month + 1, 0);
-    final fmt = DateFormat('yyyy-MM-dd');
-
     final prov = context.read<SetoranProvider>();
     await prov.fetchRiwayat(
       nasabahId,
-      startDate: fmt.format(start),
-      endDate: fmt.format(end),
+      startDate: AppDate.apiAwalBulan(_filterStart),
+      endDate: AppDate.apiAkhirBulan(_filterEnd),
     );
     if (!mounted) return;
     if (prov.riwayatStatus == FetchStatus.success) {
@@ -141,15 +131,12 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
     }
   }
 
-  // ── Filtered List ────────────────────────────────────────────────────────────
-  // Filter tanggal sudah ditangani server-side; di sini hanya search.
   List<RiwayatSetoranModel> get _filteredList {
     return _list.where((item) {
       if (_searchQuery.isNotEmpty) {
         final namaMatch =
             item.namaPetugas.toLowerCase().contains(_searchQuery);
-        final tanggalMatch = DateFormat('dd MMM yyyy', 'id_ID')
-            .format(item.transaksiTimestamp)
+        final tanggalMatch = AppDate.tanggalSingkat(item.transaksiTimestamp)
             .toLowerCase()
             .contains(_searchQuery);
         if (!namaMatch && !tanggalMatch) return false;
@@ -158,11 +145,10 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
     }).toList();
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -180,12 +166,11 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
                   : _error != null
                       ? _buildError()
                       : RefreshIndicator(
-                          color: _accent,
+                          color: AppColors.green,
                           onRefresh: _fetchAll,
                           child: CustomScrollView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             slivers: [
-                              // QR button + summary stats — scroll away normally
                               SliverToBoxAdapter(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,7 +183,6 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
                                   ],
                                 ),
                               ),
-                              // Sticky: "Riwayat Setoran" + filter bulan, pin di bawah TopBarBack
                               SliverPersistentHeader(
                                 pinned: true,
                                 delegate: _StickyHeaderDelegate(
@@ -229,32 +213,35 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
                                   ),
                                 ),
                               ),
-                              // List / Empty — cuma ini yang scroll di bawah sticky header
-                              SliverToBoxAdapter(
-                                child: Container(
-                                  width: double.infinity,
-                                  constraints: BoxConstraints(
-                                    minHeight: MediaQuery.of(context).size.height,
-                                  ),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                  ),
-                                  padding: const EdgeInsets.only(bottom: 40),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const SizedBox(height: 8),
-                                      if (_filteredList.isEmpty)
-                                        _buildEmpty()
-                                      else
-                                        ListView.builder(
-                                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-                                          shrinkWrap: true,
-                                          physics: const NeverScrollableScrollPhysics(),
-                                          itemCount: _filteredList.length,
-                                          itemBuilder: (ctx, i) => _buildCard(_filteredList[i]),
-                                        ),
-                                    ],
+                              SliverLayoutBuilder(
+                                builder: (context, sc) => SliverToBoxAdapter(
+                                  child: Container(
+                                    width: double.infinity,
+                                    constraints: BoxConstraints(
+                                      minHeight: (sc.viewportMainAxisExtent -
+                                              sc.precedingScrollExtent)
+                                          .clamp(0.0, double.infinity),
+                                    ),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                    ),
+                                    padding: const EdgeInsets.only(bottom: 40),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const SizedBox(height: 8),
+                                        if (_filteredList.isEmpty)
+                                          _buildEmpty()
+                                        else
+                                          ListView.builder(
+                                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+                                            shrinkWrap: true,
+                                            physics: const NeverScrollableScrollPhysics(),
+                                            itemCount: _filteredList.length,
+                                            itemBuilder: (ctx, i) => _buildCard(_filteredList[i]),
+                                          ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -269,7 +256,6 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
     );
   }
 
-  // ── QR Button ─────────────────────────────────────────────────────────────────
   Widget _buildQRButton() {
     if (!_isSessionActive) return _infoCard();
     return Padding(
@@ -283,7 +269,7 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
           decoration: BoxDecoration(
-            color : Color(0xFF013236),
+            color : AppColors.dark,
             borderRadius: BorderRadius.circular(25),
           ),
           child: Row(
@@ -291,32 +277,23 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: _lime.withOpacity(0.15),
+                  color: AppColors.neon.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Icon(Icons.qr_code_rounded, color: _lime, size: 26),
+                child: const Icon(Icons.qr_code_rounded, color: AppColors.neon, size: 26),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'QR Code Penyetoran',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: Colors.white,
-                      ),
+                      style: AppText.w700(14, Colors.white),
                     ),
                     Text(
                       'Tunjukkan ke petugas Bank Sampah saat menyetor',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: Colors.white.withOpacity(0.65),
-                      ),
+                      style: AppText.r(11, Colors.white.withValues(alpha: 0.65)),
                     ),
                   ],
                 ),
@@ -329,27 +306,20 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
   }
 
 
-  // ── Section Header ────────────────────────────────────────────────────────────
   Widget _buildSectionHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 20, 8),
       child: Row(
         children: [
-          const Text(
+          Text(
             'Riwayat Setoran',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-              color: _teal,
-            ),
+            style: AppText.w600(14, AppColors.dark),
           ),
         ],
       ),
     );
   }
 
-  // ── Card ──────────────────────────────────────────────────────────────────────
   Widget _buildCard(RiwayatSetoranModel item) {
     const statusIcon = Icons.move_to_inbox_rounded;
 
@@ -366,72 +336,54 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
               width: 1,
-              color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+              color: AppColors.dark.withValues(alpha: 0.1),
             ),
           ),
           child: Row(
             children: [
-              // Status icon
               Container(
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: Color(0xFF013236).withOpacity(0.1),
+                  color: AppColors.dark.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                     statusIcon,
-                    color: Color(0xFF013236),
+                    color: AppColors.dark,
                     size: 22
                 ),
               ),
               const SizedBox(width: 14),
-              // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      DateFormat('dd MMM yyyy, HH:mm', 'id_ID')
-                          .format(item.transaksiTimestamp),
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: _teal,
-                      ),
+                      AppDate.tanggalSingkatJam(item.transaksiTimestamp),
+                      style: AppText.w600(13, AppColors.dark),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       item.setoranId,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        color: _teal.withOpacity(0.4),
-                      ),
+                      style: AppText.r(10, AppColors.dark.withValues(alpha: 0.4)),
                     ),
                   ],
                 ),
               ),
-              // Item count badge (menggantikan arrow)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: _accent.withOpacity(0.08),
+                  color: AppColors.green.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '${item.totalItem} item',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: _accent,
-                  ),
+                  style: AppText.w600(10, AppColors.green),
                 ),
               ),
             ],
@@ -441,7 +393,6 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
     );
   }
 
-  // ── Shimmer Loading ───────────────────────────────────────────────────────────
   Widget _buildShimmer() {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -478,7 +429,7 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
           height: height,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: _teal.withOpacity(0.07),
+            color: AppColors.dark.withValues(alpha: 0.07),
             borderRadius: BorderRadius.circular(radius),
           ),
         ),
@@ -486,99 +437,26 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
     );
   }
 
-  // ── Empty ─────────────────────────────────────────────────────────────────────
   Widget _buildEmpty() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: _accent.withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.inbox_rounded,
-                  size: 36, color: _teal.withOpacity(0.35)),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              _searchQuery.isNotEmpty
-                  ? 'Tidak ada data yang cocok'
-                  : 'Belum ada setoran',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-                color: _teal.withOpacity(0.5),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _searchQuery.isNotEmpty
-                  ? 'Coba ubah kata kunci pencarian'
-                  : 'Riwayat setoran sampah kamu akan muncul di sini',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                color: _teal.withOpacity(0.35),
-              ),
-            ),
-          ],
-        ),
-      ),
+    final searching = _searchQuery.isNotEmpty;
+    return StateMessage(
+      illustration: StateArt.empty,
+      message: searching ? 'Tidak ada data yang cocok' : 'Belum ada riwayat setoran',
+      subtitle: searching
+          ? 'Coba ubah kata kunci pencarian'
+          : 'Riwayat setoran sampah kamu akan tampil kalau udah pernah nyetor sampah ya',
     );
   }
 
-  // ── Error ─────────────────────────────────────────────────────────────────────
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline_rounded,
-                size: 40, color: Colors.red.withOpacity(0.5)),
-            const SizedBox(height: 12),
-            Text(
-              _error ?? 'Terjadi kesalahan',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: _teal.withOpacity(0.5)),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _fetchAll,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _teal,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Coba Lagi',
-                  style: TextStyle(fontFamily: 'Poppins')),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildError() => StateMessage(
+        illustration: StateArt.error,
+        message: _error ?? 'Terjadi kesalahan',
+        action: StateRetryButton(onPressed: _fetchAll),
+      );
 
-  // ── Summary Stats ─────────────────────────────────────────────────────────────
   Widget _buildSummaryStats() {
-    // _list sudah difilter tanggal dari server
     final totalSetoran = _list.length;
 
-    // Satu sesi penimbangan bisa memuat lebih dari satu setoran dari nasabah
-    // yang sama, jadi yang dihitung adalah id yang UNIK -- bukan jumlah
-    // barisnya (itu sudah jadi angka Total Setoran di sebelahnya). Baris tanpa
-    // penimbangan_id dilewati supaya tidak terhitung sebagai satu sesi hantu.
     final sesiPenimbangan = _list
         .map((s) => s.penimbanganId)
         .where((id) => id.isNotEmpty)
@@ -588,13 +466,13 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
     return Row(
       children: [
         Expanded(child: _statCard(
-          iconColor: _teal,
+          iconColor: AppColors.dark,
           label: 'Total Setoran',
           value: totalSetoran.toString(),
         )),
         const SizedBox(width: 10),
         Expanded(child: _statCard(
-          iconColor: _accent,
+          iconColor: AppColors.green,
           label: 'Sesi Penimbangan',
           value: sesiPenimbangan.toString(),
         )),
@@ -612,27 +490,22 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
           decoration: BoxDecoration(
-            color: _teal.withOpacity(0.05),
+            color: AppColors.dark.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(13),
             border: Border.all(
-              color: _teal.withOpacity(0.08),
+              color: AppColors.dark.withValues(alpha: 0.08),
               width: 1,
             )
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.info, size: 16, color: _teal.withValues(alpha: 0.5)),
+              Icon(Icons.info, size: 16, color: AppColors.dark.withValues(alpha: 0.5)),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   message,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w500,
-                    fontSize: 11,
-                    color: _teal.withValues(alpha: 0.6),
-                  ),
+                  style: AppText.w500(11, AppColors.dark.withValues(alpha: 0.6)),
                 ),
               ),
             ],
@@ -652,7 +525,7 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _teal.withOpacity(0.08),
+          color: AppColors.dark.withValues(alpha: 0.08),
           width: 1,
         ),
       ),
@@ -661,22 +534,12 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
         children: [
           Text(
             value,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: iconColor,
-              height: 1.1,
-            ),
+            style: AppText.p(20, weight: FontWeight.w700, color: iconColor, height: 1.1),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 10,
-              color: _teal.withOpacity(0.5),
-            ),
+            style: AppText.r(10, AppColors.dark.withValues(alpha: 0.5)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -685,9 +548,6 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
   }
 }
 
-// ── Sticky header delegate ───────────────────────────────────────────────────
-// Bikin "Riwayat Setoran" + filter bulan nempel (pinned) di bawah TopBarBack
-// saat di-scroll, sementara cuma ListView card yang ikut bergerak.
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   final double height;

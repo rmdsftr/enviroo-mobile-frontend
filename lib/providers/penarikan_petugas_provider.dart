@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:intl/intl.dart';
 
+import '../core/format/app_date.dart';
 import '../models/penarikan_model.dart';
 import '../services/penarikan_service.dart';
 import 'auth_provider.dart';
@@ -9,21 +9,17 @@ import 'auth_provider.dart';
 class PenarikanPetugasProvider extends ChangeNotifier {
   AuthProvider? _auth;
 
-  // ── List state ────────────────────────────────────────────────────────────
   bool loadingList = false;
   String? errorList;
   List<PenarikanItem> _allItems = [];
 
-  // ── Detail state ──────────────────────────────────────────────────────────
   bool loadingDetail = false;
   PenarikanDetail? detail;
   String? errorDetail;
 
-  // ── Submit state ──────────────────────────────────────────────────────────
   bool submitting = false;
 
-  // ── Filters ───────────────────────────────────────────────────────────────
-  String _rewardFilter = 'Semua'; // "Semua" | "Uang" | "Barang"
+  String _rewardFilter = 'Semua';
   late DateTime _filterStart;
   late DateTime _filterEnd;
 
@@ -50,10 +46,6 @@ class PenarikanPetugasProvider extends ChangeNotifier {
   bool get _ok => _bankId?.isNotEmpty ?? false;
   bool get _hasToken => _auth != null;
 
-  // ── Filtered views ────────────────────────────────────────────────────────
-
-  // Tab "Pengajuan" = masih dalam proses (pending, approved).
-  // Tab "Selesai" = sisanya (rejected, canceled, completed, request_expired, pickup_expired).
   List<PenarikanItem> get pengajuanList => _allItems
       .where((i) => i.status.isDalamProses)
       .where(_matchesReward)
@@ -64,7 +56,6 @@ class PenarikanPetugasProvider extends ChangeNotifier {
       .where(_matchesReward)
       .toList();
 
-  // Statistik terpisah (dipakai kartu ringkasan): pending vs approved.
   List<PenarikanItem> get pendingList => _allItems
       .where((i) => i.status == StatusPenarikan.pending)
       .where(_matchesReward)
@@ -88,17 +79,8 @@ class PenarikanPetugasProvider extends ChangeNotifier {
     }
   }
 
-  // ── Date helpers ──────────────────────────────────────────────────────────
-
-  String _fmt(DateTime dt) => DateFormat('yyyy-MM-dd').format(dt);
-
-  String get _startStr => _fmt(DateTime(_filterStart.year, _filterStart.month, 1));
-  String get _endStr {
-    final last = DateTime(_filterEnd.year, _filterEnd.month + 1, 0);
-    return _fmt(last);
-  }
-
-  // ── Load list ─────────────────────────────────────────────────────────────
+  String get _startStr => AppDate.apiAwalBulan(_filterStart);
+  String get _endStr => AppDate.apiAkhirBulan(_filterEnd);
 
   Future<void> loadList() async {
     if (!_ok) {
@@ -142,8 +124,6 @@ class PenarikanPetugasProvider extends ChangeNotifier {
     loadList();
   }
 
-  // ── Load detail ───────────────────────────────────────────────────────────
-
   Future<void> loadDetail(String penarikanId) async {
     if (!_hasToken) {
       loadingDetail = false;
@@ -169,8 +149,6 @@ class PenarikanPetugasProvider extends ChangeNotifier {
     }
     notifyListeners();
   }
-
-  // ── Selesaikan penarikan (approved -> completed) ─────────────────────────
 
   Future<bool> selesaikanViaQr({
     required String qrData,
@@ -201,8 +179,6 @@ class PenarikanPetugasProvider extends ChangeNotifier {
     return false;
   }
 
-  /// [buktiFoto] berkas mentah - service mengirimnya sebagai multipart,
-  /// bukan base64 seperti sebelum backend berubah.
   Future<bool> selesaikanManual({
     required String nasabahId,
     required String penarikanId,
@@ -234,8 +210,6 @@ class PenarikanPetugasProvider extends ChangeNotifier {
     notifyListeners();
     return false;
   }
-
-  // ── Tolak / Setujui pengajuan ────────────────────────────────────────────
 
   Future<bool> tolakPengajuan({
     required String penarikanId,

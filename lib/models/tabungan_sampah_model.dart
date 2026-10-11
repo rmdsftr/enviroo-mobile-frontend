@@ -1,23 +1,10 @@
-// ─── Buku tabungan nasabah ─────────────────────────────────────
-// GET /tabungan-sampah/buku-tabungan/:nasabah_id
-//
-// Dikelompokkan per JENIS SAMPAH, bukan per setoran seperti dulu. Satu jenis
-// sampah bisa punya beberapa baris tabungan dari setoran yang berbeda, dan
-// tiap baris bisa dicairkan lebih dari sekali (sebagian-sebagian).
-
-/// Satu kali pencairan atas sebagian atau seluruh isi satu baris tabungan.
 class DetailPencairan {
   final DateTime? tanggalCair;
 
-  /// Berapa banyak sampah yang terpakai di pencairan ini — satuannya
-  /// [SampahTabungan.satuanSampah] (kg / pcs / liter).
   final double qtyDipakai;
 
-  /// Harga per satuan sampah saat dicairkan — satuannya
-  /// [SampahTabungan.satuanDiterima] (Rp / poin).
   final double hargaItem;
 
-  /// qtyDipakai x hargaItem, satuannya [SampahTabungan.satuanDiterima].
   final double subtotal;
 
   DetailPencairan({
@@ -36,23 +23,17 @@ class DetailPencairan {
       );
 }
 
-/// Satu baris tabungan: hasil satu jenis sampah dari satu kali setoran.
 class BarisTabungan {
   final String tabunganId;
 
-  /// Setoran asal baris ini. Beberapa baris bisa berbagi source_id yang sama
-  /// kalau satu setoran memuat beberapa jenis sampah.
   final String sourceId;
 
   final DateTime? createdAt;
 
-  /// Jumlah yang disetor, satuannya [SampahTabungan.satuanSampah].
   final double qty;
 
-  /// Sisa yang belum dicairkan, satuannya [SampahTabungan.satuanSampah].
   final double sisaQty;
 
-  /// 'Cair' | 'Cair Sebagian' | 'Belum Cair'.
   final String status;
 
   final List<DetailPencairan> detailPencairan;
@@ -81,17 +62,12 @@ class BarisTabungan {
       );
 }
 
-/// Semua tabungan nasabah untuk satu jenis sampah.
 class SampahTabungan {
   final String sampahId;
   final String namaSampah;
 
-  /// Satuan sampahnya sendiri: kg / pcs / liter. Dipakai untuk qty, sisaQty,
-  /// dan qtyDipakai.
   final String satuanSampah;
 
-  /// Satuan nilai yang diterima nasabah: "Rp" atau "poin". Dipakai untuk
-  /// hargaItem dan subtotal — "Rp" jadi awalan, selain itu jadi akhiran.
   final String satuanDiterima;
 
   final List<BarisTabungan> tabungan;
@@ -104,8 +80,6 @@ class SampahTabungan {
     required this.tabungan,
   });
 
-  // reward_id dan nama_reward sengaja tidak diambil: satuanDiterima sudah
-  // cukup untuk menentukan cara menulis nilainya.
   factory SampahTabungan.fromJson(Map<String, dynamic> j) => SampahTabungan(
         sampahId: j['sampah_id']?.toString() ?? '',
         namaSampah: j['nama_sampah']?.toString() ?? '',
@@ -134,8 +108,6 @@ class BukuTabunganResponse {
             .toList(),
       );
 }
-
-// ─── BSU Tabungan Models ─────────────────────────────────────────────────────
 
 class ItemTabunganBsu {
   final String tabunganId;
@@ -184,10 +156,8 @@ class PengangkutanGroup {
     required this.items,
   });
 
-  // PostgreSQL OF format outputs "+07" (no minutes), Dart needs "+07:00"
   static DateTime? _parseDate(String raw) {
     if (raw.isEmpty) return null;
-    // Hapus Z atau offset yang ada, tambah +07:00
     final clean = raw
         .replaceAll('Z', '')
         .replaceAll(RegExp(r'[+-]\d{2}:\d{2}$'), '')

@@ -1,23 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-/// Warna aksen buat chip yang lagi terpilih. Tinggal tambah case baru
-/// di [_accentColor] kalau butuh mode warna lain.
 enum FilterChipColorMode { defaultMode, dark, lime }
 
 Color _accentColor(FilterChipColorMode mode) {
   switch (mode) {
     case FilterChipColorMode.dark:
-      return const Color(0xFF013236);
+      return AppColors.dark;
     case FilterChipColorMode.lime:
-      return const Color(0xFF94DF0C);
+      return AppColors.neon;
     case FilterChipColorMode.defaultMode:
-      return const Color(0xFF4EA771);
+      return AppColors.green;
   }
 }
 
-/// Generic reusable horizontal filter chip row.
-/// [T] adalah tipe value untuk setiap chip (bisa String, int, dll).
 class FilterChipRow<T> extends StatelessWidget {
   final List<FilterChipItem<T>> items;
   final T selectedValue;
@@ -66,7 +64,6 @@ class FilterChipItem<T> {
 }
 
 class _FilterChipWidget<T> extends StatelessWidget {
-  static const _dark = Color(0xFF013236);
 
   final FilterChipItem<T> item;
   final bool isSelected;
@@ -106,13 +103,7 @@ class _FilterChipWidget<T> extends StatelessWidget {
               ],
               Text(
                 item.label,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? accent : _dark.withValues(alpha: 0.5),
-                  letterSpacing: -0.2,
-                ),
+                style: AppText.p(12, weight: FontWeight.w600, color: isSelected ? accent : AppColors.dark.withValues(alpha: 0.5), letterSpacing: -0.2),
               ),
             ],
           ),

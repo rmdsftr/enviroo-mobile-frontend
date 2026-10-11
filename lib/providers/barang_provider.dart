@@ -4,36 +4,28 @@ import 'package:enviroo/services/barang_service.dart';
 import 'package:flutter/material.dart';
 
 class BarangProvider extends ChangeNotifier {
-  // ── Catalog state ──────────────────────────────────────────────────────────
   List<KatalogBarangModel> _katalogBsi = [];
   List<KatalogBarangModel> _katalogBsu = [];
 
-  // ── Pagination state (katalogBsi) ─────────────────────────────────────────
   int _katalogBsiPage = 1;
   int _katalogBsiTotalPages = 1;
   BsuUnitModel? _selectedBsu;
 
-  // ── Detail state ──────────────────────────────────────────────────────────
   DetailBarangWithRiwayat? _currentDetail;
   bool _isDetailLoading = false;
 
-  // ── Preview state ─────────────────────────────────────────────────────────
   List<PreviewDistribusiItemModel> _previewItems = [];
   bool _isPreviewLoading = false;
 
-  // ── Input distribusi state ────────────────────────────────────────────────
-  final Map<String, int> _distribusiQty = {}; // produkId -> qty
+  final Map<String, int> _distribusiQty = {};
 
-  // ── List distribusi state ─────────────────────────────────────────────────
   List<ListDistribusiBarangModel> _listDistribusi = [];
   bool _isListDistribusiLoading = false;
 
-  // ── Loading / error ───────────────────────────────────────────────────────
   bool _isLoading = false;
   bool _isBsuLoading = false;
   String? _errorMessage;
 
-  // ── Getters ───────────────────────────────────────────────────────────────
   List<KatalogBarangModel> get katalogBsi => _katalogBsi;
   List<KatalogBarangModel> get katalogBsu => _katalogBsu;
   BsuUnitModel? get selectedBsu => _selectedBsu;
@@ -57,8 +49,6 @@ class BarangProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isBsuLoading => _isBsuLoading;
   String? get errorMessage => _errorMessage;
-
-  // ── Catalog methods ───────────────────────────────────────────────────────
 
   Future<void> fetchKatalogBsi(String bankId, {int page = 1}) async {
     _katalogBsiPage = page;
@@ -105,8 +95,6 @@ class BarangProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Detail methods ────────────────────────────────────────────────────────
-
   Future<void> fetchDetailBarang(String produkId, KatalogBarangModel item, String bankId) async {
     _isDetailLoading = true;
     _currentDetail = null;
@@ -137,8 +125,6 @@ class BarangProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── List distribusi methods ───────────────────────────────────────────────
-
   Future<void> fetchListDistribusi(String bankId, {String? startDate, String? endDate}) async {
     _isListDistribusiLoading = true;
     notifyListeners();
@@ -158,8 +144,6 @@ class BarangProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Input distribusi methods ──────────────────────────────────────────────
-
   void updateDistribusiQty(String produkId, int qty) {
     if (qty <= 0) {
       _distribusiQty.remove(produkId);
@@ -175,8 +159,6 @@ class BarangProvider extends ChangeNotifier {
     _distribusiQty.clear();
     notifyListeners();
   }
-
-  // ── Preview distribusi ────────────────────────────────────────────────────
 
   Future<bool> previewDistribusi({
     required String bsiId,
@@ -214,8 +196,6 @@ class BarangProvider extends ChangeNotifier {
     return ok;
   }
 
-  // ── Generate QR distribusi ───────────────────────────────────────────────
-
   Future<Map<String, dynamic>> generateQrDistribusi({
     required String bsiId,
     required String bsuId,
@@ -231,8 +211,6 @@ class BarangProvider extends ChangeNotifier {
       items: items,
     );
   }
-
-  // ── Add distribusi from QR (BSU side) ────────────────────────────────────
 
   Future<Map<String, dynamic>> addDistribusiFromQr({
     required String disbaId,
@@ -252,8 +230,6 @@ class BarangProvider extends ChangeNotifier {
 
     return result;
   }
-
-  // ── Utility ───────────────────────────────────────────────────────────────
 
   void clearError() {
     _errorMessage = null;

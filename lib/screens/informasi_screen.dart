@@ -1,10 +1,12 @@
+import 'package:enviroo/core/format/app_date.dart';
 import 'package:enviroo/screens/lihat_foto_screen.dart';
 import 'package:enviroo/services/konten_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:enviroo/models/konten_model.dart';
 import 'package:enviroo/widgets/editor_js_renderer.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class InformasiScreen extends StatefulWidget {
   final String kontenId;
@@ -52,14 +54,14 @@ class _InformasiScreenState extends State<InformasiScreen> {
   }
 
   String _formatDate(DateTime date) {
-    return DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(date);
+    return AppDate.tanggalPenuh(date);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        color: const Color(0xFFFFFFFF),
+        color: Colors.white,
         child: SafeArea(
           child: Column(
             children: [
@@ -67,17 +69,13 @@ class _InformasiScreenState extends State<InformasiScreen> {
               Expanded(
                 child: _isLoading
                     ? const Center(
-                        child: CircularProgressIndicator(color: Color(0xFF4EA771)),
+                        child: CircularProgressIndicator(color: AppColors.green),
                       )
                     : _error != null
                         ? Center(
                             child: Text(
                               _error!,
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 13,
-                                color: Color(0xFF013236),
-                              ),
+                              style: AppText.r(13, AppColors.dark),
                               textAlign: TextAlign.center,
                             ),
                           )
@@ -98,35 +96,20 @@ class _InformasiScreenState extends State<InformasiScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Judul
           const SizedBox(height: 10),
           Text(
             konten.judul,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF013236),
-              height: 1.3,
-            ),
+            style: AppText.p(18, weight: FontWeight.w700, color: AppColors.dark, height: 1.3),
           ),
 
-          // Deskripsi
           if (konten.deskripsi.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
               konten.deskripsi,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-                color: Color(0xFF5A7A6A),
-                height: 1.5,
-              ),
+              style: AppText.p(13, weight: FontWeight.w400, color: Color(0xFF5A7A6A), height: 1.5),
             ),
           ],
 
-          // Thumbnail
           const SizedBox(height: 20),
           GestureDetector(
             onTap: konten.thumbnail.isNotEmpty
@@ -137,7 +120,7 @@ class _InformasiScreenState extends State<InformasiScreen> {
               child: Container(
                 width: double.infinity,
                 height: 200,
-                color: const Color(0xFF94DF0C).withValues(alpha: 0.12),
+                color: AppColors.neon.withValues(alpha: 0.12),
                 child: konten.thumbnail.isNotEmpty
                     ? Image.network(
                         konten.thumbnail,
@@ -149,19 +132,17 @@ class _InformasiScreenState extends State<InformasiScreen> {
             ),
           ),
 
-          // Body
           const SizedBox(height: 20),
           EditorJsRenderer(
             jsonString: konten.body,
             onImageTap: (url) => _openFoto(url, konten.judul),
           ),
 
-          // Footer
           const SizedBox(height: 16),
           const Divider(color: Color(0xFFE0EDE6), thickness: 1),
           const SizedBox(height: 10),
           if (konten.nama_instansi.isNotEmpty)
-            _footerRow(Icons.account_balance_outlined, konten.nama_instansi, color : Color(0xFF4EA771)),
+            _footerRow(Icons.account_balance_outlined, konten.nama_instansi, color : AppColors.green),
           if (konten.namaAdmin.isNotEmpty) ...[
             const SizedBox(height: 4),
             _footerRow(Icons.person_outline_rounded, 'dibuat oleh ${konten.namaAdmin}', color: Color(0xFF7A9E8A), italic: true),
@@ -182,12 +163,7 @@ class _InformasiScreenState extends State<InformasiScreen> {
         const SizedBox(width: 6),
         Text(
           text,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 11,
-            color: color,
-            fontStyle: italic ? FontStyle.italic : FontStyle.normal,
-          ),
+          style: AppText.p(11, color: color, fontStyle: italic ? FontStyle.italic : FontStyle.normal),
         ),
       ],
     );
@@ -197,7 +173,7 @@ class _InformasiScreenState extends State<InformasiScreen> {
     return Icon(
       Icons.image_outlined,
       size: 48,
-      color: const Color(0xFF94DF0C).withOpacity(0.4),
+      color: AppColors.neon.withValues(alpha: 0.4),
     );
   }
 }

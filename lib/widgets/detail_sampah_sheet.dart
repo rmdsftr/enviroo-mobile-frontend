@@ -2,14 +2,12 @@ import 'package:enviroo/models/katalog_model.dart';
 import 'package:enviroo/providers/katalog_provider.dart';
 import 'package:enviroo/widgets/foto_thumbnail.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:enviroo/core/format/app_date.dart';
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-class _C {
-  static const dark   = Color(0xFF0D3B3E);
-  static const accent = Color(0xFF4EA771);
-  static const teal   = Color(0xFF013236);
-}
 
 class DetailSampahSheet extends StatefulWidget {
   final String role;
@@ -48,16 +46,11 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
     }
   }
 
-  // Harga saat ini juga menampilkan harga "eksternal" (pengepul) untuk role
-  // nasabah, biar transparan berapa harga sampah itu saat dijual ke pengepul.
-  // Tab Perubahan Harga tetap pakai _visibleLevels apa adanya (cuma nasabah).
   List<String> get _visibleLevelsHargaSaatIni {
     if (widget.role == 'nasabah') return ['nasabah', 'eksternal'];
     return _visibleLevels;
   }
 
-  // Untuk nasabah, level "eksternal" ditampilkan sebagai "Pengepul" biar
-  // ga membingungkan (nasabah ga perlu tau istilah internal "eksternal").
   String _hargaLevelLabel(String level) {
     if (level.toLowerCase() == 'eksternal') {
       return 'Pengepul';
@@ -65,8 +58,6 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
     return _capLevel(level);
   }
 
-  // Badge level_user di tab Perubahan Harga dibuat lebih informatif daripada
-  // cuma "Nasabah"/"Eksternal" mentah.
   String _historyLevelLabel(String level) {
     switch (level.toLowerCase()) {
       case 'nasabah':
@@ -80,29 +71,15 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
 
   Color _levelColor(String level) {
     switch (level.toLowerCase()) {
-      case 'bsu':       return _C.teal;
-      case 'nasabah':   return _C.accent;
+      case 'bsu':       return AppColors.dark;
+      case 'nasabah':   return AppColors.green;
       case 'eksternal': return const Color(0xFFE65100);
-      default:          return _C.dark;
+      default:          return AppColors.darkAlt;
     }
   }
 
   String _capLevel(String level) =>
       level.isEmpty ? '' : level[0].toUpperCase() + level.substring(1);
-
-  String _formatDouble(double value) {
-    if (value == value.truncateToDouble()) {
-      return value
-          .toInt()
-          .toString()
-          .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-    }
-    return value
-        .toStringAsFixed(2)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '')
-        .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -115,7 +92,6 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
         builder: (context, katalog, _) {
           return Column(
             children: [
-              // Handle
               Padding(
                 padding: const EdgeInsets.only(top: 12, bottom: 8),
                 child: Container(
@@ -131,7 +107,7 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
               if (katalog.isDetailLoading) ...[
                 const Expanded(
                   child: Center(
-                    child: CircularProgressIndicator(color: _C.accent),
+                    child: CircularProgressIndicator(color: AppColors.green),
                   ),
                 ),
               ] else if (katalog.currentDetail == null) ...[
@@ -141,7 +117,7 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                       'Data tidak tersedia',
                       style: TextStyle(
                         fontFamily: 'Poppins',
-                        color: _C.dark.withOpacity(0.4),
+                        color: AppColors.darkAlt.withValues(alpha: 0.4),
                       ),
                     ),
                   ),
@@ -172,7 +148,6 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
     return Expanded(
       child: Column(
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
             child: Row(
@@ -181,7 +156,7 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                   photoUrl: detail.photoUrl,
                   nama: detail.namaSampah,
                   fallbackIcon: Icons.recycling_rounded,
-                  accent: _C.accent,
+                  accent: AppColors.green,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -190,24 +165,14 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                     children: [
                       Text(
                         detail.namaSampah,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: _C.dark,
-                        ),
+                        style: AppText.w700(15, AppColors.darkAlt),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       if (detail.kategori != null)
                         Text(
                           detail.kategori!.kategori,
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 11,
-                            color: _C.accent,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: AppText.w500(11, AppColors.green),
                         ),
                     ],
                   ),
@@ -216,32 +181,23 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
             ),
           ),
 
-          // Tab bar
           Container(
             margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0F0F0),
+              color: AppColors.divider,
               borderRadius: BorderRadius.circular(50),
             ),
             child: TabBar(
               controller: _tabController,
               indicator: BoxDecoration(
-                color: _C.accent,
+                color: AppColors.green,
                 borderRadius: BorderRadius.circular(50),
               ),
               labelColor: Colors.white,
-              unselectedLabelColor: _C.dark.withOpacity(0.5),
-              labelStyle: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
+              unselectedLabelColor: AppColors.darkAlt.withValues(alpha: 0.5),
+              labelStyle: AppText.w600(13),
+              unselectedLabelStyle: AppText.w500(13),
               dividerColor: Colors.transparent,
               indicatorSize: TabBarIndicatorSize.tab,
               tabAlignment: TabAlignment.fill,
@@ -296,9 +252,6 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
           ),
         ),
 
-        // Jaraknya ditaruh di ATAS blok ini, bukan di bawahnya seperti dulu.
-        // Kalau syarat pemilahannya kosong, blok ini hilang seluruhnya dan
-        // jarak menuju "Harga Saat Ini" tetap benar.
         if (detail.syaratPemilahan.isNotEmpty) ...[
           const SizedBox(height: 20),
           _sectionTitle('Syarat Pemilahan'),
@@ -306,18 +259,13 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: _C.accent.withOpacity(0.05),
+              color: AppColors.green.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _C.accent.withOpacity(0.15)),
+              border: Border.all(color: AppColors.green.withValues(alpha: 0.15)),
             ),
             child: Text(
               detail.syaratPemilahan,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12.5,
-                height: 1.6,
-                color: _C.dark.withOpacity(0.75),
-              ),
+              style: AppText.p(12.5, color: AppColors.darkAlt.withValues(alpha: 0.75), height: 1.6),
             ),
           ),
         ],
@@ -332,11 +280,7 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
             child: Center(
               child: Text(
                 'Harga belum ditetapkan',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: _C.dark.withOpacity(0.4),
-                ),
+                style: AppText.r(13, AppColors.darkAlt.withValues(alpha: 0.4)),
               ),
             ),
           )
@@ -347,9 +291,9 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.06),
+                color: color.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: color.withOpacity(0.15)),
+                border: Border.all(color: color.withValues(alpha: 0.15)),
               ),
               child: Row(
                 children: [
@@ -357,30 +301,20 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.12),
+                      color: color.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(50),
                     ),
                     child: Text(
                       _hargaLevelLabel(h.levelUser),
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: color,
-                      ),
+                      style: AppText.w700(10, color),
                     ),
                   ),
                   const Spacer(),
                   Text(
                     h.satuanReward.toLowerCase() == 'poin'
-                        ? '${_formatDouble(h.harga)} poin/${detail.satuan}'
-                        : 'Rp ${_formatDouble(h.harga)}/${detail.satuan}',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: color,
-                    ),
+                        ? '${AppNumber.desimal(h.harga)} poin/${detail.satuan}'
+                        : 'Rp ${AppNumber.desimal(h.harga)}/${detail.satuan}',
+                    style: AppText.w600(13, color),
                   ),
                 ],
               ),
@@ -390,9 +324,6 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
     );
   }
 
-  // Riwayat perubahan harga cuma nyimpen angka mentah (schema_id, harga_lama,
-  // harga_baru) tanpa satuan reward-nya. Satuan yang berlaku sekarang untuk
-  // schema itu dipetakan dari harga_per_level biar "Rp"/"poin" tetap tampil.
   String _satuanForSchema(String schemaId, List<HargaPerLevelModel> hargaPerLevel) {
     for (final h in hargaPerLevel) {
       if (h.schemaId == schemaId) return h.satuanReward;
@@ -401,7 +332,7 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
   }
 
   String _formatHarga(double value, String satuan) {
-    final formatted = _formatDouble(value);
+    final formatted = AppNumber.desimal(value);
     return satuan.toLowerCase() == 'poin' ? '$formatted poin' : 'Rp$formatted';
   }
 
@@ -413,15 +344,11 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.history_rounded,
-                size: 40, color: _C.dark.withOpacity(0.15)),
+                size: 40, color: AppColors.darkAlt.withValues(alpha: 0.15)),
             const SizedBox(height: 8),
             Text(
               'Belum ada riwayat perubahan',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: _C.dark.withOpacity(0.4),
-              ),
+              style: AppText.r(13, AppColors.darkAlt.withValues(alpha: 0.4)),
             ),
           ],
         ),
@@ -450,7 +377,7 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                       width: 12,
                       height: 12,
                       decoration: BoxDecoration(
-                        color: index == 0 ? _C.accent : Colors.grey.shade300,
+                        color: index == 0 ? AppColors.green : Colors.grey.shade300,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -468,12 +395,12 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: index == 0
-                        ? _C.accent.withOpacity(0.06)
+                        ? AppColors.green.withValues(alpha: 0.06)
                         : Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: index == 0
-                          ? _C.accent.withOpacity(0.15)
+                          ? AppColors.green.withValues(alpha: 0.15)
                           : Colors.grey.shade200,
                     ),
                   ),
@@ -483,33 +410,23 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                       Row(
                         children: [
                           Icon(Icons.calendar_today_rounded,
-                              size: 13, color: _C.dark.withOpacity(0.4)),
+                              size: 13, color: AppColors.darkAlt.withValues(alpha: 0.4)),
                           const SizedBox(width: 6),
                           Text(
-                            DateFormat('dd MMM yyyy, HH:mm')
-                                .format(entry.changedAt),
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 10,
-                              color: _C.dark.withOpacity(0.5),
-                            ),
+                            AppDate.tanggalSingkatJam(entry.changedAt),
+                            style: AppText.r(10, AppColors.darkAlt.withValues(alpha: 0.5)),
                           ),
                           const Spacer(),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: color.withOpacity(0.1),
+                              color: color.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               _historyLevelLabel(entry.levelUser),
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 8,
-                                fontWeight: FontWeight.w700,
-                                color: color,
-                              ),
+                              style: AppText.w700(8, color),
                             ),
                           ),
                         ],
@@ -523,21 +440,12 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                               children: [
                                 Text(
                                   'Sebelum',
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 9.5,
-                                    color: _C.dark.withOpacity(0.4),
-                                  ),
+                                  style: AppText.r(9.5, AppColors.darkAlt.withValues(alpha: 0.4)),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   _formatHarga(entry.hargaLama, satuan),
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: _C.dark.withOpacity(0.7),
-                                  ),
+                                  style: AppText.w600(13, AppColors.darkAlt.withValues(alpha: 0.7)),
                                 ),
                               ],
                             ),
@@ -546,8 +454,8 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
                               color: isIncrease
-                                  ? const Color(0xFF4EA771).withOpacity(0.12)
-                                  : const Color(0xFFE53935).withOpacity(0.12),
+                                  ? AppColors.green.withValues(alpha: 0.12)
+                                  : AppColors.dangerAlt.withValues(alpha: 0.12),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
@@ -556,8 +464,8 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                                   : Icons.trending_down_rounded,
                               size: 16,
                               color: isIncrease
-                                  ? const Color(0xFF4EA771)
-                                  : const Color(0xFFE53935),
+                                  ? AppColors.green
+                                  : AppColors.dangerAlt,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -567,23 +475,14 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
                               children: [
                                 Text(
                                   'Sesudah',
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 9.5,
-                                    color: _C.dark.withOpacity(0.4),
-                                  ),
+                                  style: AppText.r(9.5, AppColors.darkAlt.withValues(alpha: 0.4)),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   _formatHarga(entry.hargaBaru, satuan),
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: isIncrease
-                                        ? const Color(0xFF4EA771)
-                                        : const Color(0xFFE53935),
-                                  ),
+                                  style: AppText.w700(13, isIncrease
+                                        ? AppColors.green
+                                        : AppColors.dangerAlt),
                                 ),
                               ],
                             ),
@@ -603,12 +502,7 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
 
   Widget _sectionTitle(String title) => Text(
         title,
-        style: const TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 12.5,
-          fontWeight: FontWeight.w700,
-          color: _C.dark,
-        ),
+        style: AppText.w700(12.5, AppColors.darkAlt),
       );
 
   Widget _infoRow(IconData icon, String label, String value) {
@@ -616,25 +510,16 @@ class _DetailSampahSheetState extends State<DetailSampahSheet>
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: _C.accent),
+          Icon(icon, size: 16, color: AppColors.green),
           const SizedBox(width: 10),
           Text(
             label,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              color: _C.dark.withOpacity(0.55),
-            ),
+            style: AppText.r(12, AppColors.darkAlt.withValues(alpha: 0.55)),
           ),
           const Spacer(),
           Text(
             value,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: _C.dark,
-            ),
+            style: AppText.w600(12, AppColors.darkAlt),
           ),
         ],
       ),

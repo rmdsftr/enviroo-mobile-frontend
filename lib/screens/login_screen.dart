@@ -1,15 +1,19 @@
 import 'package:enviroo/core/messaging/fcm_messaging.dart';
 import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/widgets/confirm_bottom_sheet.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/screens/petugas/home_bsi_screen.dart';
 import 'package:enviroo/screens/petugas/home_bsu_screen.dart';
 import 'package:enviroo/screens/petugas/home_bsm_screen.dart';
 import 'package:enviroo/screens/nasabah/home_screen.dart';
 import 'package:enviroo/screens/lupapassword_screen.dart';
+import 'package:enviroo/screens/verifikasi_otp_screen.dart';
 import 'package:enviroo/screens/aktivasi_akun_screen.dart';
 import 'package:enviroo/screens/role_options_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,12 +33,10 @@ class _LoginScreenState extends State<LoginScreen>
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
 
-  // Warna sesuai spesifikasi desain baru
-  static const Color bgColor = Color(0xFF013236);
-  static const Color primaryColor = Color(0xFF94DF0C);
-  static const Color inputBgColor = Color(0xFFFFFFFF);
-  static const Color softWhiteGreen = Color(0xFFFFFFFF);
-  static const Color buttonTextColor = Colors.white;
+  static const Color bgColor = AppColors.dark;
+  static const Color primaryColor = AppColors.neon;
+  static const Color inputBgColor = Colors.white;
+  static const Color softWhiteGreen = Colors.white;
 
   @override
   void initState() {
@@ -62,21 +64,59 @@ class _LoginScreenState extends State<LoginScreen>
 
     _animationController.forward();
 
-    // Sesi sebelumnya diakhiri server (mis. akun dipakai login di perangkat
-    // lain) — sampaikan alasannya sekali, biar user tidak menebak-nebak.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final auth = Provider.of<AuthProvider>(context, listen: false);
-      if (auth.sessionEndedMessage == null) return;
 
-      showCustomSnackBar(
-        context,
-        auth.sessionEndedCode == 'SESSION_REVOKED'
-            ? 'Akun kamu dipakai login di perangkat lain. Silakan login kembali.'
-            : 'Sesi kamu sudah berakhir. Silakan login kembali.',
-      );
-      auth.clearSessionEnded();
+      if (auth.sessionEndedMessage != null) {
+        showCustomSnackBar(
+          context,
+          auth.sessionEndedCode == 'SESSION_REVOKED'
+              ? 'Akun kamu dipakai login di perangkat lain. Silakan login kembali.'
+              : 'Sesi kamu sudah berakhir. Silakan login kembali.',
+        );
+        auth.clearSessionEnded();
+      }
+
+      await _tawarkanLanjutReset(auth);
     });
+  }
+
+  Future<void> _tawarkanLanjutReset(AuthProvider auth) async {
+    final pending = await auth.loadPendingReset();
+    if (!mounted) return;
+    if (pending == null) return;
+
+    final sisa = pending.expiredAt.difference(DateTime.now());
+    final sisaTeks = '${sisa.inMinutes.toString().padLeft(2, '0')}:'
+        '${(sisa.inSeconds % 60).toString().padLeft(2, '0')}';
+
+    final lanjut = await showConfirmBottomSheet(
+      context,
+      icon: Icons.mark_email_read_outlined,
+      title: 'Lanjutkan Reset Password?',
+      message: 'Kode OTP sudah dikirim ke ${pending.email} dan masih berlaku '
+          '$sisaTeks lagi. Lanjutkan tanpa minta kode baru?',
+      cancelLabel: 'Abaikan',
+      confirmLabel: 'Lanjutkan',
+    );
+
+    if (!mounted) return;
+
+    if (!lanjut) {
+      await auth.clearPendingReset();
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VerifikasiOtpScreen(
+          email: pending.email,
+          expiredAt: pending.expiredAt.toIso8601String(),
+        ),
+      ),
+    );
   }
 
   @override
@@ -100,7 +140,6 @@ class _LoginScreenState extends State<LoginScreen>
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-    // Step 1: Cek user & role yang tersedia
     final cekResult = await authProvider.cekUserMobile(email, password);
 
     if (!mounted) return;
@@ -114,7 +153,6 @@ class _LoginScreenState extends State<LoginScreen>
     final List<String> roles = List<String>.from(cekResult['roles'] ?? []);
     final bool multipleRoles = cekResult['multiple_roles'] == true;
 
-    // Simpan available roles agar fitur switch akun bisa bekerja
     authProvider.setAvailableRoles(roles);
 
     if (roles.isEmpty) {
@@ -123,7 +161,6 @@ class _LoginScreenState extends State<LoginScreen>
       return;
     }
 
-    // Step 2: Jika role lebih dari 1, arahkan ke RoleOptionsScreen
     if (multipleRoles && roles.length > 1) {
       setState(() => _isLoading = false);
       Navigator.push(
@@ -139,7 +176,6 @@ class _LoginScreenState extends State<LoginScreen>
       return;
     }
 
-    // Step 3: Jika hanya 1 role, langsung login
     final selectedRole = roles.first;
     final success = await authProvider.login(email, password, selectedRole);
 
@@ -154,7 +190,6 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _navigateToHome(String role) {
-    // Fetch notifikasi + request permission + daftarkan FCM token ke backend.
     Provider.of<FcmMessaging>(context, listen: false).onLogin(tag: 'Login');
 
     Widget destination;
@@ -201,7 +236,6 @@ class _LoginScreenState extends State<LoginScreen>
                   children: [
                     const SizedBox(height: 60),
 
-                    // Logo centered di atas
                     Column(
                       children: [
                         Center(
@@ -212,52 +246,29 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         Text(
                           "enviroo",
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w700,
-                            fontSize: 20,
-                            color: primaryColor,
-                            letterSpacing: 3,
-                          ),
+                          style: AppText.p(20, weight: FontWeight.w700, color: primaryColor, letterSpacing: 3),
                         )
                       ],
                     ),
                     const SizedBox(height: 75),
 
-                    // Heading "Selamat Datang"
-                    const Text(
+                    Text(
                       "Selamat Datang",
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
-                      ),
+                      style: AppText.p(28, weight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5),
                     ),
                     const SizedBox(height: 10),
 
-                    // Header texts (konten asli dipertahankan)
-                    const Text(
+                    Text(
                       "Udah punya akun aktif?",
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 14,
-                        color: softWhiteGreen,
-                      ),
+                      style: AppText.r(14, softWhiteGreen),
                     ),
                     const SizedBox(height: 5),
-                    const Text(
+                    Text(
                       "Yuk, login ke aplikasinya",
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 14,
-                        color: softWhiteGreen,
-                      ),
+                      style: AppText.r(14, softWhiteGreen),
                     ),
                     const SizedBox(height: 35),
 
-                    // Email Input (dengan icon seperti aslinya)
                     _buildInputField(
                       controller: _emailController,
                       hintText: "Email",
@@ -266,7 +277,6 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     const SizedBox(height: 20),
 
-                    // Password Input (dengan icon seperti aslinya)
                     _buildInputField(
                       controller: _passwordController,
                       hintText: "Password",
@@ -278,7 +288,7 @@ class _LoginScreenState extends State<LoginScreen>
                             : () => setState(() => _obscurePassword = !_obscurePassword),
                         icon: Icon(
                           _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                          color: primaryColor.withOpacity(0.7),
+                          color: primaryColor.withValues(alpha: 0.7),
                           size: 22,
                         ),
                         splashColor: Colors.transparent,
@@ -287,7 +297,6 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     const SizedBox(height: 20),
 
-                    // Lupa Password Link (rata kanan seperti aslinya)
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
@@ -297,33 +306,22 @@ class _LoginScreenState extends State<LoginScreen>
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: const Text(
+                        child: Text(
                           "Lupa Password?",
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: softWhiteGreen,
-                          ),
+                          style: AppText.w600(13, softWhiteGreen),
                         ),
                       ),
                     ),
                     const SizedBox(height: 25),
 
-                    // Login Button
                     _buildLoginButton(_isLoading),
                     const SizedBox(height: 40),
 
-                    // Aktivasi Akun (konten asli dipertahankan)
                     Center(
-                      child: const Text(
+                      child: Text(
                         "Belum bisa login karena akun belum aktif?",
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                          color: softWhiteGreen,
-                        ),
+                        style: AppText.r(12, softWhiteGreen),
                       ),
                     ),
                     const SizedBox(height: 15),
@@ -337,18 +335,13 @@ class _LoginScreenState extends State<LoginScreen>
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(50),
                             border: Border.all(
-                              color: primaryColor.withOpacity(0.5),
+                              color: primaryColor.withValues(alpha: 0.5),
                               width: 1.5,
                             ),
                           ),
                           child: Text(
                             "Aktivasi di sini",
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: primaryColor.withOpacity(0.75),
-                            ),
+                            style: AppText.w700(13, primaryColor.withValues(alpha: 0.75)),
                           ),
                         ),
                       ),
@@ -376,10 +369,10 @@ class _LoginScreenState extends State<LoginScreen>
     return Container(
       decoration: BoxDecoration(
         color: inputBgColor,
-        borderRadius: BorderRadius.circular(50), // Border radius bulat
+        borderRadius: BorderRadius.circular(50),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -389,19 +382,11 @@ class _LoginScreenState extends State<LoginScreen>
         controller: controller,
         obscureText: obscureText,
         keyboardType: keyboardType,
-        style: const TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 14,
-          color: Color(0xFF2D3748),
-        ),
+        style: AppText.r(14, Color(0xFF2D3748)),
         decoration: InputDecoration(
           contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
           hintText: hintText,
-          hintStyle: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 14,
-            color: Colors.grey.shade500,
-          ),
+          hintStyle: AppText.r(14, Colors.grey.shade500),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(50),
             borderSide: BorderSide.none,
@@ -419,7 +404,7 @@ class _LoginScreenState extends State<LoginScreen>
             child: Icon(
               icon,
               size: 22,
-              color: primaryColor.withOpacity(0.8),
+              color: primaryColor.withValues(alpha: 0.8),
             ),
           ),
           suffixIcon: suffixIcon != null
@@ -442,11 +427,11 @@ class _LoginScreenState extends State<LoginScreen>
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: bgColor,
-          disabledBackgroundColor: primaryColor.withOpacity(0.6),
+          disabledBackgroundColor: primaryColor.withValues(alpha: 0.6),
           elevation: 8,
-          shadowColor: primaryColor.withOpacity(0.25),
+          shadowColor: primaryColor.withValues(alpha: 0.25),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(50), // Border radius bulat
+            borderRadius: BorderRadius.circular(50),
           ),
         ),
         child: isLoading
@@ -455,16 +440,12 @@ class _LoginScreenState extends State<LoginScreen>
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF013236)),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.dark),
                 ),
               )
-            : const Text(
+            : Text(
                 "LOGIN",
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: AppText.w700(18),
               ),
       ),
     );

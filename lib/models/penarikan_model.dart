@@ -1,6 +1,5 @@
-// ── Reward info (moved from redeem_models) ───────────────────────────────────
-
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
 
 double _toDouble(dynamic v) {
   if (v == null) return 0;
@@ -72,8 +71,6 @@ class NilaiRewardBank {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 enum StatusPenarikan {
   pending,
   approved,
@@ -106,12 +103,7 @@ StatusPenarikan statusPenarikanFromString(String? v) {
   }
 }
 
-/// Kelompok filter "Dalam Proses" / "Selesai" dipakai di main navbar
-/// PenarikanNasabahScreen, plus styling terpusat (label/warna/icon) supaya
-/// konsisten di semua layar (nasabah & petugas).
 extension StatusPenarikanX on StatusPenarikan {
-  /// true = masuk grup "Dalam Proses" (pending, approved)
-  /// false = masuk grup "Selesai" (canceled, request_expired, rejected, pickup_expired, completed)
   bool get isDalamProses =>
       this == StatusPenarikan.pending || this == StatusPenarikan.approved;
 
@@ -139,15 +131,15 @@ extension StatusPenarikanX on StatusPenarikan {
   Color get color {
     switch (this) {
       case StatusPenarikan.pending:
-        return const Color(0xFFF59E0B);
+        return AppColors.warning;
       case StatusPenarikan.approved:
         return const Color(0xFF3B82F6);
       case StatusPenarikan.completed:
-        return const Color(0xFF4EA771);
+        return AppColors.green;
       case StatusPenarikan.canceled:
-        return const Color(0xFFEF4444);
+        return AppColors.danger;
       case StatusPenarikan.rejected:
-        return const Color(0xFFEF4444);
+        return AppColors.danger;
       case StatusPenarikan.requestExpired:
         return const Color(0xFF9CA3AF);
       case StatusPenarikan.pickupExpired:
@@ -178,8 +170,6 @@ extension StatusPenarikanX on StatusPenarikan {
     }
   }
 
-  /// Kalimat penjelasan singkat untuk status card di layar detail.
-  /// null untuk status yang masih berjalan tanpa penjelasan tambahan (mis. pending).
   String? get description {
     switch (this) {
       case StatusPenarikan.approved:
@@ -218,17 +208,13 @@ int _i(dynamic v) {
 DateTime? _parseDate(dynamic v) {
   if (v == null) return null;
   if (v is String && v.isNotEmpty) {
-    // Jika ada info timezone (Z = UTC, atau +xx:xx), parse langsung lalu convert ke local
     if (v.endsWith('Z') || v.contains('+')) {
       return DateTime.tryParse(v)?.toLocal();
     }
-    // Tidak ada timezone — anggap WIB (+07:00)
     return DateTime.tryParse('$v+07:00')?.toLocal();
   }
   return null;
 }
-
-// ── Saldo per reward ─────────────────────────────────────────────────────────
 
 class SaldoReward {
   final int rewardId;
@@ -254,8 +240,6 @@ class SaldoReward {
       );
 }
 
-/// Model saldo nasabah yang mendukung per-reward breakdown.
-/// Fallback ke single saldo_poin jika backend belum mengembalikan breakdown.
 class SaldoNasabahV2 {
   final String nasabahId;
   final String namaNasabah;
@@ -279,7 +263,6 @@ class SaldoNasabahV2 {
   factory SaldoNasabahV2.fromJson(Map<String, dynamic> j) {
     List<SaldoReward> saldoList = [];
 
-    // Format 1 (actual API): { uang: {total_uang}, poin: {total_poin} }
     final uangData = j['uang'] as Map<String, dynamic>?;
     final poinData = j['poin'] as Map<String, dynamic>?;
     if (uangData != null || poinData != null) {
@@ -299,7 +282,6 @@ class SaldoNasabahV2 {
       }
     }
 
-    // Format 2: saldo[] array
     if (saldoList.isEmpty) {
       final saldoData = j['saldo'];
       if (saldoData is List) {
@@ -310,7 +292,6 @@ class SaldoNasabahV2 {
       }
     }
 
-    // Format 3: flat fields
     if (saldoList.isEmpty) {
       if (j['saldo_uang'] != null) {
         saldoList.add(SaldoReward(
@@ -341,8 +322,6 @@ class SaldoNasabahV2 {
     );
   }
 }
-
-// ── Penarikan list item ──────────────────────────────────────────────────────
 
 class PenarikanItem {
   final String penarikanId;
@@ -398,8 +377,6 @@ class PenarikanItem {
       );
 }
 
-// ── Penarikan detail (response /penarikan/detail/:id — header + riwayat) ─────
-
 class DetailBarangItem {
   final String produkId;
   final String namaBarang;
@@ -428,7 +405,6 @@ class DetailBarangItem {
       );
 }
 
-/// Satu entri log perubahan status penarikan (array `riwayat` di response).
 class PenarikanRiwayatItem {
   final String riwayatPenarikanId;
   final StatusPenarikan status;
@@ -454,7 +430,6 @@ class PenarikanRiwayatItem {
       );
 }
 
-/// Response GET /penarikan/detail/:id — bentuknya { header, riwayat, detail_penarikan }.
 class PenarikanDetail {
   final String penarikanId;
   final String? nasabahId;
@@ -493,11 +468,9 @@ class PenarikanDetail {
   bool get isUang => namaReward.toLowerCase().contains('uang');
   bool get isBarang => namaReward.toLowerCase().contains('barang');
 
-  /// Waktu pengajuan dibuat — entri riwayat paling awal (pending).
   DateTime get createdAt =>
       riwayat.isNotEmpty ? riwayat.first.createdAt : (deadlineKonfirmasi ?? DateTime.now());
 
-  /// Waktu status terakhir berubah — entri riwayat paling akhir.
   DateTime get updatedAt => riwayat.isNotEmpty ? riwayat.last.createdAt : createdAt;
 
   factory PenarikanDetail.fromJson(Map<String, dynamic> j) {
@@ -530,8 +503,6 @@ class PenarikanDetail {
   }
 }
 
-// ── Paginated list response ──────────────────────────────────────────────────
-
 class PenarikanListResponse {
   final List<PenarikanItem> data;
   final int total;
@@ -561,8 +532,6 @@ class PenarikanListResponse {
     );
   }
 }
-
-// ── Preview data (response from /penarikan/preview) ─────────────────────────
 
 class PreviewBarangItem {
   final String produkId;
@@ -600,7 +569,6 @@ class PenarikanPreviewData {
   final bool saldoCukup;
   final List<PreviewBarangItem> itemBarang;
 
-  // Form data carried forward to submit (not from API)
   final int rewardId;
   final double? nominalRequest;
   final List<Map<String, dynamic>> itemBarangRequest;
@@ -650,14 +618,11 @@ class PenarikanPreviewData {
   }
 }
 
-// ── Form data passed from request screen to preview screen ───────────────────
-
 class PenarikanFormData {
   final int rewardId;
   final String namaReward;
   final double? nominalPenarikan;
   final List<Map<String, dynamic>> itemBarang;
-  // Diisi di DeadlinePenarikanScreen (step 2)
   final DateTime? batasKonfirmasi;
   final String? catatanPetugas;
 

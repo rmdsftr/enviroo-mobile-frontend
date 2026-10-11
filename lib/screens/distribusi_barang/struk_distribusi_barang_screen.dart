@@ -1,15 +1,13 @@
+import 'package:enviroo/core/format/app_date.dart';
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:enviroo/models/katalog_model.dart';
 import 'package:enviroo/services/barang_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-class _C {
-  static const dark  = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
-  static const cardBg = Color(0xFFF7FBF5);
-  static const danger = Color(0xFFD94848);
-}
 
 class StrukDistribusiBarangScreen extends StatefulWidget {
   final String disbaId;
@@ -50,7 +48,7 @@ class _StrukDistribusiBarangScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -65,7 +63,7 @@ class _StrukDistribusiBarangScreenState
               Expanded(
                 child: _loading
                     ? const Center(
-                        child: CircularProgressIndicator(color: _C.green))
+                        child: CircularProgressIndicator(color: AppColors.green))
                     : _error != null
                         ? _buildError()
                         : _buildContent(),
@@ -77,43 +75,12 @@ class _StrukDistribusiBarangScreenState
     );
   }
 
-  // ── Error ──────────────────────────────────────────────────────────────────
-  Widget _buildError() => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline_rounded,
-                  size: 40, color: _C.danger.withValues(alpha:0.5)),
-              const SizedBox(height: 12),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: _C.dark.withValues(alpha:0.5),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _load,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _C.dark,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Coba Lagi',
-                    style: TextStyle(fontFamily: 'Poppins')),
-              ),
-            ],
-          ),
-        ),
+  Widget _buildError() => StateMessage(
+        illustration: StateArt.error,
+        message: _error!,
+        action: StateRetryButton(onPressed: _load),
       );
 
-  // ── Main Content ───────────────────────────────────────────────────────────
   Widget _buildContent() {
     final d = _detail!;
     final status = d.statusDistribusi.toLowerCase();
@@ -125,12 +92,12 @@ class _StrukDistribusiBarangScreenState
     switch (status) {
       case 'selesai':
       case 'diterima':
-        statusColor = _C.green;
+        statusColor = AppColors.green;
         statusLabel = status == 'diterima' ? 'Diterima BSU' : 'Selesai';
         statusIcon = Icons.check_circle_rounded;
         break;
       case 'pending':
-        statusColor = const Color(0xFFF59E0B);
+        statusColor = AppColors.warning;
         statusLabel = 'Menunggu Konfirmasi';
         statusIcon = Icons.hourglass_top_rounded;
         break;
@@ -140,16 +107,13 @@ class _StrukDistribusiBarangScreenState
         statusIcon = Icons.info_outline_rounded;
     }
 
-    final fmt = NumberFormat('#,##0.##', 'id_ID');
-    final tanggal =
-        '${DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(d.createdAt)} WIB';
+    final tanggal = '${AppDate.tanggalSingkatJam(d.createdAt)} WIB';
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
       child: Column(
         children: [
-          // ── Hero Header ──────────────────────────────────────────────────
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 24),
@@ -170,38 +134,25 @@ class _StrukDistribusiBarangScreenState
                 const SizedBox(height: 12),
                 Text(
                   statusLabel,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 17,
-                    color: statusColor,
-                  ),
+                  style: AppText.w700(17, statusColor),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'ID: ${d.disbaId}',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    color: _C.dark.withValues(alpha:0.45),
-                  ),
+                  style: AppText.r(11, AppColors.dark.withValues(alpha:0.45)),
                 ),
                 const SizedBox(height: 7),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _C.dark.withValues(alpha:0.06),
+                    color: AppColors.dark.withValues(alpha:0.06),
                     borderRadius: BorderRadius.circular(50),
                   ),
                   child: Text(
                     tanggal,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      color: _C.dark.withValues(alpha:0.45),
-                    ),
+                    style: AppText.r(10, AppColors.dark.withValues(alpha:0.45)),
                   ),
                 ),
               ],
@@ -210,22 +161,18 @@ class _StrukDistribusiBarangScreenState
 
           const SizedBox(height: 16),
 
-          // ── Info Card ────────────────────────────────────────────────────
           _buildInfoCard(d),
           const SizedBox(height: 16),
 
-          // ── Total Poin Card ──────────────────────────────────────────────
-          _buildTotalCard(d, fmt),
+          _buildTotalCard(d),
           const SizedBox(height: 16),
 
-          // ── Items Card ───────────────────────────────────────────────────
-          _buildItemsCard(d, fmt),
+          _buildItemsCard(d),
         ],
       ),
     );
   }
 
-  // ── Info Card ──────────────────────────────────────────────────────────────
   Widget _buildInfoCard(DetailDistribusiBarangModel d) {
     final status = d.statusDistribusi.toLowerCase();
     final Color statusColor;
@@ -234,11 +181,11 @@ class _StrukDistribusiBarangScreenState
     switch (status) {
       case 'selesai':
       case 'diterima':
-        statusColor = _C.green;
+        statusColor = AppColors.green;
         statusLabel = status == 'diterima' ? 'Diterima' : 'Selesai';
         break;
       case 'pending':
-        statusColor = const Color(0xFFF59E0B);
+        statusColor = AppColors.warning;
         statusLabel = 'Menunggu';
         break;
       default:
@@ -271,7 +218,7 @@ class _StrukDistribusiBarangScreenState
               Container(
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: _C.green.withValues(alpha:0.08),
+                  color: AppColors.green.withValues(alpha:0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -289,20 +236,11 @@ class _StrukDistribusiBarangScreenState
                   children: [
                     Text(
                       'Status',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        color: _C.dark.withValues(alpha:0.45),
-                      ),
+                      style: AppText.r(10, AppColors.dark.withValues(alpha:0.45)),
                     ),
                     Text(
                       statusLabel,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                        color: statusColor,
-                      ),
+                      style: AppText.w600(12, statusColor),
                     ),
                   ],
                 ),
@@ -323,10 +261,10 @@ class _StrukDistribusiBarangScreenState
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: _C.green.withValues(alpha:0.08),
+              color: AppColors.green.withValues(alpha:0.08),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 15, color: _C.green),
+            child: Icon(icon, size: 15, color: AppColors.green),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -335,20 +273,11 @@ class _StrukDistribusiBarangScreenState
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    color: _C.dark.withValues(alpha:0.45),
-                  ),
+                  style: AppText.r(10, AppColors.dark.withValues(alpha:0.45)),
                 ),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    color: _C.dark,
-                  ),
+                  style: AppText.w600(12, AppColors.dark),
                 ),
               ],
             ),
@@ -358,10 +287,9 @@ class _StrukDistribusiBarangScreenState
     );
   }
 
-  Widget _divider() => Divider(color: _C.dark.withValues(alpha:0.06), height: 1);
+  Widget _divider() => Divider(color: AppColors.dark.withValues(alpha:0.06), height: 1);
 
-  // ── Total Poin Card ────────────────────────────────────────────────────────
-  Widget _buildTotalCard(DetailDistribusiBarangModel d, NumberFormat fmt) {
+  Widget _buildTotalCard(DetailDistribusiBarangModel d) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
@@ -375,16 +303,14 @@ class _StrukDistribusiBarangScreenState
             icon: Icons.inventory_2_rounded,
             label: 'Total Item',
             value: '${d.totalItem.toInt()} item',
-            valueColor: _C.green,
-            fmt: null,
+            valueColor: AppColors.green,
           ),
-          Divider(color: _C.dark.withValues(alpha:0.06), height: 1),
+          Divider(color: AppColors.dark.withValues(alpha:0.06), height: 1),
           _totalRow(
             icon: Icons.stars_rounded,
             label: 'Total Poin Distribusi',
-            value: '${fmt.format(d.totalPoin)} poin',
-            valueColor: _C.green,
-            fmt: null,
+            value: AppNumber.denganSatuan(d.totalPoin, 'poin'),
+            valueColor: AppColors.green,
           ),
         ],
       ),
@@ -396,7 +322,6 @@ class _StrukDistribusiBarangScreenState
     required String label,
     required String value,
     required Color valueColor,
-    NumberFormat? fmt,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -408,39 +333,28 @@ class _StrukDistribusiBarangScreenState
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: _C.green.withValues(alpha:0.10),
+                  color: AppColors.green.withValues(alpha:0.10),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: _C.green, size: 18),
+                child: Icon(icon, color: AppColors.green, size: 18),
               ),
               const SizedBox(width: 12),
               Text(
                 label,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: _C.dark,
-                ),
+                style: AppText.w600(13, AppColors.dark),
               ),
             ],
           ),
           Text(
             value,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: valueColor,
-            ),
+            style: AppText.w800(15, valueColor),
           ),
         ],
       ),
     );
   }
 
-  // ── Items Card ─────────────────────────────────────────────────────────────
-  Widget _buildItemsCard(DetailDistribusiBarangModel d, NumberFormat fmt) {
+  Widget _buildItemsCard(DetailDistribusiBarangModel d) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -452,17 +366,12 @@ class _StrukDistribusiBarangScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
-              Icon(Icons.list_alt_rounded, color: _C.green, size: 18),
+            children: [
+              Icon(Icons.list_alt_rounded, color: AppColors.green, size: 18),
               SizedBox(width: 8),
               Text(
                 'Item Barang',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: _C.dark,
-                ),
+                style: AppText.w700(13, AppColors.dark),
               ),
             ],
           ),
@@ -472,33 +381,23 @@ class _StrukDistribusiBarangScreenState
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Text(
                 'Tidak ada item.',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  color: _C.dark.withValues(alpha:0.4),
-                  fontSize: 12,
-                ),
+                style: AppText.r(12, AppColors.dark.withValues(alpha:0.4)),
               ),
             )
           else ...[
-            // Table header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: _C.dark.withValues(alpha:0.04),
+                color: AppColors.dark.withValues(alpha:0.04),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
-                children: const [
+                children: [
                   Expanded(
                     flex: 4,
                     child: Text(
                       'Nama Barang',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: _C.dark,
-                      ),
+                      style: AppText.w600(10, AppColors.dark),
                     ),
                   ),
                   SizedBox(
@@ -506,12 +405,7 @@ class _StrukDistribusiBarangScreenState
                     child: Text(
                       'Qty × Poin',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: _C.dark,
-                      ),
+                      style: AppText.w600(10, AppColors.dark),
                     ),
                   ),
                   SizedBox(
@@ -519,12 +413,7 @@ class _StrukDistribusiBarangScreenState
                     child: Text(
                       'Subtotal',
                       textAlign: TextAlign.right,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: _C.dark,
-                      ),
+                      style: AppText.w600(10, AppColors.dark),
                     ),
                   ),
                 ],
@@ -532,7 +421,6 @@ class _StrukDistribusiBarangScreenState
             ),
             const SizedBox(height: 4),
 
-            // Table rows
             ...d.items.asMap().entries.map((entry) {
               final i = entry.key;
               final item = entry.value;
@@ -543,7 +431,7 @@ class _StrukDistribusiBarangScreenState
                 decoration: BoxDecoration(
                   color: isEven
                       ? Colors.transparent
-                      : _C.dark.withValues(alpha:0.02),
+                      : AppColors.dark.withValues(alpha:0.02),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -552,37 +440,23 @@ class _StrukDistribusiBarangScreenState
                       flex: 4,
                       child: Text(
                         item.namaBarang,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: _C.dark,
-                        ),
+                        style: AppText.w500(11, AppColors.dark),
                       ),
                     ),
                     SizedBox(
                       width: 90,
                       child: Text(
-                        '${fmt.format(item.item)} × ${fmt.format(item.nilaiPoin)} poin',
+                        '${AppNumber.desimal(item.item)} × ${AppNumber.desimal(item.nilaiPoin)} poin',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 9.5,
-                          color: _C.dark.withValues(alpha: 0.6),
-                        ),
+                        style: AppText.r(9.5, AppColors.dark.withValues(alpha: 0.6)),
                       ),
                     ),
                     SizedBox(
                       width: 70,
                       child: Text(
-                        '${fmt.format(item.subtotalPoin)} poin',
+                        '${AppNumber.desimal(item.subtotalPoin)} poin',
                         textAlign: TextAlign.right,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _C.green,
-                        ),
+                        style: AppText.w600(11, AppColors.green),
                       ),
                     ),
                   ],

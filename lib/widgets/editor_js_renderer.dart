@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class EditorJsRenderer extends StatelessWidget {
   final String jsonString;
@@ -34,7 +36,6 @@ class EditorJsRenderer extends StatelessWidget {
         }).toList(),
       );
     } catch (e) {
-      // Return original string if it is not valid JSON
       return _buildPlainTextFallback(jsonString);
     }
   }
@@ -42,12 +43,7 @@ class EditorJsRenderer extends StatelessWidget {
   Widget _buildPlainTextFallback(String text) {
     return Text(
       text,
-      style: const TextStyle(
-        fontFamily: 'Poppins',
-        fontSize: 12,
-        height: 1.6,
-        color: Color(0xFF013236),
-      ),
+      style: AppText.p(12, color: AppColors.dark, height: 1.6),
       textAlign: TextAlign.justify,
     );
   }
@@ -87,42 +83,27 @@ class EditorJsRenderer extends StatelessWidget {
         );
 
       default:
-        // Ignore unknown blocks
         return const SizedBox.shrink();
     }
   }
 
-  // Sangat sederhana untuk strip common html tags seperti <b>, <i> dari editor js
   String _stripHtml(String htmlString) {
     RegExp exp = RegExp(r"<[^>]*>", multiLine: true, caseSensitive: true);
     return htmlString.replaceAll(exp, '').replaceAll('&nbsp;', ' ');
   }
 
-  // Tries to render basic bold/italic using regex
   Widget _renderHtmlText(String htmlString) {
     if (!htmlString.contains('<')) {
       return Text(
         _stripHtml(htmlString),
-        style: const TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 12,
-          height: 1.6,
-          color: Color(0xFF013236),
-        ),
+        style: AppText.p(12, color: AppColors.dark, height: 1.6),
         textAlign: TextAlign.justify,
       );
     }
     
-    // For complete HTML parsing we would need flutter_html, 
-    // but building a simple striped fallback for now.
     return Text(
       _stripHtml(htmlString),
-      style: const TextStyle(
-        fontFamily: 'Poppins',
-        fontSize: 12,
-        height: 1.6,
-        color: Color(0xFF013236),
-      ),
+      style: AppText.p(12, color: AppColors.dark, height: 1.6),
       textAlign: TextAlign.justify,
     );
   }

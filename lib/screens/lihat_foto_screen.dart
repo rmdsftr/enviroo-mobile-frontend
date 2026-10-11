@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class LihatFotoScreen extends StatefulWidget {
   final String? photoUrl;
@@ -45,7 +47,6 @@ class _LihatFotoScreenState extends State<LihatFotoScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // ── Full-screen photo ──
           Center(
             child: InteractiveViewer(
               panEnabled: true,
@@ -81,7 +82,7 @@ class _LihatFotoScreenState extends State<LihatFotoScreen> {
                                     ? loadingProgress.cumulativeBytesLoaded /
                                         loadingProgress.expectedTotalBytes!
                                     : null,
-                                color: const Color(0xFF4EA771),
+                                color: AppColors.green,
                               ),
                             );
                           },
@@ -105,7 +106,6 @@ class _LihatFotoScreenState extends State<LihatFotoScreen> {
             ),
           ),
 
-          // ── Top bar overlay ──
           Positioned(
             top: 0,
             left: 0,
@@ -134,12 +134,7 @@ class _LihatFotoScreenState extends State<LihatFotoScreen> {
                     Expanded(
                       child: Text(
                         widget.nama,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
+                        style: AppText.w600(15, Colors.white),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

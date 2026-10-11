@@ -6,11 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:enviroo/providers/konten_provider.dart';
 import 'package:enviroo/models/konten_model.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-class _C {
-  static const dark  = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
-}
 
 class ListInformasiScreen extends StatefulWidget {
   @override
@@ -54,7 +53,7 @@ class _ListInformasiState extends State<ListInformasiScreen> {
         final filtered = _getFilteredList(kontenProv.kontenList);
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF2FAF0),
+          backgroundColor: AppColors.surfaceLeaf,
           body: SafeArea(
             child: Column(
               children: [
@@ -74,7 +73,7 @@ class _ListInformasiState extends State<ListInformasiScreen> {
                 Expanded(
                   child: kontenProv.isLoading
                       ? const Center(
-                          child: CircularProgressIndicator(color: _C.green),
+                          child: CircularProgressIndicator(color: AppColors.green),
                         )
                       : filtered.isEmpty
                           ? _buildEmptyState()
@@ -125,7 +124,7 @@ class _ListInformasiState extends State<ListInformasiScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF013236).withValues(alpha: 0.05),
+              color: AppColors.dark.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -134,13 +133,12 @@ class _ListInformasiState extends State<ListInformasiScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Thumbnail
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: Container(
                 height: 90,
                 width: double.infinity,
-                color: const Color(0xFF4EA771).withValues(alpha: 0.1),
+                color: AppColors.green.withValues(alpha: 0.1),
                 child: info.thumbnail.isNotEmpty
                     ? Image.network(
                         info.thumbnail,
@@ -151,7 +149,6 @@ class _ListInformasiState extends State<ListInformasiScreen> {
               ),
             ),
 
-            // Konten
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
@@ -163,41 +160,26 @@ class _ListInformasiState extends State<ListInformasiScreen> {
                       info.judul,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _C.dark,
-                        height: 1.3,
-                      ),
+                      style: AppText.p(12, weight: FontWeight.w600, color: AppColors.dark, height: 1.3),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       info.deskripsi,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        color: _C.dark.withValues(alpha: 0.5),
-                        height: 1.4,
-                      ),
+                      style: AppText.p(10, color: AppColors.dark.withValues(alpha: 0.5), height: 1.4),
                     ),
                     const Spacer(),
                     Row(
                       children: [
-                        const Icon(Icons.account_balance_outlined, size: 11, color: _C.green),
+                        const Icon(Icons.account_balance_outlined, size: 11, color: AppColors.green),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             info.nama_instansi,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 10,
-                              color: _C.green,
-                            ),
+                            style: AppText.r(10, AppColors.green),
                           ),
                         ),
                       ],
@@ -217,29 +199,13 @@ class _ListInformasiState extends State<ListInformasiScreen> {
       child: Icon(
         Icons.image_rounded,
         size: 32,
-        color: const Color(0xFF4EA771).withValues(alpha: 0.3),
+        color: AppColors.green.withValues(alpha: 0.3),
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.search_off_rounded,
-              size: 48, color: _C.dark.withValues(alpha: 0.2)),
-          const SizedBox(height: 12),
-          Text(
-            'Tidak ada informasi ditemukan',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              color: _C.dark.withValues(alpha: 0.4),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildEmptyState() => const StateMessage(
+        illustration: StateArt.empty,
+        message: 'Tidak ada informasi ditemukan',
+      );
 }

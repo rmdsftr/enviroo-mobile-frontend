@@ -2,9 +2,11 @@ import 'package:enviroo/models/bagi_hasil_bsu_model.dart';
 import 'package:enviroo/services/bagi_hasil_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-
-// ── Screen ────────────────────────────────────────────────────────────────────
+import 'package:enviroo/core/format/app_date.dart';
+import 'package:enviroo/core/format/app_number.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class StrukBagiHasilBsuScreen extends StatefulWidget {
   final String penerimaSisaId;
@@ -16,8 +18,6 @@ class StrukBagiHasilBsuScreen extends StatefulWidget {
 }
 
 class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
-  static const _teal = Color(0xFF013236);
-  static const _green = Color(0xFF4EA771);
 
   DistribusiSisaBsuDetail? _detail;
   bool _isLoading = true;
@@ -50,15 +50,10 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
     }
   }
 
-  String _fmtNominal(double val, String satuan) {
-    final s = satuan.toLowerCase();
-    if (s == 'rp') return 'Rp ${NumberFormat('#,##0', 'id_ID').format(val)}';
-    return '${NumberFormat('#,##0', 'id_ID').format(val)} $satuan';
-  }
+  String _fmtNominal(double val, String satuan) =>
+      AppNumber.nominalSatuan(val, satuan);
 
-  String _fmtNum(double v) => NumberFormat('#,##0.##', 'id_ID').format(v);
-
-  // ── Build ───────────────────────────────────────────────────────────────────
+  String _fmtNum(double v) => AppNumber.desimal(v);
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +72,7 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
               Expanded(
                 child: _isLoading
                     ? const Center(
-                        child: CircularProgressIndicator(color: _green))
+                        child: CircularProgressIndicator(color: AppColors.green))
                     : _error != null
                         ? _buildError()
                         : _buildStruk(),
@@ -96,14 +91,11 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
       child: Column(
         children: [
-          // ── Hero ────────────────────────────────────────────────────────────
           _buildHero(d),
           const SizedBox(height: 16),
 
-          // ── Info ────────────────────────────────────────────────────────────
           _buildInfoCard(d),
 
-          // ── Perhitungan Sisa ─────────────────────────────────────────────
           if (d.perhitunganSisa.isNotEmpty) ...[
             const SizedBox(height: 16),
             _buildPerhitunganCard(d),
@@ -113,14 +105,7 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
     );
   }
 
-  // ── Hero Card ───────────────────────────────────────────────────────────────
-
   Widget _buildHero(DistribusiSisaBsuDetail d) {
-    final antarLabel =
-        d.diantarOleh == 'bsu' ? 'Antar Mandiri' : 'Diantar BSI';
-    final antarColor =
-        d.diantarOleh == 'bsu' ? _green : _teal.withValues(alpha: 0.55);
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
@@ -133,91 +118,45 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: _green.withValues(alpha: 0.12),
+              color: AppColors.green.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.account_balance_wallet_rounded,
-                color: _green, size: 36),
+                color: AppColors.green, size: 36),
           ),
           const SizedBox(height: 12),
           Text(
             d.namaBank,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-              color: _teal,
-            ),
+            style: AppText.w700(16, AppColors.dark),
           ),
           const SizedBox(height: 4),
           Text(
             _fmtNominal(d.nominalDiterima, d.satuanNominal),
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              color: _green,
-              letterSpacing: -0.5,
-            ),
+            style: AppText.p(26, weight: FontWeight.w800, color: AppColors.green, letterSpacing: -0.5),
           ),
           Text(
             'ID: ${d.penerimaSisaId}',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 10,
-              color: _teal.withValues(alpha: 0.5),
-            ),
+            style: AppText.r(10, AppColors.dark.withValues(alpha: 0.5)),
           ),
           const SizedBox(height: 10),
-          // Row(
-          //   mainAxisAlignment: MainAxisAlignment.center,
-          //   children: [
-          //     Container(
-          //       padding:
-          //           const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          //       decoration: BoxDecoration(
-          //         color: antarColor.withValues(alpha: 0.1),
-          //         borderRadius: BorderRadius.circular(20),
-          //       ),
-          //       child: Text(
-          //         antarLabel,
-          //         style: TextStyle(
-          //           fontFamily: 'Poppins',
-          //           fontSize: 10,
-          //           fontWeight: FontWeight.w600,
-          //           color: antarColor,
-          //         ),
-          //       ),
-          //     ),
-          //   ],
-          // ),
-          // const SizedBox(height: 10),
           Container(
             padding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: _teal.withValues(alpha: 0.05),
+              color: AppColors.dark.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              DateFormat('EEEE, dd MMMM yyyy · HH:mm', 'id_ID')
-                  .format(d.tanggalDistribusi),
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: _teal.withValues(alpha: 0.65),
-              ),
+              AppDate.tanggalPenuhJam(d.tanggalDistribusi),
+              style: AppText.w500(10, AppColors.dark.withValues(alpha: 0.65)),
             ),
           ),
         ],
       ),
     );
   }
-
-  // ── Info Card ───────────────────────────────────────────────────────────────
 
   Widget _buildInfoCard(DistribusiSisaBsuDetail d) {
     return Container(
@@ -244,8 +183,6 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
       ),
     );
   }
-
-  // ── Perhitungan Sisa Card ───────────────────────────────────────────────────
 
   Widget _buildPerhitunganCard(DistribusiSisaBsuDetail d) {
     return Container(
@@ -297,8 +234,7 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
             flex: 4,
             child: Text(
               item.namaSampah,
-              style: const TextStyle(
-                  fontFamily: 'Poppins', fontSize: 11, color: _teal),
+              style: AppText.r(11, AppColors.dark),
             ),
           ),
           Expanded(
@@ -306,11 +242,7 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
             child: Text(
               _fmtNum(item.qtyDipakai),
               textAlign: TextAlign.right,
-              style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: _teal.withValues(alpha: 0.8)),
+              style: AppText.w600(11, AppColors.dark.withValues(alpha: 0.8)),
             ),
           ),
           Expanded(
@@ -318,10 +250,7 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
             child: Text(
               item.satuan,
               textAlign: TextAlign.right,
-              style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  color: _teal.withValues(alpha: 0.5)),
+              style: AppText.r(11, AppColors.dark.withValues(alpha: 0.5)),
             ),
           ),
         ],
@@ -329,51 +258,11 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
     );
   }
 
-  // ── Error State ─────────────────────────────────────────────────────────────
-
-  Widget _buildError() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline_rounded,
-              size: 48, color: _teal.withValues(alpha: 0.25)),
-          const SizedBox(height: 12),
-          Text(
-            _error!,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              color: _teal.withValues(alpha: 0.55),
-            ),
-          ),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: _fetchDetail,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              decoration: BoxDecoration(
-                color: _green,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Coba Lagi',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Shared helpers ──────────────────────────────────────────────────────────
+  Widget _buildError() => StateMessage(
+        illustration: StateArt.error,
+        message: _error!,
+        action: StateRetryButton.pill(onPressed: _fetchDetail),
+      );
 
   Widget _sectionTitle(String label) => Padding(
         padding: const EdgeInsets.only(bottom: 4),
@@ -383,19 +272,14 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
               width: 3,
               height: 16,
               decoration: BoxDecoration(
-                color: _green,
+                color: AppColors.green,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(width: 8),
             Text(
               label,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-                color: _teal,
-              ),
+              style: AppText.w700(13, AppColors.dark),
             ),
           ],
         ),
@@ -410,10 +294,10 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
             Container(
               padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
-                color: _green.withValues(alpha: 0.08),
+                color: AppColors.green.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, size: 15, color: _green),
+              child: Icon(icon, size: 15, color: AppColors.green),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -421,16 +305,9 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(label,
-                      style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 10,
-                          color: _teal.withValues(alpha: 0.45))),
+                      style: AppText.r(10, AppColors.dark.withValues(alpha: 0.45))),
                   Text(value,
-                      style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w600,
-                          fontSize: small ? 10.5 : 12,
-                          color: _teal)),
+                      style: AppText.w600(small ? 10.5 : 12, AppColors.dark)),
                 ],
               ),
             ),
@@ -439,7 +316,7 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
       );
 
   Widget _divider() =>
-      Divider(color: _teal.withValues(alpha: 0.06), height: 1);
+      Divider(color: AppColors.dark.withValues(alpha: 0.06), height: 1);
 
   Widget _dashedDivider() => LayoutBuilder(
         builder: (context, constraints) {
@@ -454,16 +331,11 @@ class _StrukBagiHasilBsuScreenState extends State<StrukBagiHasilBsuScreen> {
               (_) => Container(
                   width: dashWidth,
                   height: 1,
-                  color: _teal.withValues(alpha: 0.12)),
+                  color: AppColors.dark.withValues(alpha: 0.12)),
             ),
           );
         },
       );
 
-  TextStyle get _headerStyle => TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w600,
-        fontSize: 10,
-        color: _teal.withValues(alpha: 0.45),
-      );
+  TextStyle get _headerStyle => AppText.w600(10, AppColors.dark.withValues(alpha: 0.45));
 }

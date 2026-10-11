@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format/app_number.dart';
 import '../../models/bagi_hasil_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bagi_hasil_provider.dart';
@@ -9,12 +9,10 @@ import '../../providers/penjualan_provider.dart' show FetchStatus;
 import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'struk_detail_bagi_hasil_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-class _C {
-  static const dark = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
-  static const danger = Color(0xFFD94848);
-}
 
 class PreviewBagiHasilScreen extends StatefulWidget {
   final String penjualanId;
@@ -73,32 +71,22 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF013236).withValues(alpha: 0.07),
+                color: AppColors.dark.withValues(alpha: 0.07),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.currency_exchange_rounded,
-                  size: 28, color: _C.dark),
+                  size: 28, color: AppColors.dark),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Konfirmasi Bagi Hasil',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-                color: _C.dark,
-              ),
+              style: AppText.w700(15, AppColors.dark),
             ),
             const SizedBox(height: 8),
             Text(
               'Pastikan data preview sudah benar.\nProses bagi hasil tidak dapat dibatalkan.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                height: 1.6,
-                color: _C.dark.withValues(alpha: 0.5),
-              ),
+              style: AppText.p(12, color: AppColors.dark.withValues(alpha: 0.5), height: 1.6),
             ),
             const SizedBox(height: 28),
             Row(
@@ -107,17 +95,14 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: _C.dark,
-                      side: BorderSide(color: _C.dark.withValues(alpha: 0.25)),
+                      foregroundColor: AppColors.dark,
+                      side: BorderSide(color: AppColors.dark.withValues(alpha: 0.25)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(50)),
                     ),
-                    child: const Text('Batal',
-                        style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600)),
+                    child: Text('Batal',
+                        style: AppText.w600(13)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -125,18 +110,15 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context, true),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _C.dark,
+                      backgroundColor: AppColors.dark,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(50)),
                     ),
-                    child: const Text('Ya, Lanjutkan',
-                        style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600)),
+                    child: Text('Ya, Lanjutkan',
+                        style: AppText.w600(13)),
                   ),
                 ),
               ],
@@ -167,9 +149,6 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
       return;
     }
 
-    // Dipasang sebelum pindah layar, dan tetap terlihat di atas struk:
-    // showCustomSnackBar menyisipkan entry ke Overlay milik Navigator, bukan
-    // milik route ini, jadi tidak ikut hilang saat route-nya diganti.
     showCustomSnackBar(context, 'Bagi hasil berhasil dilakukan',
         type: SnackBarType.success);
 
@@ -185,7 +164,7 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -202,7 +181,7 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
                   builder: (_, prov, __) {
                     if (prov.previewStatus == FetchStatus.loading) {
                       return const Center(
-                          child: CircularProgressIndicator(color: _C.green));
+                          child: CircularProgressIndicator(color: AppColors.green));
                     }
                     if (prov.previewStatus == FetchStatus.error ||
                         prov.preview == null) {
@@ -220,54 +199,23 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
     );
   }
 
-  Widget _buildError(String msg) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline_rounded,
-                  size: 40, color: _C.danger.withValues(alpha: 0.5)),
-              const SizedBox(height: 12),
-              Text(
-                msg,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: _C.dark.withValues(alpha: 0.5),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _load,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _C.dark,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Coba Lagi',
-                    style: TextStyle(fontFamily: 'Poppins')),
-              ),
-            ],
-          ),
-        ),
+  Widget _buildError(String msg) => StateMessage(
+        illustration: StateArt.error,
+        message: msg,
+        action: StateRetryButton(onPressed: _load),
       );
 
   Widget _buildContent(PreviewBagiHasilModel preview, bool submitting) {
-    final fmtRp = NumberFormat('#,##0', 'id_ID');
+    final isBarang = preview.reward.toLowerCase() == 'barang';
 
-    String fmtNilai(double val) => preview.reward.toLowerCase() == 'barang'
-        ? '${fmtRp.format(val)} poin'
-        : 'Rp ${fmtRp.format(val)}';
+    String fmtNilai(double val) =>
+        AppNumber.nominalSatuan(val, 'poin', isUang: !isBarang);
 
     return SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 30),
           child: Column(
             children: [
-              // ── Hero Card ─────────────────────────────────────────────
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 24),
@@ -280,38 +228,28 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: _C.green.withValues(alpha: 0.12),
+                        color: AppColors.green.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.calculate_rounded,
-                          color: _C.green, size: 36),
+                          color: AppColors.green, size: 36),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'Preview Bagi Hasil',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w700,
-                        fontSize: 17,
-                        color: _C.green,
-                      ),
+                      style: AppText.w700(17, AppColors.green),
                     ),
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 15, vertical: 6),
                       decoration: BoxDecoration(
-                        color: _C.green.withValues(alpha: 0.08),
+                        color: AppColors.green.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(50),
                       ),
                       child: Text(
                         preview.reward,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: _C.dark.withValues(alpha: 0.6),
-                        ),
+                        style: AppText.w500(11, AppColors.dark.withValues(alpha: 0.6)),
                       ),
                     ),
                   ],
@@ -320,7 +258,6 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
 
               const SizedBox(height: 16),
 
-              // ── Ringkasan Card ────────────────────────────────────────
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -332,15 +269,10 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      children: const [
+                      children: [
                         Text(
                           'Ringkasan Bagi Hasil',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: _C.dark,
-                          ),
+                          style: AppText.w700(13, AppColors.dark),
                         ),
                       ],
                     ),
@@ -358,7 +290,6 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
                 ),
               ),
 
-              // ── Penerima Nasabah Card (dikelompokkan per bank) ────────
               if (preview.penerima.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
@@ -372,15 +303,10 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        children: const [
+                        children: [
                           Text(
                             'Penerima Nasabah',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                              color: _C.dark,
-                            ),
+                            style: AppText.w700(13, AppColors.dark),
                           ),
                         ],
                       ),
@@ -393,17 +319,12 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             margin: const EdgeInsets.only(top:10),
                             decoration: BoxDecoration(
-                              color: _C.dark.withValues(alpha: 0.05),
+                              color: AppColors.dark.withValues(alpha: 0.05),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               bank.namaBank,
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: _C.dark.withValues(alpha: 0.6),
-                              ),
+                              style: AppText.w600(12, AppColors.dark.withValues(alpha: 0.6)),
                             ),
                           ),
                           ...bank.nasabahPenerima.asMap().entries.map((e) {
@@ -419,32 +340,22 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
                                       Container(
                                         padding: const EdgeInsets.all(6),
                                         decoration: BoxDecoration(
-                                          color: _C.green.withValues(alpha: 0.08),
+                                          color: AppColors.green.withValues(alpha: 0.08),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: const Icon(Icons.person_rounded,
-                                            size: 13, color: _C.green),
+                                            size: 13, color: AppColors.green),
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Text(
                                           n.namaNasabah.isNotEmpty ? n.namaNasabah : n.nasabahId,
-                                          style: const TextStyle(
-                                            fontFamily: 'Poppins',
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                            color: _C.dark,
-                                          ),
+                                          style: AppText.w500(12, AppColors.dark),
                                         ),
                                       ),
                                       Text(
                                         fmtNilai(n.totalDiterima),
-                                        style: const TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: _C.green,
-                                        ),
+                                        style: AppText.w700(12, AppColors.green),
                                       ),
                                     ],
                                   ),
@@ -472,16 +383,12 @@ class _PreviewBagiHasilScreenState extends State<PreviewBagiHasilScreen> {
                     : const Icon(Icons.check_circle_rounded, size: 18),
                 label: Text(
                   submitting ? 'Memproses...' : 'Konfirmasi Bagi Hasil',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
+                  style: AppText.w600(13),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _C.dark,
+                  backgroundColor: AppColors.dark,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor: _C.dark.withValues(alpha: 0.4),
+                  disabledBackgroundColor: AppColors.dark.withValues(alpha: 0.4),
                   minimumSize: const Size(double.infinity, 50),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -503,26 +410,15 @@ Widget _kvRow(String label, String value, {bool isHighlight = false}) =>
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              color: _C.dark.withValues(alpha: isHighlight ? 0.85 : 0.55),
-              fontWeight:
-                  isHighlight ? FontWeight.w600 : FontWeight.normal,
-            ),
+            style: AppText.p(12, weight: isHighlight ? FontWeight.w600 : FontWeight.normal, color: AppColors.dark.withValues(alpha: isHighlight ? 0.85 : 0.55)),
           ),
           Text(
             value,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: isHighlight ? 13 : 12,
-              fontWeight: FontWeight.w700,
-              color: isHighlight ? _C.dark : _C.green,
-            ),
+            style: AppText.w700(isHighlight ? 13 : 12, isHighlight ? AppColors.dark : AppColors.green),
           ),
         ],
       ),
     );
 
 Widget _divider() =>
-    Divider(color: const Color(0xFF013236).withValues(alpha: 0.06), height: 1);
+    Divider(color: AppColors.dark.withValues(alpha: 0.06), height: 1);

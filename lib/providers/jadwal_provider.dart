@@ -37,7 +37,6 @@ class JadwalProvider with ChangeNotifier {
             .map((json) => JadwalModel.fromJson(json))
             .toList();
 
-        // BSU hanya perlu lihat jadwal pengangkutan yang menargetkan BSU mereka.
         if (authProvider.role == 'petugas_bsu') {
           _pengangkutanList = _pengangkutanList
               .where((j) => j.targetBankId == authProvider.bankId)
@@ -62,8 +61,6 @@ class JadwalProvider with ChangeNotifier {
   List<JadwalRutin> _mapToRutin(List<JadwalModel> models) {
     final map = <String, JadwalRutin>{};
     for (var m in models) {
-      // Sertakan targetBankId di key agar jadwal pengangkutan ke BSU berbeda
-      // tidak digabung menjadi satu baris.
       final key = '${m.jamMulai}-${m.jamSelesai}-${m.mingguKe}-${m.targetBankId}';
       if (map.containsKey(key)) {
         if (!map[key]!.days.contains(m.dayIndex)) {
@@ -90,13 +87,6 @@ class JadwalProvider with ChangeNotifier {
     )).toList();
   }
 
-  /// Jadwal penimbangan BSM untuk SATU bulan.
-  ///
-  /// Sengaja passthrough, bukan slice: dua dari tiga pemanggilnya memanggil ini
-  /// berulang lintas bulan lalu menggabungkan hasilnya sendiri. Kalau hasilnya
-  /// disimpan di provider, tiap iterasi menimpa iterasi sebelumnya dan yang
-  /// tersisa cuma bulan terakhir. Ketiganya juga sudah punya flag loading dan
-  /// error masing-masing.
   Future<Map<String, dynamic>> fetchPenimbanganBsm(
     String bankId, {
     required int month,

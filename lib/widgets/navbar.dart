@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class MainNavbar extends StatelessWidget {
   final int selectedIndex;
@@ -49,7 +51,7 @@ class MainNavbar extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF94DF0C).withOpacity(0.75) : Colors.transparent,
+            color: isSelected ? AppColors.neon.withValues(alpha: 0.75) : Colors.transparent,
             borderRadius: BorderRadius.circular(50),
           ),
           child: Center(
@@ -58,31 +60,21 @@ class MainNavbar extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected
-                        ? const Color(0xFF013236)
-                        : const Color(0xFF013236).withOpacity(0.5),
-                  ),
+                  style: AppText.p(13, weight: isSelected ? FontWeight.w600 : FontWeight.w500, color: isSelected
+                        ? AppColors.dark
+                        : AppColors.dark.withValues(alpha: 0.5)),
                 ),
                 if (showBadge) ...[
                   const SizedBox(width: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF013236),
+                      color: AppColors.dark,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       '$badge',
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFFFFFFF),
-                      ),
+                      style: AppText.w700(10, Colors.white),
                     ),
                   ),
                 ],

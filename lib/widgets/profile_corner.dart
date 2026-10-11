@@ -3,20 +3,16 @@ import 'package:enviroo/providers/profil_provider.dart';
 import 'package:enviroo/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
 
-/// Avatar bulat di pojok `TopBarCustom`, tampil di semua beranda.
-///
-/// Fotonya diambil lewat [ProfilProvider.fetchActiveUser], bukan memanggil
-/// service langsung. Pemicu ambil-ulangnya `AuthProvider.profilePhotoVersion`,
-/// yang dinaikkan `edit_profil_screen` sesudah foto berhasil diganti.
 class ProfileCorner extends StatefulWidget {
   final Color borderPhoto;
   final Color bgPhoto;
 
   const ProfileCorner({
     super.key,
-    this.borderPhoto = const Color(0xFF94DF0C),
-    this.bgPhoto = const Color(0xFF013236)
+    this.borderPhoto = AppColors.neon,
+    this.bgPhoto = AppColors.dark
   });
 
   @override
@@ -50,9 +46,6 @@ class _ProfileCornerState extends State<ProfileCorner>{
     super.dispose();
   }
 
-  /// Bandingkan versi, jangan sekadar "ada notifikasi": AuthProvider ber-notify
-  /// untuk banyak hal lain (login, profil sesi, error), dan tidak satu pun dari
-  /// itu boleh memicu ambil-ulang foto.
   void _onPhotoVersionChanged() {
     if (!mounted || _auth == null) return;
     final versi = _auth!.profilePhotoVersion;
@@ -60,7 +53,6 @@ class _ProfileCornerState extends State<ProfileCorner>{
     _lastPhotoVersion = versi;
 
     if (_auth!.userId.isEmpty) return;
-    // paksa: foto memang baru berubah, jadi cache-nya yang harus dibuang.
     context.read<ProfilProvider>().fetchActiveUser(_auth!.userId, paksa: true);
   }
 
@@ -109,7 +101,6 @@ class _ProfileCornerState extends State<ProfileCorner>{
         height: 38,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
-          // Fallback if profile.png is missing
           return Container(
             width: 38,
             height: 38,

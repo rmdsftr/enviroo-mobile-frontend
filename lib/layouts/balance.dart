@@ -2,12 +2,12 @@ import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/dashboard_provider.dart';
 import 'package:enviroo/services/dashboard_service.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 enum BalanceEntityType { nasabah, bank }
-
-// ─── Data Model ─────────────────────────────────────────────────────────────
 
 class _SaldoData {
   final double totalUang;
@@ -31,8 +31,6 @@ class _SaldoData {
   }
 }
 
-// ─── Card Config ─────────────────────────────────────────────────────────────
-
 class _CardConfig {
   final String label;
   final String Function(_SaldoData) primaryValue;
@@ -50,8 +48,6 @@ class _CardConfig {
     required this.accentColor,
   });
 }
-
-// ─── Main Widget ─────────────────────────────────────────────────────────────
 
 class BalanceLayouts extends StatefulWidget {
   final BalanceEntityType entityType;
@@ -140,29 +136,27 @@ class _BalanceLayoutState extends State<BalanceLayouts>
     }
   }
 
-  static final _rupiah = NumberFormat.decimalPattern('id');
-  static final _poin = NumberFormat.decimalPattern('id');
-
   List<_CardConfig> get _cards {
     final isBank = widget.entityType == BalanceEntityType.bank;
     final cards = <_CardConfig>[
       _CardConfig(
         label: isBank ? 'Saldo Rupiah' : 'Saldo Rupiah',
-        primaryValue: (s) => 'Rp ${_rupiah.format(s.totalUang)}',
+        primaryValue: (s) =>
+            AppNumber.rupiah(s.totalUang, maksDesimal: AppNumber.presisiSistem),
         primaryUnit: '',
         icon: Icons.account_balance_wallet_rounded,
         bgImage: 'assets/images/bg_uang.webp',
-        accentColor: const Color(0xFF94DF0C),
+        accentColor: AppColors.neon,
       ),
     ];
     if (_saldo.hasPoin) {
       cards.add(_CardConfig(
         label: isBank ? 'Saldo Poin' : 'Saldo Poin',
-        primaryValue: (s) => _poin.format(s.totalPoin),
+        primaryValue: (s) => AppNumber.desimal(s.totalPoin),
         primaryUnit: 'poin',
         icon: Icons.stars_rounded,
         bgImage: 'assets/images/bg_poin.webp',
-        accentColor: const Color(0xFF94DF0C),
+        accentColor: AppColors.neon,
       ));
     }
     return cards;
@@ -175,7 +169,6 @@ class _BalanceLayoutState extends State<BalanceLayouts>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Swipeable card area ──────────────────────────
           AspectRatio(
             aspectRatio: 1200 / 400,
             child: _isLoading
@@ -205,7 +198,6 @@ class _BalanceLayoutState extends State<BalanceLayouts>
                   ),
           ),
 
-          // ── Page indicator ───────────────────────────────
           const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -243,8 +235,6 @@ class _BalanceLayoutState extends State<BalanceLayouts>
   }
 }
 
-// ─── Individual Card ─────────────────────────────────────────────────────────
-
 class _BalanceCard extends StatelessWidget {
   final _CardConfig config;
   final _SaldoData saldo;
@@ -278,7 +268,6 @@ class _BalanceCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header row ──
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -296,13 +285,7 @@ class _BalanceCard extends StatelessWidget {
                       const SizedBox(width: 10),
                       Text(
                         config.label,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.3,
-                        ),
+                        style: AppText.p(12, weight: FontWeight.w500, color: Colors.white, letterSpacing: 0.3),
                       ),
                     ],
                   ),
@@ -325,7 +308,6 @@ class _BalanceCard extends StatelessWidget {
 
               const SizedBox(height: 4),
 
-              // ── Divider ──
               Container(
                 height: 1,
                 decoration: BoxDecoration(
@@ -341,7 +323,6 @@ class _BalanceCard extends StatelessWidget {
 
               const SizedBox(height: 10),
 
-              // ── Primary Value + Unit (satu baris) ──
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -352,13 +333,7 @@ class _BalanceCard extends StatelessWidget {
                     child: Text(
                       primaryText,
                       key: ValueKey('$isVisible-${config.label}'),
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 20,
-                        letterSpacing: -0.5,
-                      ),
+                      style: AppText.p(20, weight: FontWeight.w700, color: Colors.white, letterSpacing: -0.5),
                     ),
                   ),
                   if (config.primaryUnit.isNotEmpty) ...[
@@ -367,12 +342,7 @@ class _BalanceCard extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 2),
                       child: Text(
                         config.primaryUnit,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          color: Colors.white.withValues(alpha: 0.6),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: AppText.w500(11, Colors.white.withValues(alpha: 0.6)),
                       ),
                     ),
                   ],

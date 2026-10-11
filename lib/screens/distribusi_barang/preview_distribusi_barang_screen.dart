@@ -1,3 +1,4 @@
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:enviroo/models/katalog_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/barang_provider.dart';
@@ -7,12 +8,9 @@ import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-class _C {
-  static const dark  = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
-  static const cyan  = Color(0xFF06C0C9);
-}
 
 class PreviewDistribusiBarangScreen extends StatelessWidget {
   final String bsiId;
@@ -26,8 +24,7 @@ class PreviewDistribusiBarangScreen extends StatelessWidget {
     required this.namaBsu,
   });
 
-  String _fmt(int v) =>
-      v.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
+  String _fmt(int v) => AppNumber.desimal(v);
 
   Future<void> _lanjutScan(BuildContext context) async {
     HapticFeedback.mediumImpact();
@@ -108,7 +105,7 @@ class PreviewDistribusiBarangScreen extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFF013236).withValues(alpha: 0.08),
+          color: AppColors.dark.withValues(alpha: 0.08),
           width: 1,
         ),
       ),
@@ -117,35 +114,26 @@ class PreviewDistribusiBarangScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: _C.green.withValues(alpha: 0.12),
+              color: AppColors.green.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.inventory_2_rounded, color: _C.green, size: 36),
+            child: const Icon(Icons.inventory_2_rounded, color: AppColors.green, size: 36),
           ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Preview Distribusi Barang',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w700,
-              fontSize: 17,
-              color: _C.green,
-            ),
+            style: AppText.w700(17, AppColors.green),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Didistribusikan ke',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 11,
-              color: Color(0xFF888888),
-            ),
+            style: AppText.r(11, Color(0xFF888888)),
           ),
           const SizedBox(height: 4),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
             decoration: BoxDecoration(
-              color: Color(0xFF4EA771).withValues(alpha: 0.07),
+              color: AppColors.green.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(50),
             ),
             child: Row(
@@ -156,12 +144,7 @@ class PreviewDistribusiBarangScreen extends StatelessWidget {
                     namaBsu,
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF4EA771),
-                    ),
+                    style: AppText.w600(12, AppColors.green),
                   ),
                 ),
               ],
@@ -180,7 +163,7 @@ class PreviewDistribusiBarangScreen extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFF013236).withValues(alpha: 0.08),
+          color: AppColors.dark.withValues(alpha: 0.08),
           width: 1,
         ),
       ),
@@ -191,17 +174,12 @@ class PreviewDistribusiBarangScreen extends StatelessWidget {
             children: [
               Text(
                 'Daftar Item',
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: _C.dark,
-                ),
+                style: AppText.w700(13, AppColors.dark),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Divider(color: _C.dark.withValues(alpha: 0.07), height: 1),
+          Divider(color: AppColors.dark.withValues(alpha: 0.07), height: 1),
           const SizedBox(height: 12),
           ...items.asMap().entries.map((entry) {
             final isLast = entry.key == items.length - 1;
@@ -210,7 +188,7 @@ class PreviewDistribusiBarangScreen extends StatelessWidget {
                 _buildItemRow(entry.value),
                 if (!isLast) ...[
                   const SizedBox(height: 12),
-                  Divider(color: _C.dark.withValues(alpha: 0.06), height: 1),
+                  Divider(color: AppColors.dark.withValues(alpha: 0.06), height: 1),
                   const SizedBox(height: 12),
                 ],
               ],
@@ -234,29 +212,19 @@ class PreviewDistribusiBarangScreen extends StatelessWidget {
                 children: [
                   Text(
                     item.namaBarang,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: _C.dark,
-                    ),
+                    style: AppText.w600(13, AppColors.dark),
                   ),
                   if (item.bsuItemBaru) ...[
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Color(0xFF4EA771).withValues(alpha: 0.1),
+                        color: AppColors.green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Item baru di BSU',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF4EA771),
-                        ),
+                        style: AppText.w600(9, AppColors.green),
                       ),
                     ),
                   ],
@@ -269,21 +237,11 @@ class PreviewDistribusiBarangScreen extends StatelessWidget {
               children: [
                 Text(
                   _fmt(item.stokKirim),
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF4EA771),
-                    height: 1.0,
-                  ),
+                  style: AppText.p(20, weight: FontWeight.w800, color: AppColors.green, height: 1.0),
                 ),
-                const Text(
+                Text(
                   'item',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    color: Color(0xFF999999),
-                  ),
+                  style: AppText.r(10, Color(0xFF999999)),
                 ),
               ],
             ),
@@ -310,7 +268,7 @@ class PreviewDistribusiBarangScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7F5),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -318,13 +276,7 @@ class PreviewDistribusiBarangScreen extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFFAAAAAA),
-              letterSpacing: 0.5,
-            ),
+            style: AppText.p(9, weight: FontWeight.w700, color: Color(0xFFAAAAAA), letterSpacing: 0.5),
           ),
           const SizedBox(height: 4),
           Row(
@@ -344,17 +296,12 @@ class PreviewDistribusiBarangScreen extends StatelessWidget {
               Icon(
                 down ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
                 size: 10,
-                color: down ? Colors.red.shade300 : _C.green,
+                color: down ? Colors.red.shade300 : AppColors.green,
               ),
               const SizedBox(width: 3),
               Text(
                 _fmt(after),
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _C.dark,
-                ),
+                style: AppText.w700(13, AppColors.dark),
               ),
             ],
           ),
@@ -370,7 +317,7 @@ class PreviewDistribusiBarangScreen extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
-            color: _C.dark.withValues(alpha: 0.08),
+            color: AppColors.dark.withValues(alpha: 0.08),
             blurRadius: 24,
             offset: const Offset(0, -8),
           ),
@@ -379,16 +326,12 @@ class PreviewDistribusiBarangScreen extends StatelessWidget {
       child: ElevatedButton.icon(
         onPressed: () => _lanjutScan(context),
         icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
-        label: const Text(
+        label: Text(
           'Kirim Distribusi Barang',
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
+          style: AppText.w600(13),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: _C.dark,
+          backgroundColor: AppColors.dark,
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 52),
           padding: const EdgeInsets.symmetric(vertical: 10),

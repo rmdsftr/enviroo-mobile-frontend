@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format/app_date.dart';
+import '../../core/format/app_number.dart';
 import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/penarikan_nasabah_provider.dart';
 import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'detail_penarikan_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class PreviewRequestPenarikanScreen extends StatefulWidget {
   final PenarikanFormData formData;
@@ -25,8 +29,8 @@ class PreviewRequestPenarikanScreen extends StatefulWidget {
 
 class _PreviewRequestPenarikanScreenState
     extends State<PreviewRequestPenarikanScreen> {
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
 
   bool _loadingPreview = true;
   bool _submitting = false;
@@ -75,8 +79,6 @@ class _PreviewRequestPenarikanScreenState
     }
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────
-
   Future<void> _submit() async {
     final preview = _preview;
     if (preview == null) return;
@@ -124,29 +126,11 @@ class _PreviewRequestPenarikanScreenState
         type: error ? SnackBarType.error : SnackBarType.success);
   }
 
-  // ── Formatters ────────────────────────────────────────────────────────────
+  String _fmtDeadlineDate(DateTime? dt) =>
+      dt == null ? '-' : AppDate.tanggalPanjang(dt);
 
-  String _fmtNominal(double v, String satuan, {bool isUang = false}) {
-    final f = NumberFormat.decimalPattern('id_ID');
-    f.maximumFractionDigits = 4;
-    f.minimumFractionDigits = 0;
-    if (isUang) return 'Rp ${f.format(v)}';
-    return '${f.format(v)} ${satuan.isEmpty ? 'poin' : satuan}';
-  }
-
-  String _fmtDeadlineDate(DateTime? dt) {
-    if (dt == null) return '-';
-    return DateFormat('d MMMM yyyy', 'id_ID').format(dt);
-  }
-
-  String _fmtDeadlineTime(DateTime? dt) {
-    if (dt == null) return '-';
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '$h.$m WIB';
-  }
-
-  // ── Build ─────────────────────────────────────────────────────────────────
+  String _fmtDeadlineTime(DateTime? dt) =>
+      dt == null ? '-' : AppDate.jamWib(dt);
 
   @override
   Widget build(BuildContext context) {
@@ -174,7 +158,6 @@ class _PreviewRequestPenarikanScreenState
                             ? _buildError()
                             : _buildContent(),
                   ),
-                  // ── Bottom bar button ──────────────────────────────────────
                   if (!_loadingPreview && _errorPreview == null)
                     Container(
                       decoration: BoxDecoration(
@@ -192,11 +175,10 @@ class _PreviewRequestPenarikanScreenState
                     ),
                 ],
               ),
-              // Submit loading overlay
               if (_submitting)
                 Container(
                   color: Colors.black.withValues(alpha: 0.35),
-                  child: const Center(
+                  child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -204,11 +186,7 @@ class _PreviewRequestPenarikanScreenState
                         SizedBox(height: 16),
                         Text(
                           'Memproses pengajuan...',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            color: Colors.white,
-                            fontSize: 14,
-                          ),
+                          style: AppText.r(14, Colors.white),
                         ),
                       ],
                     ),
@@ -221,41 +199,16 @@ class _PreviewRequestPenarikanScreenState
     );
   }
 
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline_rounded,
-                color: Colors.redAccent, size: 56),
-            const SizedBox(height: 16),
-            Text(
-              _errorPreview!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontFamily: 'Poppins', fontSize: 14),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50)),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 32, vertical: 14),
-              ),
-              onPressed: _loadPreview,
-              child: const Text('Coba Lagi',
-                  style: TextStyle(fontFamily: 'Poppins')),
-            ),
-          ],
+  Widget _buildError() => StateMessage(
+        illustration: StateArt.error,
+        message: _errorPreview!,
+        action: StateRetryButton(
+          onPressed: _loadPreview,
+          color: primary,
+          radius: 50,
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
         ),
-      ),
-    );
-  }
+      );
 
   Widget _buildContent() {
     final p = _preview!;
@@ -265,23 +218,18 @@ class _PreviewRequestPenarikanScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Summary Card
           _buildSummaryCard(p),
           const SizedBox(height: 16),
-          // Saldo info card
           _buildSaldoCard(p),
-          // Barang breakdown
           if (p.isBarang && p.itemBarang.isNotEmpty) ...[
             const SizedBox(height: 16),
             _buildBarangBreakdown(p),
           ],
-          // Catatan untuk petugas (kalau diisi)
           if (catatan != null && catatan.isNotEmpty) ...[
             const SizedBox(height: 16),
             _buildCatatanCard(catatan),
           ],
           const SizedBox(height: 16),
-          // Disclaimer
           _buildDisclaimer(),
         ],
       ),
@@ -297,7 +245,7 @@ class _PreviewRequestPenarikanScreenState
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withValues(alpha: 0.1),
+          color: AppColors.dark.withValues(alpha: 0.1),
         ),
       ),
       child: Column(
@@ -313,19 +261,14 @@ class _PreviewRequestPenarikanScreenState
                 color: primary,
               ),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Ringkasan Penarikan',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: dark,
-                ),
+                style: AppText.w700(13, dark),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: 10),
           _InfoRow(
             label: 'Insentif',
@@ -333,7 +276,8 @@ class _PreviewRequestPenarikanScreenState
           ),
           _InfoRow(
             label: 'Nominal',
-            value: _fmtNominal(p.nominalPenarikan, p.satuan, isUang: p.isUang),
+            value: AppNumber.nominal(p.nominalPenarikan,
+                satuan: p.satuan, isUang: p.isUang),
             highlight: true,
           ),
           _InfoRow(
@@ -350,8 +294,6 @@ class _PreviewRequestPenarikanScreenState
   }
 
   Widget _buildBarangBreakdown(PenarikanPreviewData p) {
-    final f = NumberFormat.decimalPattern('id_ID');
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -360,32 +302,27 @@ class _PreviewRequestPenarikanScreenState
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withValues(alpha: 0.1),
+          color: AppColors.dark.withValues(alpha: 0.1),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.shopping_basket_rounded, size: 16, color: primary),
               SizedBox(width: 8),
               Text(
                 'Detail Barang',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: dark,
-                ),
+                style: AppText.w700(13, dark),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: 4),
           for (int i = 0; i < p.itemBarang.length; i++) ...[
-            if (i > 0) const Divider(height: 1, color: Color(0xFFF0F0F0)),
+            if (i > 0) const Divider(height: 1, color: AppColors.divider),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
@@ -397,21 +334,12 @@ class _PreviewRequestPenarikanScreenState
                       children: [
                         Text(
                           p.itemBarang[i].namaBarang,
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: dark,
-                          ),
+                          style: AppText.w600(13, dark),
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          '${f.format(p.itemBarang[i].nilaiPoin)} poin',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 11.5,
-                            color: Colors.black.withValues(alpha: 0.45),
-                          ),
+                          '${AppNumber.desimal(p.itemBarang[i].nilaiPoin)} poin',
+                          style: AppText.r(11.5, Colors.black.withValues(alpha: 0.45)),
                         ),
                       ],
                     ),
@@ -420,22 +348,13 @@ class _PreviewRequestPenarikanScreenState
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '${f.format(p.itemBarang[i].qty)} item',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: primary,
-                        ),
+                        '${AppNumber.desimal(p.itemBarang[i].qty)} item',
+                        style: AppText.w700(13, primary),
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${f.format(p.itemBarang[i].subtotalPoin)} poin',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11.5,
-                          color: Colors.black.withValues(alpha: 0.45),
-                        ),
+                        '${AppNumber.desimal(p.itemBarang[i].subtotalPoin)} poin',
+                        style: AppText.r(11.5, Colors.black.withValues(alpha: 0.45)),
                       ),
                     ],
                   ),
@@ -457,38 +376,28 @@ class _PreviewRequestPenarikanScreenState
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withValues(alpha: 0.1),
+          color: AppColors.dark.withValues(alpha: 0.1),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.sticky_note_2_rounded, size: 16, color: primary),
               SizedBox(width: 8),
               Text(
                 'Catatan Untuk Petugas',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: dark,
-                ),
+                style: AppText.w700(13, dark),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: 10),
           Text(
             catatan,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              color: dark.withValues(alpha: 0.75),
-              height: 1.5,
-            ),
+            style: AppText.p(13, color: dark.withValues(alpha: 0.75), height: 1.5),
           ),
         ],
       ),
@@ -504,44 +413,42 @@ class _PreviewRequestPenarikanScreenState
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withValues(alpha: 0.1),
+          color: AppColors.dark.withValues(alpha: 0.1),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.account_balance_wallet_rounded,
                   size: 16, color: primary),
               SizedBox(width: 8),
               Text(
                 'Informasi Saldo',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: dark,
-                ),
+                style: AppText.w700(13, dark),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: 10),
           _InfoRow(
             label: 'Saldo Sekarang',
-            value: _fmtNominal(p.saldoSekarang, p.satuanSaldo, isUang: p.isUang),
+            value: AppNumber.nominal(p.saldoSekarang,
+                satuan: p.satuanSaldo, isUang: p.isUang),
           ),
           _InfoRow(
             label: 'Penarikan',
-            value: _fmtNominal(p.nominalPenarikan, p.satuanSaldo, isUang: p.isUang),
+            value: AppNumber.nominal(p.nominalPenarikan,
+                satuan: p.satuanSaldo, isUang: p.isUang),
           ),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: 10),
           _InfoRow(
             label: 'Estimasi Sisa',
-            value: _fmtNominal(p.saldoSetelah, p.satuanSaldo, isUang: p.isUang),
+            value: AppNumber.nominal(p.saldoSetelah,
+                satuan: p.satuanSaldo, isUang: p.isUang),
             highlight: true,
           ),
           if (!p.saldoCukup) ...[
@@ -553,7 +460,7 @@ class _PreviewRequestPenarikanScreenState
                 color: Colors.red.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(Icons.warning_amber_rounded,
                       color: Colors.red, size: 16),
@@ -561,11 +468,7 @@ class _PreviewRequestPenarikanScreenState
                   Expanded(
                     child: Text(
                       'Saldo tidak mencukupi untuk penarikan ini',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: Colors.red,
-                      ),
+                      style: AppText.r(11, Colors.red),
                     ),
                   ),
                 ],
@@ -585,24 +488,19 @@ class _PreviewRequestPenarikanScreenState
         color: const Color(0xFFFFFBEB),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+            color: AppColors.warning.withValues(alpha: 0.4)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(Icons.info_outline_rounded,
-              color: Color(0xFFF59E0B), size: 18),
+              color: AppColors.warning, size: 18),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Text(
               'Petugas akan melakukan konfirmasi pengajuan dalam waktu yang sudah kamu tentukan. '
               'Jika melewati tenggat, maka pengajuan akan otomatis dibatalkan oleh sistem dan saldo dikembalikan ke tabunganmu.',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: Color(0xFF92400E),
-                height: 1.5,
-              ),
+              style: AppText.p(12, color: Color(0xFF92400E), height: 1.5),
             ),
           ),
         ],
@@ -617,7 +515,7 @@ class _PreviewRequestPenarikanScreenState
 
     return Container(
       decoration: BoxDecoration(
-        color: disabled ? Colors.grey.shade400 : Color(0xFF013236),
+        color: disabled ? Colors.grey.shade400 : AppColors.dark,
         borderRadius: BorderRadius.circular(50),
       ),
       child: Material(
@@ -635,14 +533,9 @@ class _PreviewRequestPenarikanScreenState
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2.5),
                     )
-                  : const Text(
+                  : Text(
                       'Lanjutkan Penarikan',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppText.w600(14, Colors.white),
                     ),
             ),
           ),
@@ -654,8 +547,6 @@ class _PreviewRequestPenarikanScreenState
   String _capitalize(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}';
 }
-
-// ── Info Row ──────────────────────────────────────────────────────────────────
 
 class _InfoRow extends StatelessWidget {
   final String label;
@@ -679,25 +570,15 @@ class _InfoRow extends StatelessWidget {
             width: 130,
             child: Text(
               label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: Colors.black.withValues(alpha: 0.5),
-              ),
+              style: AppText.r(12, Colors.black.withValues(alpha: 0.5)),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight:
-                    highlight ? FontWeight.w700 : FontWeight.w600,
-                color: highlight
-                    ? const Color(0xFF4EA771)
-                    : const Color(0xFF013236),
-              ),
+              style: AppText.p(13, weight: highlight ? FontWeight.w700 : FontWeight.w600, color: highlight
+                    ? AppColors.green
+                    : AppColors.dark),
             ),
           ),
         ],

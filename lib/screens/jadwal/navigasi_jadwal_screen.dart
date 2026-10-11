@@ -3,23 +3,19 @@ import 'package:enviroo/screens/petugas/chat_info_ke_nasabah_screen.dart';
 import 'package:enviroo/screens/jadwal/jadwal_screen.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-// ── Screen ───────────────────────────────────────────────────────────────────
-// Halaman navigasi buat petugas_bsm — pintu masuk ke 3 menu monitoring jadwal
-// penimbangan. Diakses lewat menu "Jadwal" di beranda BSM (MenuAdminBSM),
-// di-push sebagai route biasa — bukan lagi tab di BottomBarCustom.
 class NavigasiJadwalScreen extends StatelessWidget {
   final VoidCallback? onBack;
 
   const NavigasiJadwalScreen({super.key, this.onBack});
 
-  static const _dark = Color(0xFF013236);
-  static const _accent = Color(0xFF4EA771);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -41,12 +37,7 @@ class NavigasiJadwalScreen extends StatelessWidget {
                         padding: const EdgeInsets.fromLTRB(28, 0, 28, 0),
                         child: Text(
                           'Pada halaman ini Anda bisa memantau ataupun membatalkan jadwal penimbangan mendatang',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 12.5,
-                            height: 1.6,
-                            color: _dark.withValues(alpha: 0.65),
-                          ),
+                          style: AppText.p(12.5, color: AppColors.dark.withValues(alpha: 0.65), height: 1.6),
                         ),
                       ),
                       const SizedBox(height: 22),
@@ -56,7 +47,7 @@ class NavigasiJadwalScreen extends StatelessWidget {
                           children: [
                             _MenuCard(
                               icon: Icons.notifications_rounded,
-                              color: _dark,
+                              color: AppColors.dark,
                               title: 'Notifikasi Jadwal',
                               description:
                                   'Pada menu ini Anda bisa melihat riwayat notifikasi yang dikirim ke nasabah terkait jadwal dan sesi penimbangan',
@@ -84,7 +75,7 @@ class NavigasiJadwalScreen extends StatelessWidget {
                             const SizedBox(height: 14),
                             _MenuCard(
                               icon: Icons.calendar_month_rounded,
-                              color: _accent,
+                              color: AppColors.green,
                               title: 'Kalender Penimbangan',
                               description:
                                   'Pada menu Anda dapat melihat seluruh jadwal penimbangan, baik yang mendatang ataupun yang lampau',
@@ -111,7 +102,6 @@ class NavigasiJadwalScreen extends StatelessWidget {
   }
 }
 
-// ── Menu Card ────────────────────────────────────────────────────────────────
 class _MenuCard extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -127,7 +117,6 @@ class _MenuCard extends StatelessWidget {
     this.onTap,
   });
 
-  static const _dark = Color(0xFF013236);
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +126,7 @@ class _MenuCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: _dark.withValues(alpha: 0.05),
+            color: AppColors.dark.withValues(alpha: 0.05),
             blurRadius: 16,
             offset: const Offset(0, 5),
           ),
@@ -154,7 +143,6 @@ class _MenuCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 18, 14, 18),
             child: Row(
               children: [
-                // Icon: gradient + colored glow biar gak flat
                 Container(
                   width: 50,
                   height: 50,
@@ -175,23 +163,12 @@ class _MenuCard extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          height: 1.35,
-                          color: _dark,
-                        ),
+                        style: AppText.p(13.5, weight: FontWeight.w700, color: AppColors.dark, height: 1.35),
                       ),
                       const SizedBox(height: 5),
                       Text(
                         description,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          height: 1.55,
-                          color: _dark.withValues(alpha: 0.45),
-                        ),
+                        style: AppText.p(11, color: AppColors.dark.withValues(alpha: 0.45), height: 1.55),
                       ),
                     ],
                   ),

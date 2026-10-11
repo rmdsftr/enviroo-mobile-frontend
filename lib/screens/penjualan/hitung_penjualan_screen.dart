@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format/app_number.dart';
 import '../../models/penjualan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dashboard_provider.dart';
@@ -15,15 +15,9 @@ import '../../widgets/topbar_back.dart';
 import '../petugas/inapp_camera_screen.dart';
 import '../lihat_foto_screen.dart';
 import 'detail_penjualan_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-class _C {
-  static const dark = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
-  static const accent = Color(0xFF94DF0C);
-  static const cardBg = Color(0xFFF7FBF5);
-  static const muted = Color(0xFF8A9A92);
-  static const border = Color(0xFFE6EDE9);
-}
 
 class HitungPenjualanScreen extends StatefulWidget {
   const HitungPenjualanScreen({super.key});
@@ -86,7 +80,6 @@ class _HitungPenjualanScreenState extends State<HitungPenjualanScreen> {
     }
   }
 
-  /// Default-nya tetap error supaya pemanggil lama tidak perlu diubah.
   void _showSnack(String msg, {SnackBarType type = SnackBarType.error}) =>
       showCustomSnackBar(context, msg, type: type);
 
@@ -98,7 +91,7 @@ class _HitungPenjualanScreenState extends State<HitungPenjualanScreen> {
     if (preview == null) {
       return const Scaffold(
         backgroundColor: Colors.white,
-        body: Center(child: CircularProgressIndicator(color: _C.green)),
+        body: Center(child: CircularProgressIndicator(color: AppColors.green)),
       );
     }
 
@@ -126,25 +119,21 @@ class _HitungPenjualanScreenState extends State<HitungPenjualanScreen> {
                         const SizedBox(height: 16),
                         _sectionTitle('Bukti Serah Terima'),
                         const SizedBox(height: 4),
-                        const Text(
+                        Text(
                           'Ambil foto fisik serah terima sampah dengan pihak eksternal.',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 11.5,
-                            color: _C.muted,
-                          ),
+                          style: AppText.r(11.5, AppColors.muted),
                         ),
                         const SizedBox(height: 10),
                         Container(
                           width: double.infinity,
                           height: 200,
                           decoration: BoxDecoration(
-                            color: _C.cardBg,
+                            color: AppColors.surfaceMint,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: prov.buktiFoto == null
-                                  ? _C.border
-                                  : _C.green,
+                                  ? AppColors.border
+                                  : AppColors.green,
                               width: 1.5,
                             ),
                           ),
@@ -152,29 +141,20 @@ class _HitungPenjualanScreenState extends State<HitungPenjualanScreen> {
                           child: prov.buktiFoto == null
                               ? GestureDetector(
                                   onTap: _ambilFoto,
-                                  child: const Column(
+                                  child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(Icons.photo_camera_rounded,
-                                          color: _C.green, size: 38),
+                                          color: AppColors.green, size: 38),
                                       SizedBox(height: 8),
                                       Text(
                                         'Ketuk untuk ambil foto',
-                                        style: TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: _C.dark,
-                                        ),
+                                        style: AppText.w600(13, AppColors.dark),
                                       ),
                                       SizedBox(height: 2),
                                       Text(
                                         'Kamera in-app akan terbuka',
-                                        style: TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontSize: 11,
-                                          color: _C.muted,
-                                        ),
+                                        style: AppText.r(11, AppColors.muted),
                                       ),
                                     ],
                                   ),
@@ -234,7 +214,7 @@ class _HitungPenjualanScreenState extends State<HitungPenjualanScreen> {
               Container(
                 color: Colors.black.withValues(alpha:0.35),
                 child: const Center(
-                  child: CircularProgressIndicator(color: _C.accent),
+                  child: CircularProgressIndicator(color: AppColors.neon),
                 ),
               ),
           ],
@@ -245,35 +225,25 @@ class _HitungPenjualanScreenState extends State<HitungPenjualanScreen> {
 
   Widget _sectionTitle(String title) => Text(
         title,
-        style: const TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: _C.dark,
-        ),
+        style: AppText.w700(13, AppColors.dark),
       );
 }
 
-// ─── Kalkulasi Card ──────────────────────────────────────────────────────────
 class _KalkulasiCard extends StatelessWidget {
   final PreviewPenjualanModel preview;
   const _KalkulasiCard({required this.preview});
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat('#,##0.##', 'id_ID');
-    final isRp = preview.satuan.toLowerCase() == 'rupiah' ||
-        preview.satuan.toLowerCase() == 'rp';
-    final totalLabel = isRp
-        ? 'Rp ${NumberFormat('#,##0', 'id_ID').format(preview.totalPenjualan)}'
-        : '${fmt.format(preview.totalPenjualan)} ${preview.satuan}';
+    final totalLabel =
+        AppNumber.nominalSatuan(preview.totalPenjualan, preview.satuan);
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _C.dark.withValues(alpha: 0.08)),
+        border: Border.all(color: AppColors.dark.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,22 +254,17 @@ class _KalkulasiCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: _C.green.withValues(alpha: 0.1),
+                  color: AppColors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(25),
                 ),
                 child: const Icon(Icons.calculate_rounded,
-                    color: _C.green, size: 20),
+                    color: AppColors.green, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Hasil Kalkulasi Penjualan',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    color: _C.dark.withValues(alpha: 0.5),
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: AppText.w500(12, AppColors.dark.withValues(alpha: 0.5)),
                 ),
               ),
             ],
@@ -307,17 +272,12 @@ class _KalkulasiCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             totalLabel,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 24,
-              color: _C.dark,
-              fontWeight: FontWeight.bold,
-            ),
+            style: AppText.w700(24, AppColors.dark),
           ),
           const SizedBox(height: 10),
-          Divider(color: _C.dark.withValues(alpha: 0.08), height: 1),
+          Divider(color: AppColors.dark.withValues(alpha: 0.08), height: 1),
           const SizedBox(height: 10),
-          _Chip(label: 'Nasabah', value: '${fmt.format(preview.persenNasabah)}%'),
+          _Chip(label: 'Nasabah', value: AppNumber.persen(preview.persenNasabah)),
         ],
       ),
     );
@@ -334,46 +294,31 @@ class _Chip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: _C.green.withValues(alpha: 0.08),
+        color: AppColors.green.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         '$label $value',
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 11,
-          color: _C.green,
-          fontWeight: FontWeight.w600,
-        ),
+        style: AppText.w600(11, AppColors.green),
       ),
     );
   }
 }
 
-// ─── Detail Item Row ─────────────────────────────────────────────────────────
 class _DetailItemRow extends StatelessWidget {
   final DetailKalkulasiItem item;
   final String satuan;
   const _DetailItemRow({required this.item, required this.satuan});
 
-  String _fmt(double v) {
-    final s = satuan.toLowerCase().trim();
-    if (s == 'poin') {
-      return '${NumberFormat('#,##0.##', 'id_ID').format(v)} poin';
-    } else {
-      return 'Rp ${NumberFormat('#,##0', 'id_ID').format(v)}';
-    }
-  }
+  String _fmt(double v) => AppNumber.nominalSatuan(v, satuan);
 
   @override
   Widget build(BuildContext context) {
-    final fmtQty = NumberFormat('#,##0.##', 'id_ID');
-
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        border: Border.all(color: _C.border),
+        border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
@@ -384,33 +329,19 @@ class _DetailItemRow extends StatelessWidget {
               children: [
                 Text(
                   item.namaSampah,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: _C.dark,
-                  ),
+                  style: AppText.w600(12.5, AppColors.dark),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${fmtQty.format(item.qty)} × ${_fmt(item.hargaJual)}',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    color: _C.muted,
-                  ),
+                  '${AppNumber.desimal(item.qty)} ${item.satuan} × ${_fmt(item.hargaJual)}',
+                  style: AppText.r(11, AppColors.muted),
                 ),
               ],
             ),
           ),
           Text(
             _fmt(item.subtotal),
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: _C.green,
-            ),
+            style: AppText.w700(12, AppColors.green),
           ),
         ],
       ),
@@ -418,7 +349,6 @@ class _DetailItemRow extends StatelessWidget {
   }
 }
 
-// ─── Bottom Bar ──────────────────────────────────────────────────────────────
 class _BottomBar extends StatelessWidget {
   final bool enabled;
   final bool loading;
@@ -435,7 +365,7 @@ class _BottomBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: _C.border)),
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: SizedBox(
         width: double.infinity,
@@ -452,16 +382,12 @@ class _BottomBar extends StatelessWidget {
               : const Icon(Icons.save_rounded, size: 20),
           label: Text(
             loading ? 'Menyimpan…' : 'Simpan Transaksi Penjualan',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              fontSize: 13.5,
-            ),
+            style: AppText.w600(13.5),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: _C.dark,
+            backgroundColor: AppColors.dark,
             foregroundColor: Colors.white,
-            disabledBackgroundColor: _C.muted.withValues(alpha:0.5),
+            disabledBackgroundColor: AppColors.muted.withValues(alpha:0.5),
             disabledForegroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -473,7 +399,6 @@ class _BottomBar extends StatelessWidget {
   }
 }
 
-// ─── Step Indicator ──────────────────────────────────────────────────────────
 class _StepIndicator extends StatelessWidget {
   final int currentStep;
   const _StepIndicator({required this.currentStep});
@@ -489,7 +414,7 @@ class _StepIndicator extends StatelessWidget {
             margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
             height: 5,
             decoration: BoxDecoration(
-              color: isActive ? _C.accent : _C.border,
+              color: isActive ? AppColors.neon : AppColors.border,
               borderRadius: BorderRadius.circular(4),
             ),
           ),

@@ -6,6 +6,8 @@ import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class EditProfilScreen extends StatefulWidget {
   final String userId;
@@ -35,8 +37,6 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
   File? _pickedPhoto;
   bool _isSaving = false;
 
-  static const _dark      = Color(0xFF0D3B3E);
-  static const _green     = Color(0xFF4EA771);
   static const _softGreen = Color(0xFFD8F0D0);
   static const _midGreen  = Color(0xFF4B9E6B);
 
@@ -161,7 +161,7 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: _green,
+                color: AppColors.green,
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
@@ -187,12 +187,7 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
       alignment: Alignment.center,
       child: Text(
         initials.isEmpty ? '?' : initials,
-        style: const TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.bold,
-          fontSize: 28,
-          color: _midGreen,
-        ),
+        style: AppText.w700(28, _midGreen),
       ),
     );
   }
@@ -218,12 +213,7 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
           Expanded(
             child: Text(
               msg,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                height: 1.6,
-                color: Color(0xFF7A5C00),
-              ),
+              style: AppText.p(11, color: Color(0xFF7A5C00), height: 1.6),
             ),
           ),
         ],
@@ -264,34 +254,25 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: _dark.withValues(alpha: 0.55),
-          ),
+          style: AppText.w500(11, AppColors.darkAlt.withValues(alpha: 0.55)),
         ),
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _dark.withValues(alpha: 0.1)),
+            border: Border.all(color: AppColors.darkAlt.withValues(alpha: 0.1)),
           ),
           child: TextField(
             controller: controller,
             keyboardType: keyboardType,
-            style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, color: _dark),
+            style: AppText.r(13, AppColors.darkAlt),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: _dark.withValues(alpha: 0.3),
-              ),
+              hintStyle: AppText.r(13, AppColors.darkAlt.withValues(alpha: 0.3)),
               prefixIcon: Padding(
                 padding: const EdgeInsets.only(left: 14, right: 10),
-                child: Icon(icon, size: 18, color: _green),
+                child: Icon(icon, size: 18, color: AppColors.green),
               ),
               prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
               border: InputBorder.none,
@@ -309,7 +290,7 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
       child: ElevatedButton(
         onPressed: _isSaving ? null : _save,
         style: ElevatedButton.styleFrom(
-          backgroundColor: _dark,
+          backgroundColor: AppColors.darkAlt,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -320,9 +301,9 @@ class _EditProfilScreenState extends State<EditProfilScreen> {
                 width: 18, height: 18,
                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
               )
-            : const Text(
+            : Text(
                 'Simpan Perubahan',
-                style: TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600),
+                style: AppText.w600(13),
               ),
       ),
     );

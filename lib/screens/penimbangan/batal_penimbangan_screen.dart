@@ -1,3 +1,4 @@
+import 'package:enviroo/core/format/app_date.dart';
 import 'package:enviroo/models/jadwal_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/penimbangan_provider.dart';
@@ -7,12 +8,10 @@ import 'package:enviroo/widgets/filter_month_year.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-// ── Screen ───────────────────────────────────────────────────────────────────
-// Petugas_bsm membatalkan jadwal penimbangan MENDATANG (belum dimulai) —
-// beda dari pembatalan sesi yang udah aktif (itu dari menu penimbangan).
 class BatalPenimbanganScreen extends StatefulWidget {
   const BatalPenimbanganScreen({super.key});
 
@@ -22,8 +21,6 @@ class BatalPenimbanganScreen extends StatefulWidget {
 }
 
 class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
-  static const _dark = Color(0xFF013236);
-  static const _green = Color(0xFF4EA771);
   static const _surface = Color(0xFFF5F9F3);
 
   late DateTime _filterStart;
@@ -41,9 +38,6 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
   void initState() {
     super.initState();
     final now = DateTime.now();
-    // Default 2 bulan ke depan (bulan ini + bulan depan) — kalau cuma bulan
-    // ini, jadwal yang jatuh di awal bulan depan (mis. hari ini 31 Agustus)
-    // gak akan kelihatan buat dibatalkan.
     _filterStart = DateTime(now.year, now.month);
     _filterEnd = DateTime(now.year, now.month + 1);
     _alasanController.addListener(() => setState(() {}));
@@ -59,7 +53,6 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
   bool get _isValid =>
       _selectedJadwal != null && _alasanController.text.trim().isNotEmpty;
 
-  // ── Fetch jadwal mendatang (bisa lintas beberapa bulan kalau range dipilih) ──
   Future<void> _fetchJadwal() async {
     setState(() {
       _isLoading = true;
@@ -99,12 +92,8 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
 
     if (!mounted) return;
 
-    // Cuma jadwal yang beneran masih bisa dibatalkan: belum lewat, masih
-    // aktif, dan statusnya masih 'upcoming' (belum pending/aktif/selesai/dibatalkan).
     final today = DateTime.now();
     final todayNorm = DateTime(today.year, today.month, today.day);
-    // Notifikasi pengingat ke nasabah dikirim jam 20.00 — begitu lewat jam
-    // segitu, jadwal hari ini gak boleh muncul lagi buat dibatalkan.
     final pastReminderCutoff = today.hour >= 20;
     final filtered = merged.where((j) {
       final tglNorm = DateTime(j.tanggal.year, j.tanggal.month, j.tanggal.day);
@@ -126,7 +115,6 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
     });
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────
   Future<void> _submit() async {
     final jadwal = _selectedJadwal;
     final alasan = _alasanController.text.trim();
@@ -136,7 +124,7 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
 
     final res = await context.read<PenimbanganProvider>().batalkanJadwal(
           jadwalId: jadwal.jadwalId,
-          tanggalSesi: DateFormat('yyyy-MM-dd').format(jadwal.tanggal),
+          tanggalSesi: AppDate.apiDate(jadwal.tanggal),
           alasanPembatalan: alasan,
         );
 
@@ -160,11 +148,10 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -183,12 +170,6 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
                       physics: const ClampingScrollPhysics(),
                       child: ConstrainedBox(
                         constraints: BoxConstraints(minHeight: viewport.maxHeight),
-                        // IntrinsicHeight ngasih tinggi konkret (bukan infinity)
-                        // ke Column ini, jadi Expanded di bawah bisa beneran
-                        // ngedorong tombol mentok ke bawah pas konten pendek —
-                        // tanpa dibikin sticky/pinned. Pas konten lebih panjang
-                        // dari layar, Expanded gak maksa nyusut, jadi tombol
-                        // tetap lanjut ikut discroll di bawah konten.
                         child: IntrinsicHeight(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -203,12 +184,7 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
                                         padding: const EdgeInsets.symmetric(horizontal: 8),
                                         child: Text(
                                           'Jadwal penimbangan maksimal dibatalkan sebelum notifikasi pengingat dikirim ke nasabah pukul 20.00. Jika terlewat, sesi penimbangan masih bisa dibatalkan dari menu penimbangan',
-                                          style: TextStyle(
-                                            fontFamily: 'Poppins',
-                                            fontSize: 12.5,
-                                            height: 1.6,
-                                            color: _dark.withValues(alpha: 0.65),
-                                          ),
+                                          style: AppText.p(12.5, color: AppColors.dark.withValues(alpha: 0.65), height: 1.6),
                                         ),
                                       ),
                                       const SizedBox(height: 18),
@@ -235,33 +211,21 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
     );
   }
 
-  // ── Label wajib diisi, dipakai bareng di kedua card ─────────────────────────
   Widget _buildRequiredLabel(String text) {
     return Row(
       children: [
         Text(
           text,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: _dark,
-          ),
+          style: AppText.w600(12.5, AppColors.dark),
         ),
-        const Text(
+        Text(
           '*',
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: Colors.red,
-          ),
+          style: AppText.w600(12.5, Colors.red),
         ),
       ],
     );
   }
 
-  // ── Card 1: Pilih Jadwal ─────────────────────────────────────────────────────
   Widget _buildJadwalCard() {
     return Container(
       width: double.infinity,
@@ -269,7 +233,7 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _dark.withValues(alpha: 0.1), width: 1),
+        border: Border.all(color: AppColors.dark.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,7 +260,6 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
     );
   }
 
-  // ── Card 2: Alasan Pembatalan ────────────────────────────────────────────────
   Widget _buildAlasanCard() {
     return Container(
       width: double.infinity,
@@ -304,7 +267,7 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _dark.withValues(alpha: 0.1), width: 1),
+        border: Border.all(color: AppColors.dark.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,7 +280,6 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
     );
   }
 
-  // ── Bottom bar: tombol konfirmasi, nempel kiri/kanan layar (ikut scroll) ────
   Widget _buildBottomBar() {
     return Container(
       width: double.infinity,
@@ -333,16 +295,13 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
     );
   }
 
-  // ── List jadwal mendatang (selectable, scroll di dalam container sendiri) ──
-  // 30+ jadwal sekalipun gak akan bikin halaman ini melar — list-nya dibatasi
-  // tinggi & discroll di dalam, pakai ListView.builder biar item-nya lazy-built.
   static const double _jadwalListHeight = 260;
 
   Widget _buildJadwalList() {
     if (_isLoading) {
       return const SizedBox(
         height: _jadwalListHeight,
-        child: Center(child: CircularProgressIndicator(color: _green)),
+        child: Center(child: CircularProgressIndicator(color: AppColors.green)),
       );
     }
 
@@ -356,12 +315,12 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: Colors.red.shade400),
+                style: AppText.r(12, Colors.red.shade400),
               ),
               const SizedBox(height: 10),
               TextButton(
                 onPressed: _fetchJadwal,
-                child: const Text('Coba lagi', style: TextStyle(fontFamily: 'Poppins', color: _green)),
+                child: const Text('Coba lagi', style: TextStyle(fontFamily: 'Poppins', color: AppColors.green)),
               ),
             ],
           ),
@@ -380,11 +339,11 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.event_busy_rounded, size: 28, color: _dark.withValues(alpha: 0.25)),
+            Icon(Icons.event_busy_rounded, size: 28, color: AppColors.dark.withValues(alpha: 0.25)),
             const SizedBox(height: 8),
             Text(
               'Gak ada jadwal mendatang di periode ini',
-              style: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: _dark.withValues(alpha: 0.45)),
+              style: AppText.r(12, AppColors.dark.withValues(alpha: 0.45)),
             ),
           ],
         ),
@@ -420,10 +379,10 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? _green.withValues(alpha: 0.08) : Colors.white,
+            color: isSelected ? AppColors.green.withValues(alpha: 0.08) : Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isSelected ? _green : _dark.withValues(alpha: 0.08),
+              color: isSelected ? AppColors.green : AppColors.dark.withValues(alpha: 0.08),
               width: 1.5,
             ),
           ),
@@ -432,7 +391,7 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
               Container(
                 width: 38, height: 38,
                 decoration: BoxDecoration(
-                  color: (isSelected ? _green : _dark).withValues(alpha: 0.1),
+                  color: (isSelected ? AppColors.green : AppColors.dark).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Column(
@@ -440,18 +399,11 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
                   children: [
                     Text(
                       '${j.tanggal.day}',
-                      style: TextStyle(
-                        fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w700,
-                        color: isSelected ? _green : _dark, height: 1.1,
-                      ),
+                      style: AppText.p(13, weight: FontWeight.w700, color: isSelected ? AppColors.green : AppColors.dark, height: 1.1),
                     ),
                     Text(
                       months[j.tanggal.month].toUpperCase(),
-                      style: TextStyle(
-                        fontFamily: 'Poppins', fontSize: 7,
-                        fontWeight: FontWeight.w600,
-                        color: (isSelected ? _green : _dark).withValues(alpha: 0.6),
-                      ),
+                      style: AppText.w600(7, (isSelected ? AppColors.green : AppColors.dark).withValues(alpha: 0.6)),
                     ),
                   ],
                 ),
@@ -463,16 +415,12 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
                   children: [
                     Text(
                       j.namaJadwal.isNotEmpty ? j.namaJadwal : 'Penimbangan',
-                      style: const TextStyle(
-                        fontFamily: 'Poppins', fontSize: 12.5, fontWeight: FontWeight.w600, color: _dark,
-                      ),
+                      style: AppText.w600(12.5, AppColors.dark),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '$dateStr  •  ${j.formattedJam}',
-                      style: TextStyle(
-                        fontFamily: 'Poppins', fontSize: 10.5, color: _dark.withValues(alpha: 0.55),
-                      ),
+                      style: AppText.r(10.5, AppColors.dark.withValues(alpha: 0.55)),
                     ),
                   ],
                 ),
@@ -481,9 +429,9 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
                 width: 20, height: 20,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isSelected ? _green : Colors.transparent,
+                  color: isSelected ? AppColors.green : Colors.transparent,
                   border: Border.all(
-                    color: isSelected ? _green : _dark.withValues(alpha: 0.25),
+                    color: isSelected ? AppColors.green : AppColors.dark.withValues(alpha: 0.25),
                     width: 1.5,
                   ),
                 ),
@@ -498,13 +446,12 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
     );
   }
 
-  // ── Alasan field (max 255, sama kayak penyerahan_insentif_manual_screen) ────
   Widget _buildAlasanField() {
     return Container(
       decoration: BoxDecoration(
         color: _surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _dark.withValues(alpha: 0.12)),
+        border: Border.all(color: AppColors.dark.withValues(alpha: 0.12)),
       ),
       child: TextField(
         controller: _alasanController,
@@ -513,19 +460,13 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
         maxLength: 255,
         textInputAction: TextInputAction.done,
         inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\n'))],
-        style: const TextStyle(
-          fontFamily: 'Poppins', fontSize: 13, color: _dark, height: 1.5,
-        ),
+        style: AppText.p(13, color: AppColors.dark, height: 1.5),
         decoration: InputDecoration(
           hintText: 'Tulis alasan pembatalan jadwal penimbangan ini',
-          hintStyle: TextStyle(
-            fontFamily: 'Poppins', fontSize: 13, color: _dark.withValues(alpha: 0.35),
-          ),
+          hintStyle: AppText.r(13, AppColors.dark.withValues(alpha: 0.35)),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          counterStyle: TextStyle(
-            fontFamily: 'Poppins', fontSize: 11, color: _dark.withValues(alpha: 0.35),
-          ),
+          counterStyle: AppText.r(11, AppColors.dark.withValues(alpha: 0.35)),
         ),
       ),
     );
@@ -553,12 +494,9 @@ class _BatalPenimbanganScreenState extends State<BatalPenimbanganScreen> {
                         width: 20, height: 20,
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                       )
-                    : const Text(
+                    : Text(
                         'Konfirmasi Pembatalan Jadwal',
-                        style: TextStyle(
-                          fontFamily: 'Poppins', color: Colors.white,
-                          fontSize: 13.5, fontWeight: FontWeight.w600,
-                        ),
+                        style: AppText.w600(13.5, Colors.white),
                       ),
               ),
             ),

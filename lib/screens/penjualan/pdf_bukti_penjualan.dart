@@ -1,36 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format/app_date.dart';
+import '../../core/format/app_number.dart';
 import '../../models/penjualan_model.dart';
 import '../../providers/penjualan_provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-// ── Color Palette ─────────────────────────────────────────────────────────────
-// Sama persis kayak yang dipakai di DetailPenjualanScreen — biar temanya nyambung.
-class _C {
-  static const dark = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
-  static const danger = Color(0xFFD94848);
-}
-
-// ── Skala tipografi ───────────────────────────────────────────────────────────
-// Cuma 5 tingkat, dipakai konsisten di seluruh dokumen. Beda antar tingkat
-// sengaja lebar biar hierarkinya kebaca (bukan beda 0.5px yang gak ada artinya).
 class _T {
-  static const title = 16.0;    // judul dokumen
-  static const emphasis = 15.0; // satu angka utama: total penjualan
-  static const section = 13.0;  // judul section di tiap kartu
-  static const value = 12.0;    // isi/value
-  static const label = 11.0;    // label kiri
-  static const caption = 10.5;  // keterangan pendukung
+  static const title = 16.0;
+  static const emphasis = 15.0;
+  static const section = 13.0;
+  static const value = 12.0;
+  static const label = 11.0;
+  static const caption = 10.5;
 }
 
-// ── Screen ───────────────────────────────────────────────────────────────────
-// Template unduhan bukti penjualan (PDF) buat petugas. Diakses lewat tombol
-// "Unduh Bukti Penjualan" di paling bawah DetailPenjualanScreen. Kartu-kartunya
-// niru gaya DetailPenjualanScreen (putih rounded, header ikon+judul, divider
-// tipis), cuma isinya disusun ulang biar kebaca kayak struk kasir.
-// Screen ini murni template tampilannya — gak ada aksi unduh di sini.
 class PdfBuktiPenjualanScreen extends StatefulWidget {
   final String penjualanId;
 
@@ -54,7 +41,7 @@ class _PdfBuktiPenjualanScreenState extends State<PdfBuktiPenjualanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -70,7 +57,7 @@ class _PdfBuktiPenjualanScreenState extends State<PdfBuktiPenjualanScreen> {
                   builder: (_, prov, __) {
                     if (prov.detailStatus == FetchStatus.loading) {
                       return const Center(
-                        child: CircularProgressIndicator(color: _C.green),
+                        child: CircularProgressIndicator(color: AppColors.green),
                       );
                     }
                     if (prov.detailStatus == FetchStatus.error ||
@@ -88,40 +75,12 @@ class _PdfBuktiPenjualanScreenState extends State<PdfBuktiPenjualanScreen> {
     );
   }
 
-  // ── Error State ─────────────────────────────────────────────────────────────
-  Widget _buildError(String msg) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline_rounded, size: 40, color: _C.danger.withValues(alpha: 0.5)),
-              const SizedBox(height: 12),
-              Text(
-                msg,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: _C.dark.withValues(alpha: 0.5),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _load,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _C.dark,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Coba Lagi', style: TextStyle(fontFamily: 'Poppins')),
-              ),
-            ],
-          ),
-        ),
+  Widget _buildError(String msg) => StateMessage(
+        illustration: StateArt.error,
+        message: msg,
+        action: StateRetryButton(onPressed: _load),
       );
 
-  // ── Main Content ─────────────────────────────────────────────────────────────
   Widget _buildBody(DetailPenjualanModel d) {
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -130,10 +89,6 @@ class _PdfBuktiPenjualanScreenState extends State<PdfBuktiPenjualanScreen> {
   }
 }
 
-// ─── Template bukti penjualan ─────────────────────────────────────────────────
-// Dipakai di dua tempat: preview di screen atas, dan sumber render buat file
-// PDF-nya (lihat BuktiPenjualanPdfService). Satu sumber layout, jadi isi PDF
-// dijamin sama persis kayak yang keliatan di preview.
 class BuktiPenjualanTemplate extends StatelessWidget {
   final DetailPenjualanModel detail;
 
@@ -142,26 +97,19 @@ class BuktiPenjualanTemplate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = detail;
-    final isRupiah = d.satuanReward.toLowerCase() == 'rp';
-    final fmtRibuan = NumberFormat('#,##0', 'id_ID');
-    final fmtQty = NumberFormat('#,##0.##########', 'id_ID');
+    final isRupiah = AppNumber.tampakRupiah(d.satuanReward);
 
     String fmtNominal(double val) =>
-        isRupiah ? 'Rp${fmtRibuan.format(val)}' : '${fmtRibuan.format(val)} ${d.satuanReward}';
+        AppNumber.nominalSatuan(val, d.satuanReward, isUang: isRupiah);
 
-    final tanggal = DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(d.createdAt);
-    final jam = DateFormat('HH.mm', 'id_ID').format(d.createdAt);
     final terbilangStr =
         _capitalize('${terbilang(d.totalPenjualan.round())} ${isRupiah ? 'rupiah' : d.satuanReward}');
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 30, 20, 30),
       child: Column(
-        // Wajib min: pas dirender buat PDF, tingginya dikasih longgar. Kalau
-        // max, kolomnya bakal melar ngisi ruang kosong sampai bawah.
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Kop dokumen ─────────────────────────────────────────────────
           _plainCard(
             child: Column(
               children: [
@@ -174,66 +122,49 @@ class BuktiPenjualanTemplate extends StatelessWidget {
                 Text(
                   'Bukti Penjualan Sampah'.toUpperCase(),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: _T.title,
-                    letterSpacing: 0.4,
-                    color: _C.dark,
-                  ),
+                  style: AppText.p(_T.title, weight: FontWeight.w700, color: AppColors.dark, letterSpacing: 0.4),
                 ),
                 const SizedBox(height: 5),
                 Text(
                   d.namaBank,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: _T.value,
-                    color: _C.dark.withValues(alpha: 0.5),
-                  ),
+                  style: AppText.r(_T.value, AppColors.dark.withValues(alpha: 0.5)),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 12),
 
-          // ── Informasi penjualan ─────────────────────────────────────────
           _card(
             title: 'Informasi Penjualan',
             children: [
               _kv('ID Penjualan', d.penjualanId),
-              _kv('Tanggal Penjualan', '$tanggal $jam WIB'),
+              _kv('Tanggal Penjualan',
+                  '${AppDate.tanggalPenuh(d.createdAt)} ${AppDate.jamWib(d.createdAt)}'),
               _kv('Mitra Pengepul', d.namaMitra),
               _kv('Jenis Insentif', d.namaReward),
             ],
           ),
           const SizedBox(height: 12),
 
-          // ── Item sampah ─────────────────────────────────────────────────
           _card(
             title: 'Item Sampah Terjual',
             children: [
               if (d.itemsSampah.isEmpty)
                 Text(
                   'Tidak ada item sampah.',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: _T.value,
-                    color: _C.dark.withValues(alpha: 0.4),
-                  ),
+                  style: AppText.r(_T.value, AppColors.dark.withValues(alpha: 0.4)),
                 )
               else
                 ...d.itemsSampah.asMap().entries.map((entry) {
                   final isLast = entry.key == d.itemsSampah.length - 1;
                   final item = entry.value;
-                  // Tiap item dibungkus kotaknya sendiri biar jelas beda level
-                  // sama judul kartunya.
                   return Container(
                     width: double.infinity,
                     margin: EdgeInsets.only(top: 6, bottom: isLast ? 2 : 0),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
-                      color: _C.green.withValues(alpha: 0.075),
+                      color: AppColors.green.withValues(alpha: 0.075),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -245,34 +176,20 @@ class BuktiPenjualanTemplate extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 item.namaSampah,
-                                style: const TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: _T.value,
-                                  color: _C.dark,
-                                ),
+                                style: AppText.w600(_T.value, AppColors.dark),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Text(
                               fmtNominal(item.subtotalPenjualan),
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w600,
-                                fontSize: _T.value,
-                                color: _C.dark,
-                              ),
+                              style: AppText.w600(_T.value, AppColors.dark),
                             ),
                           ],
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          '${fmtQty.format(item.qty)} ${item.satuan} x ${fmtNominal(item.hargaJual)}',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: _T.caption,
-                            color: _C.dark.withValues(alpha: 0.45),
-                          ),
+                          '${AppNumber.desimal(item.qty)} ${item.satuan} x ${fmtNominal(item.hargaJual)}',
+                          style: AppText.r(_T.caption, AppColors.dark.withValues(alpha: 0.45)),
                         ),
                       ],
                     ),
@@ -282,14 +199,13 @@ class BuktiPenjualanTemplate extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // ── Ringkasan total ─────────────────────────────────────────────
           _card(
             title: 'Total Penjualan',
             children: [
               _kv(
                 'Nominal',
                 fmtNominal(d.totalPenjualan),
-                valueColor: _C.green,
+                valueColor: AppColors.green,
                 valueSize: _T.emphasis,
                 valueWeight: FontWeight.w700,
               ),
@@ -298,9 +214,6 @@ class BuktiPenjualanTemplate extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // ── Tanda tangan petugas ────────────────────────────────────────
-          // Blok tanda tangan harus kebaca sebagai satu kesatuan, jadi gak
-          // pakai anatomi judul+garis kayak kartu section di atas.
           _plainCard(
             child: Align(
               alignment: Alignment.centerRight,
@@ -308,11 +221,7 @@ class BuktiPenjualanTemplate extends StatelessWidget {
                 children: [
                   Text(
                     'Petugas yang Melayani,',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: _T.label,
-                      color: _C.dark.withValues(alpha: 0.5),
-                    ),
+                    style: AppText.r(_T.label, AppColors.dark.withValues(alpha: 0.5)),
                   ),
                   const SizedBox(height: 46),
                   Text(
@@ -321,19 +230,15 @@ class BuktiPenjualanTemplate extends StatelessWidget {
                       fontFamily: 'Poppins',
                       fontWeight: FontWeight.w600,
                       fontSize: _T.value,
-                      color: _C.dark,
+                      color: AppColors.dark,
                       decoration: TextDecoration.underline,
-                      decorationColor: _C.dark,
+                      decorationColor: AppColors.dark,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     d.namaBank,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: _T.caption,
-                      color: _C.dark.withValues(alpha: 0.45),
-                    ),
+                    style: AppText.r(_T.caption, AppColors.dark.withValues(alpha: 0.45)),
                   ),
                 ],
               ),
@@ -344,7 +249,6 @@ class BuktiPenjualanTemplate extends StatelessWidget {
     );
   }
 
-  // ── Cangkang kartu polos: dipakai blok pembingkai (kop & tanda tangan) ─────
   Widget _plainCard({required Widget child}) {
     return Container(
       width: double.infinity,
@@ -354,14 +258,13 @@ class BuktiPenjualanTemplate extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+          color: AppColors.dark.withValues(alpha: 0.1),
         ),
       ),
       child: child,
     );
   }
 
-  // ── Anatomi kartu section: judul → garis → isi. Dipakai semua kartu data. ──
   Widget _card({required String title, required List<Widget> children}) {
     return _plainCard(
       child: Column(
@@ -369,15 +272,10 @@ class BuktiPenjualanTemplate extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              fontSize: _T.section,
-              color: _C.dark,
-            ),
+            style: AppText.w600(_T.section, AppColors.dark),
           ),
           const SizedBox(height: 7),
-          Divider(color: _C.dark.withValues(alpha: 0.1), height: 1),
+          Divider(color: AppColors.dark.withValues(alpha: 0.1), height: 1),
           ...children,
         ],
       ),
@@ -401,31 +299,17 @@ class BuktiPenjualanTemplate extends StatelessWidget {
             width: 118,
             child: Text(
               label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: _T.label,
-                color: _C.dark.withValues(alpha: 0.5),
-              ),
+              style: AppText.r(_T.label, AppColors.dark.withValues(alpha: 0.5)),
             ),
           ),
           Text(
             ': ',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: _T.label,
-              color: _C.dark.withValues(alpha: 0.5),
-            ),
+            style: AppText.r(_T.label, AppColors.dark.withValues(alpha: 0.5)),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: valueWeight,
-                fontStyle: italic ? FontStyle.italic : FontStyle.normal,
-                fontSize: valueSize,
-                color: valueColor ?? _C.dark,
-              ),
+              style: AppText.p(valueSize, weight: valueWeight, color: valueColor ?? AppColors.dark, fontStyle: italic ? FontStyle.italic : FontStyle.normal),
             ),
           ),
         ],
@@ -437,7 +321,6 @@ class BuktiPenjualanTemplate extends StatelessWidget {
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 }
 
-// ─── Terbilang (angka → kata, Bahasa Indonesia) ─────────────────────────────
 String terbilang(int n) {
   if (n == 0) return 'nol';
   if (n < 0) return 'minus ${terbilang(-n)}';

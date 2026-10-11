@@ -7,16 +7,7 @@ import '../models/detail_petugas_model.dart';
 import '../services/profil_service.dart';
 import 'penjualan_provider.dart' show FetchStatus;
 
-/// State untuk modul profil (endpoint `/profil`, sebagian `/users`).
-///
-/// ⚠️ `ProfilService` memakai dua konvensi error sekaligus: [getDetailNasabah],
-/// [getDetailBank], dan [getDetailPetugas] **melempar exception**, sedangkan
-/// `getLogAkun`/`updateProfil` mengembalikan map `{'success': ...}` gaya rumah.
-/// Provider ini menormalkan keduanya jadi `status + data + error`, sehingga
-/// layar tidak perlu lagi menangkap exception dan membersihkan teksnya dengan
-/// `replaceFirst('Exception: ', '')`.
 class ProfilProvider extends ChangeNotifier {
-  // ── Detail nasabah ─────────────────────────────────────────────────────────
   FetchStatus _nasabahStatus = FetchStatus.idle;
   Map<String, dynamic>? _nasabah;
   String? _nasabahError;
@@ -25,7 +16,6 @@ class ProfilProvider extends ChangeNotifier {
   Map<String, dynamic>? get nasabah => _nasabah;
   String? get nasabahError => _nasabahError;
 
-  // ── Detail bank ────────────────────────────────────────────────────────────
   FetchStatus _bankStatus = FetchStatus.idle;
   DetailBankModel? _bank;
   String? _bankError;
@@ -34,10 +24,6 @@ class ProfilProvider extends ChangeNotifier {
   DetailBankModel? get bank => _bank;
   String? get bankError => _bankError;
 
-  // ── Detail petugas ─────────────────────────────────────────────────────────
-  //
-  // Slice terpisah dari [nasabah] karena ProfileScreen memakai keduanya
-  // bergantung peran — jangan disatukan jadi satu slot.
   FetchStatus _petugasStatus = FetchStatus.idle;
   DetailPetugasModel? _petugas;
   String? _petugasError;
@@ -46,9 +32,6 @@ class ProfilProvider extends ChangeNotifier {
   DetailPetugasModel? get petugas => _petugas;
   String? get petugasError => _petugasError;
 
-  // ── Log akun ───────────────────────────────────────────────────────────────
-  //
-  // Responsnya Map berisi dua daftar: `akun_nasabah` dan `akun_admin`.
   FetchStatus _logStatus = FetchStatus.idle;
   Map<String, dynamic>? _log;
   String? _logError;
@@ -57,10 +40,6 @@ class ProfilProvider extends ChangeNotifier {
   Map<String, dynamic>? get log => _log;
   String? get logError => _logError;
 
-  // ── User aktif (foto avatar ProfileCorner) ─────────────────────────────────
-  //
-  // `_activeUserId` menyimpan userId yang datanya sedang dipegang, dipakai
-  // sebagai penanda cache — lihat [fetchActiveUser].
   FetchStatus _activeUserStatus = FetchStatus.idle;
   Map<String, dynamic>? _activeUser;
   String? _activeUserError;
@@ -70,11 +49,8 @@ class ProfilProvider extends ChangeNotifier {
   Map<String, dynamic>? get activeUser => _activeUser;
   String? get activeUserError => _activeUserError;
 
-  /// Membuang awalan `Exception: ` yang menumpuk dari ProfilService.
   String _bersihkan(Object e) =>
       e.toString().replaceAll('Exception: ', '').trim();
-
-  // ───────────────────────────────────────────────────────────────────────────
 
   Future<void> fetchNasabah(String nasabahId) async {
     _nasabahStatus = FetchStatus.loading;
@@ -138,15 +114,6 @@ class ProfilProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Data user aktif untuk avatar `ProfileCorner`.
-  ///
-  /// `ProfileCorner` ikut `TopBarCustom`, jadi beberapa instansnya bisa hidup
-  /// sekaligus di layar yang bertumpuk. Tanpa guard cache, tiap instans
-  /// menembak request sendiri-sendiri — itu perilaku sebelum refactor ini.
-  /// Dengan guard, data yang sama dipakai ulang dan request justru berkurang.
-  ///
-  /// [paksa] dipakai saat foto profil baru diubah (`profilePhotoVersion` naik),
-  /// karena di situ justru cache-nya yang harus dibuang.
   Future<void> fetchActiveUser(String userId, {bool paksa = false}) async {
     if (!paksa &&
         _activeUserId == userId &&
@@ -171,7 +138,6 @@ class ProfilProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Mutasi sekali-jalan — layar sudah punya flag simpan sendiri.
   Future<Map<String, dynamic>> updateProfil({
     required String userId,
     String? nama,

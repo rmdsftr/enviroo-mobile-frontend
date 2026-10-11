@@ -1,3 +1,4 @@
+import 'package:enviroo/core/format/app_number.dart';
 import 'dart:io';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/katalog_provider.dart';
@@ -6,10 +7,13 @@ import 'package:enviroo/screens/lihat_foto_screen.dart';
 import 'package:enviroo/providers/setoran_provider.dart';
 import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
 import 'package:enviroo/widgets/custom_snackbar.dart';
+import 'package:enviroo/widgets/state_message.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class PreviewSetoranScreen extends StatefulWidget {
   final String penimbanganId;
@@ -34,7 +38,6 @@ class PreviewSetoranScreen extends StatefulWidget {
 }
 
 class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
-  static const Color _dark = Color(0xFF013236);
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -42,7 +45,6 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
   Map<String, dynamic>? _previewData;
   File? _fotoBukti;
 
-  // Setoran manual (!dariQr) wajib ada foto bukti sebelum bisa disimpan.
   bool get _bisaSimpan => widget.dariQr || _fotoBukti != null;
 
   @override
@@ -79,7 +81,6 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
     }
   }
 
-  // ── Foto bukti (khusus setoran manual) ────────────────────────────────────
   Future<void> _ambilFoto() async {
     final file = await Navigator.push<File?>(
       context,
@@ -133,9 +134,6 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
       Provider.of<KatalogProvider>(context, listen: false)
           .silentRefresh(auth.bankId ?? '');
 
-      // Perjalanannya dua lompatan: pop ke input_setoran, lalu layar itu
-      // pushReplacement ke DetailSetoranScreen. Snackbar tetap ikut karena
-      // Overlay-nya milik Navigator, bukan milik route yang di-pop.
       showCustomSnackBar(context, 'Setoran sampah nasabah berhasil disimpan',
           type: SnackBarType.success);
 
@@ -145,12 +143,10 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9F8),
+      backgroundColor: AppColors.surfaceCool,
       body: SafeArea(
         child: Column(
           children: [
@@ -159,7 +155,7 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
               child: _isLoading
                   ? const Center(
                       child: CircularProgressIndicator(
-                          color: Color(0xFF4EA771)))
+                          color: AppColors.green))
                   : _errorMsg != null
                       ? _buildError()
                       : _buildContent(),
@@ -200,7 +196,7 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: const Color(0xFF4EA771).withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.green.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -208,7 +204,7 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: const Color(0xFF4EA771).withValues(alpha: 0.12),
+              color: AppColors.green.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(13),
               image: widget.photoUrl.isNotEmpty
                   ? DecorationImage(
@@ -219,7 +215,7 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
             ),
             child: widget.photoUrl.isEmpty
                 ? const Icon(Icons.person_rounded,
-                    color: Color(0xFF4EA771), size: 24)
+                    color: AppColors.green, size: 24)
                 : null,
           ),
           const SizedBox(width: 14),
@@ -229,21 +225,12 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
               children: [
                 Text(
                   widget.nasabahName,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: Color(0xFF013236),
-                  ),
+                  style: AppText.w700(14, AppColors.dark),
                 ),
                 const SizedBox(height: 1),
                 Text(
                   widget.nasabahId,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    color: const Color(0xFF013236).withValues(alpha: 0.45),
-                  ),
+                  style: AppText.r(11, AppColors.dark.withValues(alpha: 0.45)),
                 ),
               ],
             ),
@@ -252,7 +239,7 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
             padding:
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: const Color(0xFF4EA771).withValues(alpha: 0.12),
+              color: AppColors.green.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(30),
             ),
             child: Row(
@@ -263,17 +250,12 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
                       ? Icons.qr_code_rounded
                       : Icons.person_search_rounded,
                   size: 12,
-                  color: const Color(0xFF4EA771),
+                  color: AppColors.green,
                 ),
                 const SizedBox(width: 5),
                 Text(
                   widget.dariQr ? 'Via QR' : 'Manual',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF4EA771),
-                  ),
+                  style: AppText.w600(10, AppColors.green),
                 ),
               ],
             ),
@@ -290,7 +272,7 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFF4EA771).withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.green.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,33 +282,23 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF013236).withValues(alpha: 0.06),
+                  color: AppColors.dark.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.camera_alt_rounded,
-                    color: Color(0xFF013236), size: 16),
+                    color: AppColors.dark, size: 16),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Bukti Foto Nasabah',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF013236),
-                  ),
+                  style: AppText.w700(14, AppColors.dark),
                 ),
               ),
               if (_fotoBukti == null)
-                const Text(
+                Text(
                   'Wajib',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.red,
-                  ),
+                  style: AppText.w600(11, Colors.red),
                 ),
             ],
           ),
@@ -344,11 +316,11 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
         aspectRatio: 4 / 3,
         child: Container(
           decoration: BoxDecoration(
-            color: _fotoBukti == null ? const Color(0xFFF5F7F5) : Colors.black,
+            color: _fotoBukti == null ? AppColors.surface : Colors.black,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: _fotoBukti == null
-                  ? _dark.withValues(alpha: 0.15)
+                  ? AppColors.dark.withValues(alpha: 0.15)
                   : Colors.transparent,
               width: 1.5,
             ),
@@ -359,16 +331,11 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.camera_alt_rounded,
-                        size: 32, color: _dark.withValues(alpha: 0.35)),
+                        size: 32, color: AppColors.dark.withValues(alpha: 0.35)),
                     const SizedBox(height: 8),
                     Text(
                       'Ambil Foto Bukti Nasabah',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: _dark.withValues(alpha: 0.45),
-                      ),
+                      style: AppText.w600(12.5, AppColors.dark.withValues(alpha: 0.45)),
                     ),
                   ],
                 )
@@ -411,10 +378,7 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
   }
 
   Widget _buildPreviewCard(List<Map<String, dynamic>> items, int totalItem) {
-    String fmtQty(double v) {
-      if (v == v.truncateToDouble()) return v.toInt().toString();
-      return v.toStringAsFixed(2).replaceAll('.', ',');
-    }
+    String fmtQty(double v) => AppNumber.desimal(v);
 
     Color rewardColor(String jenis) {
       switch (jenis.toLowerCase()) {
@@ -423,22 +387,21 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
         case 'barang':
           return const Color(0xFF2F80ED);
         default:
-          return const Color(0xFF013236);
+          return AppColors.dark;
       }
     }
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
+        color: Colors.white.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+          color: AppColors.dark.withValues(alpha: 0.1),
         ),
       ),
       child: Column(
         children: [
-          // ── Header ───────────────────────────────────────────────────────
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(18),
@@ -449,7 +412,7 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
               ),
               border: Border(
                 bottom: BorderSide(
-                  color: const Color(0xFF013236).withOpacity(0.04),
+                  color: AppColors.dark.withValues(alpha: 0.04),
                   width: 1,
                 ),
               ),
@@ -459,73 +422,50 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF013236).withOpacity(0.06),
+                    color: AppColors.dark.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.receipt_long_rounded,
-                      color: Color(0xFF013236), size: 16),
+                      color: AppColors.dark, size: 16),
                 ),
                 const SizedBox(width: 12),
-                const Text(
+                Text(
                   'Rincian Setoran',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF013236),
-                  ),
+                  style: AppText.w700(14, AppColors.dark),
                 ),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4EA771).withOpacity(0.15),
+                    color: AppColors.green.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '$totalItem jenis',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF013236),
-                    ),
+                    style: AppText.w700(11, AppColors.dark),
                   ),
                 ),
               ],
             ),
           ),
 
-          // ── Column headers ────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Row(
               children: [
                 Expanded(
                     child: Text('Jenis Sampah',
-                        style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[500]))),
+                        style: AppText.w600(10.5, Colors.grey[500]))),
                 SizedBox(
                     width: 72,
                     child: Text('Qty',
-                        style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[500]),
+                        style: AppText.w600(10.5, Colors.grey[500]),
                         textAlign: TextAlign.center)),
                 SizedBox(
                     width: 66,
                     child: Text('Reward',
-                        style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[500]),
+                        style: AppText.w600(10.5, Colors.grey[500]),
                         textAlign: TextAlign.right)),
               ],
             ),
@@ -535,7 +475,6 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
             child: Divider(height: 12, color: Color(0xFFEEEEEE)),
           ),
 
-          // ── Item rows ─────────────────────────────────────────────────────
           ...items.asMap().entries.map((entry) {
             final i = entry.key;
             final item = entry.value;
@@ -552,21 +491,14 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
                       Expanded(
                         child: Text(
                           item['nama_sampah'] as String? ?? '-',
-                          style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 12,
-                              color: Color(0xFF013236)),
+                          style: AppText.r(12, AppColors.dark),
                         ),
                       ),
                       SizedBox(
                         width: 72,
                         child: Text(
                           '${fmtQty(qty)} $satuan',
-                          style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF013236)),
+                          style: AppText.w600(12, AppColors.dark),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -583,11 +515,7 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
                             ),
                             child: Text(
                               jenisReward,
-                              style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: rewardBadgeColor),
+                              style: AppText.w600(10, rewardBadgeColor),
                             ),
                           ),
                         ),
@@ -604,27 +532,18 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
             );
           }),
 
-          // ── Separator ─────────────────────────────────────────────────────
           _buildPerforated(),
 
-          // ── Total ─────────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Total Item',
-                    style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        color: Colors.grey[500])),
+                    style: AppText.r(12, Colors.grey[500])),
                 Text(
                   '$totalItem jenis',
-                  style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF013236)),
+                  style: AppText.w700(13, AppColors.dark),
                 ),
               ],
             ),
@@ -666,7 +585,7 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
       width: 16,
       height: 32,
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F9F8),
+        color: AppColors.surfaceCool,
         borderRadius: BorderRadius.only(
           topRight:
               isLeft ? const Radius.circular(16) : Radius.zero,
@@ -681,55 +600,15 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
     );
   }
 
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline_rounded, size: 56, color: Colors.grey[300]),
-            const SizedBox(height: 14),
-            Text(
-              _errorMsg!,
-              style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: Colors.grey[500]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            // "Kembali", BUKAN "Coba Lagi".
-            //
-            // Kegagalan di layar ini hampir selalu penolakan aturan bisnis dari
-            // backend — misalnya "bank sampah sudah tidak menerima setoran untuk
-            // jenis insentif ini". Mengulang request yang sama pasti menghasilkan
-            // penolakan yang sama, jadi tombol coba lagi cuma memutar petugas di
-            // tempat. Yang menyelesaikannya adalah mengubah item setorannya.
-            //
-            // Untuk gangguan jaringan pun tombol ini tetap benar: layar input
-            // masih utuh di tumpukan beserta isian qty-nya, dan menekan "Lanjut"
-            // di sana memanggil ulang preview ini.
-            ElevatedButton.icon(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.arrow_back_rounded, size: 16),
-              label: const Text('Ubah Item Setoran',
-                  style: TextStyle(fontFamily: 'Poppins')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4EA771),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 12),
-              ),
-            ),
-          ],
+  Widget _buildError() => StateMessage(
+        illustration: StateArt.error,
+        message: _errorMsg!,
+        action: StateRetryButton.icon(
+          onPressed: () => Navigator.of(context).pop(),
+          label: 'Ubah Item Setoran',
+          icon: Icons.arrow_back_rounded,
         ),
-      ),
-    );
-  }
+      );
 
   Widget _buildBottomBar() {
     final disabled = _isSaving || !_bisaSimpan;
@@ -741,7 +620,7 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF013236).withValues(alpha: 0.08),
+            color: AppColors.dark.withValues(alpha: 0.08),
             blurRadius: 24,
             offset: const Offset(0, -8),
           ),
@@ -756,18 +635,14 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
               padding: const EdgeInsets.only(bottom: 10),
               child: Text(
                 'Ambil foto bukti nasabah dulu sebelum menyimpan setoran.',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  color: const Color(0xFF013236).withValues(alpha: 0.5),
-                ),
+                style: AppText.r(11, AppColors.dark.withValues(alpha: 0.5)),
               ),
             ),
           ],
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: disabled ? Colors.grey.shade300 : const Color(0xFF4EA771),
+              color: disabled ? Colors.grey.shade300 : AppColors.green,
               borderRadius: BorderRadius.circular(30),
             ),
             child: ElevatedButton(
@@ -789,15 +664,9 @@ class _PreviewSetoranScreenState extends State<PreviewSetoranScreen> {
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2.5),
                     )
-                  : const Text(
+                  : Text(
                       'Simpan Setoran Nasabah',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                        letterSpacing: 0.2,
-                        color: Colors.white
-                      ),
+                      style: AppText.p(13, weight: FontWeight.w600, color: Colors.white, letterSpacing: 0.2),
                     ),
             ),
           ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class Pagination extends StatelessWidget {
   final int currentPage;
@@ -13,9 +15,7 @@ class Pagination extends StatelessWidget {
     required this.onPageChanged,
   });
 
-  static const _green = Color(0xFF4EA771);
   static const _greenSoft = Color(0xFFEAF6EF);
-  static const _textDark = Color(0xFF013236);
   static const _textMuted = Color(0xFFADC5B5);
   static const _border = Color(0xFFDDEDE5);
 
@@ -92,22 +92,17 @@ class Pagination extends StatelessWidget {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: isActive ? _green : _greenSoft,
+                  color: isActive ? AppColors.green : _greenSoft,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: isActive ? _green : _border,
+                    color: isActive ? AppColors.green : _border,
                     width: 1,
                   ),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   '${item.page}',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isActive ? Colors.white : _textDark,
-                  ),
+                  style: AppText.w600(12, isActive ? Colors.white : AppColors.dark),
                 ),
               ),
             ),
@@ -158,7 +153,7 @@ class _NavButton extends StatelessWidget {
         child: Icon(
           icon,
           size: 18,
-          color: enabled ? const Color(0xFF4EA771) : const Color(0xFFCCCCCC),
+          color: enabled ? AppColors.green : const Color(0xFFCCCCCC),
         ),
       ),
     );

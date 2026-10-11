@@ -21,8 +21,6 @@ class BsuUnitModel {
     required this.jumlahNasabah,
   });
 
-  /// JSON keys: Go serializes BankSampah struct fields as PascalCase (no json tags),
-  /// except JumlahNasabah which has `json:"jumlah_nasabah"` tag.
   factory BsuUnitModel.fromJson(Map<String, dynamic> json) {
     return BsuUnitModel(
       bankId:        json['BankID']        ?? '',
@@ -37,10 +35,8 @@ class BsuUnitModel {
     );
   }
 
-  /// Status label untuk UI
   String get statusLabel => isActive ? 'Aktif' : 'Nonaktif';
 
-  /// Alamat lengkap untuk ditampilkan di UI
   String get alamatLengkap {
     final parts = <String>[];
     if (kecamatan.isNotEmpty)     parts.add(kecamatan);

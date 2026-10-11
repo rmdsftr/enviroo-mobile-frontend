@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class ScannerPenimbanganScreen extends StatefulWidget {
   final String penimbanganId;
@@ -68,7 +70,6 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
         dariQr: dariQr,
       );
     } else {
-      // Tampilkan error overlay 1.5 detik, lalu kembali ke screen sebelumnya.
       setState(() {
         _isError = true;
         _errorMessage = res['message'] ?? 'Akses ditolak';
@@ -122,7 +123,6 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
     });
   }
 
-  // ── Buka bottom sheet pilih nasabah manual ───────────────────────────────────
   void _showManualPickerDialog() {
     _scannerController.stop();
     showModalBottomSheet(
@@ -148,7 +148,7 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(color: Color(0xFFFFFFFF)),
+        decoration: const BoxDecoration(color: Colors.white),
         child: SafeArea(
           child: Column(
             children: [
@@ -172,7 +172,7 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.55),
+        color: Colors.white.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -180,25 +180,20 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF013236).withOpacity(0.1),
+              color: AppColors.dark.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.verified_user_rounded,
-              color: Color(0xFF013236),
+              color: AppColors.dark,
               size: 22,
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Text(
               "Scan QR code nasabah untuk verifikasi identitas dan memulai penginputan setoran sampah",
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF2D5A1D),
-              ),
+              style: AppText.w500(12, Color(0xFF2D5A1D)),
             ),
           ),
         ],
@@ -206,7 +201,6 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
     );
   }
 
-  // ── Area kamera scanner ──────────────────────────────────────────────────────
   Widget _buildScannerArea() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -215,7 +209,7 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF013236).withOpacity(0.18),
+            color: AppColors.dark.withValues(alpha: 0.18),
             blurRadius: 32,
             offset: const Offset(0, 16),
           ),
@@ -230,7 +224,6 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
               onDetect: _onDetect,
             ),
 
-            // Overlay gelap dengan cutout
             IgnorePointer(
               child: CustomPaint(
                 painter: _OverlayPainter(),
@@ -238,7 +231,6 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
               ),
             ),
 
-            // Frame + corner brackets beranimasi
             if (!_isProcessing)
               AnimatedBuilder(
                 animation: _pulseAnimation,
@@ -250,7 +242,6 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
                 ),
               ),
 
-            // Overlay: loading → sukses → atau error
             if (_isProcessing) _isError ? _buildErrorOverlay() : _buildSuccessOverlay(),
           ],
         ),
@@ -260,7 +251,7 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
 
   Widget _buildSuccessOverlay() {
     return Container(
-      color: Colors.black.withOpacity(0.65),
+      color: Colors.black.withValues(alpha: 0.65),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -268,11 +259,11 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
             Container(
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
-                color: const Color(0xFF4EA771),
+                color: AppColors.green,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF4EA771).withOpacity(0.45),
+                    color: AppColors.green.withValues(alpha: 0.45),
                     blurRadius: 28,
                     spreadRadius: 6,
                   ),
@@ -281,23 +272,14 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
               child: const Icon(Icons.check_rounded, color: Colors.white, size: 38),
             ),
             const SizedBox(height: 18),
-            const Text(
+            Text(
               'Nasabah Terverifikasi',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-                color: Colors.white,
-              ),
+              style: AppText.w700(16, Colors.white),
             ),
             const SizedBox(height: 4),
             Text(
               'Membuka halaman setoran...',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: Colors.white.withOpacity(0.7),
-              ),
+              style: AppText.r(12, Colors.white.withValues(alpha: 0.7)),
             ),
           ],
         ),
@@ -307,7 +289,7 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
 
   Widget _buildErrorOverlay() {
     return Container(
-      color: Colors.black.withOpacity(0.65),
+      color: Colors.black.withValues(alpha: 0.65),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -315,11 +297,11 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
             Container(
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
-                color: const Color(0xFFE53935),
+                color: AppColors.dangerAlt,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFE53935).withOpacity(0.45),
+                    color: AppColors.dangerAlt.withValues(alpha: 0.45),
                     blurRadius: 28,
                     spreadRadius: 6,
                   ),
@@ -328,14 +310,9 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
               child: const Icon(Icons.close_rounded, color: Colors.white, size: 38),
             ),
             const SizedBox(height: 18),
-            const Text(
+            Text(
               'Akses Ditolak',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-                color: Colors.white,
-              ),
+              style: AppText.w700(16, Colors.white),
             ),
             const SizedBox(height: 6),
             Padding(
@@ -343,11 +320,7 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
               child: Text(
                 _errorMessage,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  color: Colors.white.withOpacity(0.75),
-                ),
+                style: AppText.r(12, Colors.white.withValues(alpha: 0.75)),
               ),
             ),
           ],
@@ -356,7 +329,6 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
     );
   }
 
-  // ── Tombol pilih nasabah manual ──────────────────────────────────────────────
   Widget _buildManualButton() {
     return GestureDetector(
       onTap: _showManualPickerDialog,
@@ -368,7 +340,7 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF013236).withOpacity(0.1),
+              color: AppColors.dark.withValues(alpha: 0.1),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -379,31 +351,26 @@ class _ScannerPenimbanganState extends State<ScannerPenimbanganScreen>
             Container(
               padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFFFFF),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(9),
               ),
               child: const Icon(
                 Icons.person_search_rounded,
-                color: Color(0xFF4EA771),
+                color: AppColors.green,
                 size: 18,
               ),
             ),
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Text(
                 'QR tidak bekerja? Pilih nasabah manual',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: Color(0xFF013236),
-                ),
+                style: AppText.w600(13, AppColors.dark),
               ),
             ),
             const Icon(
               Icons.arrow_forward_ios_rounded,
               size: 13,
-              color: Color(0xFF4EA771),
+              color: AppColors.green,
             ),
           ],
         ),
@@ -421,56 +388,45 @@ class _ScanFrame extends StatelessWidget {
     const double size = 230;
     const double bracketLen = 30;
     const double bracketThick = 3.5;
-    const Color bracketColor = Color(0xFF4EA771);
+    const Color bracketColor = AppColors.green;
 
     return SizedBox(
       width: size,
-      height: size + 36, // extra space untuk label di bawah
+      height: size + 36,
       child: Stack(
         children: [
-          // Border frame tipis
           Container(
             width: size,
             height: size,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 width: 1,
               ),
             ),
           ),
 
-          // Corner: top-left
           Positioned(top: 0, left: 0,
               child: _Bracket(len: bracketLen, thick: bracketThick,
                   color: bracketColor, showTop: true, showLeft: true)),
-          // Corner: top-right
           Positioned(top: 0, right: 0,
               child: _Bracket(len: bracketLen, thick: bracketThick,
                   color: bracketColor, showTop: true, showLeft: false)),
-          // Corner: bottom-left
           Positioned(bottom: 36, left: 0,
               child: _Bracket(len: bracketLen, thick: bracketThick,
                   color: bracketColor, showTop: false, showLeft: true)),
-          // Corner: bottom-right
           Positioned(bottom: 36, right: 0,
               child: _Bracket(len: bracketLen, thick: bracketThick,
                   color: bracketColor, showTop: false, showLeft: false)),
 
-          // Label di bawah frame
           Positioned(
             bottom: 0,
             left: 0, right: 0,
             child: Center(
               child: Text(
                 'Arahkan ke QR Code nasabah',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white.withOpacity(0.75),
-                ),
+                style: AppText.w500(11, Colors.white.withValues(alpha: 0.75)),
               ),
             ),
           ),
@@ -546,7 +502,7 @@ class _OverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.black.withOpacity(0.52)
+      ..color = Colors.black.withValues(alpha: 0.52)
       ..style = PaintingStyle.fill;
 
     const double frameSize = 230;
@@ -629,19 +585,17 @@ class _ManualPickerSheetState extends State<_ManualPickerSheet> {
       ),
       child: Column(
         children: [
-          // Drag handle
           Center(
             child: Container(
               margin: const EdgeInsets.only(top: 12, bottom: 4),
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFF013236).withOpacity(0.15),
+                color: AppColors.dark.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 10, 20, 0),
             child: Row(
@@ -650,22 +604,13 @@ class _ManualPickerSheetState extends State<_ManualPickerSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Pilih Nasabah',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          color: Color(0xFF013236),
-                        ),
+                        style: AppText.w700(15, AppColors.dark),
                       ),
                       Text(
                         'Pilih nasabah untuk memulai setoran',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: const Color(0xFF013236).withOpacity(0.5),
-                        ),
+                        style: AppText.r(11, AppColors.dark.withValues(alpha: 0.5)),
                       ),
                     ],
                   ),
@@ -678,13 +623,12 @@ class _ManualPickerSheetState extends State<_ManualPickerSheet> {
                       color: const Color(0xFFF2F2F2),
                       borderRadius: BorderRadius.circular(50),
                     ),
-                    child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF013236)),
+                    child: const Icon(Icons.close_rounded, size: 16, color: AppColors.dark),
                   ),
                 ),
               ],
             ),
           ),
-          // Search bar
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
             child: CustomSearchBar(
@@ -698,10 +642,9 @@ class _ManualPickerSheetState extends State<_ManualPickerSheet> {
               },
             ),
           ),
-          // List
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF4EA771)))
+                ? const Center(child: CircularProgressIndicator(color: AppColors.green))
                 : _buildNasabahList(),
           ),
           SizedBox(height: bottomPad + 8),
@@ -720,17 +663,12 @@ class _ManualPickerSheetState extends State<_ManualPickerSheet> {
           Icon(
             Icons.manage_search_rounded,
             size: 36,
-            color: const Color(0xFF013236).withOpacity(0.25),
+            color: AppColors.dark.withValues(alpha: 0.25),
           ),
           const SizedBox(height: 12),
           Text(
             'Nasabah tidak ditemukan',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w500,
-              fontSize: 12,
-              color: const Color(0xFF013236).withOpacity(0.5),
-            ),
+            style: AppText.w500(12, AppColors.dark.withValues(alpha: 0.5)),
           ),
         ],
       );
@@ -763,17 +701,16 @@ class _NasabahTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFFF9FEFC),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFFFFFF), width: 1.5),
+          border: Border.all(color: Colors.white, width: 1.5),
         ),
         child: Row(
           children: [
-            // Foto profil / avatar inisial
             Container(
               width: 54,
               height: 54,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(100),
-                color: const Color(0xFFFFFFFF),
+                color: Colors.white,
               ),
               clipBehavior: Clip.antiAlias,
               child: nasabah.user.photoUrl.isNotEmpty
@@ -788,7 +725,7 @@ class _NasabahTile extends StatelessWidget {
                     width: 20, height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(Color(0xFF4EA771)),
+                      valueColor: AlwaysStoppedAnimation(AppColors.green),
                     ),
                   ),
                 ),
@@ -798,19 +735,13 @@ class _NasabahTile extends StatelessWidget {
 
             const SizedBox(width: 12),
 
-            // Info nasabah
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     nasabah.user.nama,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF013236),
-                    ),
+                    style: AppText.w600(13, AppColors.dark),
                   ),
                   const SizedBox(height: 2),
                   Row(
@@ -818,28 +749,14 @@ class _NasabahTile extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF013236).withOpacity(0.06),
+                          color: AppColors.dark.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           nasabah.nasabahId,
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF013236).withOpacity(0.6),
-                          ),
+                          style: AppText.w600(10, AppColors.dark.withValues(alpha: 0.6)),
                         ),
                       ),
-                      // const SizedBox(width: 8),
-                      // Text(
-                      //   nasabah.nasabahId,
-                      //   style: TextStyle(
-                      //     fontFamily: 'Poppins',
-                      //     fontSize: 10,
-                      //     color: const Color(0xFF013236).withOpacity(0.4),
-                      //   ),
-                      // ),
                     ],
                   ),
                 ],
@@ -854,16 +771,11 @@ class _NasabahTile extends StatelessWidget {
   Widget _buildInitial() {
     final String initial = nasabah.user.nama.isNotEmpty ? nasabah.user.nama[0].toUpperCase() : '?';
     return Container(
-      color: const Color(0xFF4EA771).withOpacity(0.15),
+      color: AppColors.green.withValues(alpha: 0.15),
       child: Center(
         child: Text(
           initial,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w700,
-            fontSize: 22,
-            color: Color(0xFF4EA771),
-          ),
+          style: AppText.w700(22, AppColors.green),
         ),
       ),
     );

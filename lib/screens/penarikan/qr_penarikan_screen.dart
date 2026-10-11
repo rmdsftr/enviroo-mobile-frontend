@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../widgets/topbar_back.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class QrPenarikanScreen extends StatefulWidget {
   final String transaksiId;
@@ -22,8 +24,8 @@ class QrPenarikanScreen extends StatefulWidget {
 }
 
 class _QrPenarikanScreenState extends State<QrPenarikanScreen> {
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
 
   Timer? _ticker;
   late Duration _remaining;
@@ -48,8 +50,6 @@ class _QrPenarikanScreenState extends State<QrPenarikanScreen> {
     super.dispose();
   }
 
-  /// >= 1 hari -> "2 hari 5 jam" (kasar, gak perlu real-time sampai detik).
-  /// Kurang dari 1 hari -> "05:23:41" (hh:mm:ss, ngitung mundur real-time).
   String _formatCountdown(Duration d) {
     if (d.inDays >= 1) {
       final hours = d.inHours % 24;
@@ -78,7 +78,6 @@ class _QrPenarikanScreenState extends State<QrPenarikanScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // ── Instruksi ─────────────────────────────────
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -97,18 +96,13 @@ class _QrPenarikanScreenState extends State<QrPenarikanScreen> {
                                 'Tunjukkan QR code berikut kepada petugas bank sampah pada saat '
                                 'pengambilan insentif. Petugas akan memindai QR code sebagai '
                                 'penyelesaian proses penarikan',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 12,
-                                  color: Colors.black.withValues(alpha: 0.7),
-                                ),
+                                style: AppText.r(12, Colors.black.withValues(alpha: 0.7)),
                               ),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // ── QR code ───────────────────────────────────
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -143,17 +137,11 @@ class _QrPenarikanScreenState extends State<QrPenarikanScreen> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      // ── Countdown ─────────────────────────────────
                       expired
-                          ? const Text(
+                          ? Text(
                               'Kode sudah kadaluarsa',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFFEF4444),
-                              ),
+                              style: AppText.w600(12.5, AppColors.danger),
                             )
                           : RichText(
                               textAlign: TextAlign.center,
@@ -161,21 +149,11 @@ class _QrPenarikanScreenState extends State<QrPenarikanScreen> {
                                 children: [
                                   TextSpan(
                                     text: 'Kode akan kadaluarsa dalam ',
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w400,
-                                      color: Colors.black.withValues(alpha: 0.6),
-                                    ),
+                                    style: AppText.w400(12, Colors.black.withValues(alpha: 0.6)),
                                   ),
                                   TextSpan(
                                     text: _formatCountdown(_remaining),
-                                    style: const TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: primary,
-                                    ),
+                                    style: AppText.w700(12, primary),
                                   ),
                                 ],
                               ),

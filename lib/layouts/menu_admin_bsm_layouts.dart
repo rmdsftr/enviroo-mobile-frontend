@@ -7,6 +7,8 @@ import 'package:enviroo/screens/jadwal/navigasi_jadwal_screen.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class MenuAdminBSM extends StatefulWidget {
   @override
@@ -24,12 +26,7 @@ class _MenuAdminBSMState extends State<MenuAdminBSM> {
             alignment: Alignment.centerLeft,
             child: Text(
               "Menu Petugas BSM",
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF013236),
-              ),
+              style: AppText.w600(15, AppColors.dark),
             ),
           ),
           const SizedBox(height: 15),
@@ -46,7 +43,7 @@ class _MenuAdminBSMState extends State<MenuAdminBSM> {
                       context: context,
                       label: "Timbang",
                       icon: Icons.document_scanner_rounded,
-                      color: const Color(0xFFFAA324),
+                      color: AppColors.warningAlt,
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => PenimbanganScreen())),
@@ -58,7 +55,7 @@ class _MenuAdminBSMState extends State<MenuAdminBSM> {
                       context: context,
                       label: "Penjualan",
                       icon: Icons.monetization_on_rounded,
-                      color: const Color(0xFF4EA771),
+                      color: AppColors.green,
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const RiwayatPenjualanScreen())),
@@ -94,10 +91,8 @@ class _MenuAdminBSMState extends State<MenuAdminBSM> {
                       context: context,
                       label: "Katalog",
                       icon: Icons.collections_bookmark_rounded,
-                      color: const Color(0xFF4EA771),
+                      color: AppColors.green,
                       iconColor: Colors.white,
-                      // role diteruskan karena katalog_screen memakainya untuk
-                      // memutuskan apakah tab "Barang" ikut ditampilkan.
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -158,12 +153,7 @@ class _MenuAdminBSMState extends State<MenuAdminBSM> {
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF013236),
-            ),
+            style: AppText.w600(11, AppColors.dark),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

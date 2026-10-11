@@ -3,12 +3,6 @@ import 'package:enviroo/core/config/api_config.dart';
 import 'package:enviroo/core/network/api_client.dart';
 import 'package:enviroo/core/network/api_failure.dart';
 
-/// Melayani **dua** prefix endpoint: `/reward` dan `/nilai-reward`.
-///
-/// Ini pengecualian sadar dari aturan "satu prefix = satu service". Keduanya
-/// satu domain dan masing-masing cuma punya satu endpoint, jadi memecahnya
-/// hanya menghasilkan dua pasang file yang masing-masing membungkus satu
-/// panggilan.
 class RewardService {
   static Future<Map<String, dynamic>> getAllReward() async {
     try {

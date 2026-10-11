@@ -3,23 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+
 import 'package:provider/provider.dart';
 
+import '../../core/format/app_date.dart';
 import '../../models/penarikan_model.dart';
 import '../../providers/penarikan_petugas_provider.dart';
 import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'preview_request_penarikan_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-/// Mode layar ini menentukan field apa yang tampil, teks instruksi, label
-/// catatan (wajib/opsional), dan aksi tombol CTA:
-/// - [nasabahRequest]: step 2 alur ajukan penarikan nasabah
-///   (request_penarikan_screen -> DeadlinePenarikanScreen -> preview_request_penarikan_screen).
-///   Nasabah menentukan tenggat konfirmasi + catatan opsional untuk petugas.
-/// - [petugasTolak]: petugas menolak pengajuan pending. Tidak ada tanggal/waktu,
-///   cuma alasan penolakan (wajib diisi).
-/// - [petugasSetujui]: petugas menyetujui pengajuan pending. Petugas menentukan
-///   tenggat pengambilan insentif + catatan opsional untuk nasabah.
 enum _DeadlineMode { nasabahRequest, petugasTolak, petugasSetujui }
 
 class DeadlinePenarikanScreen extends StatefulWidget {
@@ -45,8 +40,8 @@ class DeadlinePenarikanScreen extends StatefulWidget {
 }
 
 class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
@@ -59,17 +54,12 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
   bool get _showDateTime => widget._mode != _DeadlineMode.petugasTolak;
   bool get _catatanRequired => widget._mode == _DeadlineMode.petugasTolak;
 
-  // Batas dihitung terhadap jam saat ini (live), bukan snapshot beku saat
-  // layar ini dibuka — supaya "minimal 1 jam / maksimal 3 hari" selalu akurat
-  // walau penggunanya berlama-lama menentukan tenggat di layar ini.
   DateTime get _minDateTime => DateTime.now().add(const Duration(hours: 1));
   DateTime get _maxDateTime => DateTime.now().add(const Duration(days: 3));
 
   @override
   void initState() {
     super.initState();
-    // Re-evaluasi validitas tiap beberapa detik supaya tombol CTA otomatis
-    // nonaktif kalau waktu terpilih jadi < 1 jam dari sekarang.
     _clockTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (mounted) _validate();
     });
@@ -90,8 +80,6 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
     super.dispose();
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
   DateTime? get _combined {
     final d = _selectedDate;
     final t = _selectedTime;
@@ -99,8 +87,6 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
     return DateTime(d.year, d.month, d.day, t.hour, t.minute);
   }
 
-  /// Validitas tombol CTA: kalau mode Tolak, cukup catatan terisi. Selain itu
-  /// (nasabah & Setujui) butuh tanggal+waktu terpilih dan dalam rentang.
   bool get _isValid {
     if (widget._mode == _DeadlineMode.petugasTolak) {
       return _catatanController.text.trim().isNotEmpty;
@@ -128,8 +114,6 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
     setState(() => _dateTimeError = null);
     return true;
   }
-
-  // ── Pickers ───────────────────────────────────────────────────────────────
 
   Future<void> _pickDate() async {
     final result = await showModalBottomSheet<DateTime>(
@@ -160,8 +144,6 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
     _validate();
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────
-
   void _handleSubmit() {
     if (widget._mode == _DeadlineMode.petugasTolak) {
       _submitTolak();
@@ -183,7 +165,6 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
       return;
     }
 
-    // nasabahRequest -> lanjut ke preview
     HapticFeedback.lightImpact();
     final catatan = _catatanController.text.trim();
     final formData = widget.formData!.copyWith(
@@ -244,8 +225,6 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
   void _showErrorSnack(String message) {
     showCustomSnackBar(context, message);
   }
-
-  // ── Teks per mode ─────────────────────────────────────────────────────────
 
   String get _topbarTitle {
     switch (widget._mode) {
@@ -310,13 +289,11 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
       case _DeadlineMode.nasabahRequest:
         return dark;
       case _DeadlineMode.petugasTolak:
-        return const Color(0xFF013236);
+        return AppColors.dark;
       case _DeadlineMode.petugasSetujui:
         return primary;
     }
   }
-
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -342,8 +319,7 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
                         placeholder: 'Pilih tanggal',
                         value: _selectedDate == null
                             ? null
-                            : DateFormat('EEEE, d MMMM yyyy', 'id_ID')
-                                .format(_selectedDate!),
+                            : AppDate.tanggalPenuh(_selectedDate!),
                         hasError: _dateTimeError != null,
                         onTap: _pickDate,
                       ),
@@ -363,11 +339,7 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
                           padding: const EdgeInsets.only(left: 4),
                           child: Text(
                             _dateTimeError!,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 11,
-                              color: Colors.red,
-                            ),
+                            style: AppText.r(11, Colors.red),
                           ),
                         ),
                       ],
@@ -380,7 +352,6 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
                 ),
               ),
             ),
-            // ── Bottom bar button ──────────────────────────────────────
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -418,12 +389,7 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
           Expanded(
             child: Text(
               _instruksiText,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: dark,
-                height: 1.5,
-              ),
+              style: AppText.p(12, color: dark, height: 1.5),
             ),
           ),
         ],
@@ -445,26 +411,13 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
         maxLength: 255,
         textInputAction: TextInputAction.done,
         inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\n'))],
-        style: const TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 13,
-          color: dark,
-          height: 1.5,
-        ),
+        style: AppText.p(13, color: dark, height: 1.5),
         decoration: InputDecoration(
           hintText: _catatanHint,
-          hintStyle: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 13,
-            color: dark.withValues(alpha: 0.35),
-          ),
+          hintStyle: AppText.r(13, dark.withValues(alpha: 0.35)),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          counterStyle: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 11,
-            color: dark.withValues(alpha: 0.35),
-          ),
+          counterStyle: AppText.r(11, dark.withValues(alpha: 0.35)),
         ),
       ),
     );
@@ -494,12 +447,7 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
                     )
                   : Text(
                       _ctaLabel,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppText.w600(14, Colors.white),
                     ),
             ),
           ),
@@ -508,8 +456,6 @@ class _DeadlinePenarikanScreenState extends State<DeadlinePenarikanScreen> {
     );
   }
 }
-
-// ── Section label ─────────────────────────────────────────────────────────────
 
 class _SectionLabel extends StatelessWidget {
   final String text;
@@ -521,30 +467,18 @@ class _SectionLabel extends StatelessWidget {
     return RichText(
       text: TextSpan(
         text: text,
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Colors.black.withValues(alpha: 0.7),
-        ),
+        style: AppText.w600(12, Colors.black.withValues(alpha: 0.7)),
         children: [
           if (required)
-            const TextSpan(
+            TextSpan(
               text: '*',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.red,
-              ),
+              style: AppText.w600(12, Colors.red),
             ),
         ],
       ),
     );
   }
 }
-
-// ── Tappable select field (dipakai untuk Tanggal & Waktu) ─────────────────────
 
 class _SelectField extends StatelessWidget {
   final IconData icon;
@@ -561,8 +495,8 @@ class _SelectField extends StatelessWidget {
     required this.onTap,
   });
 
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
 
   @override
   Widget build(BuildContext context) {
@@ -590,14 +524,9 @@ class _SelectField extends StatelessWidget {
               Expanded(
                 child: Text(
                   value ?? placeholder,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 14,
-                    fontWeight: value == null ? FontWeight.w500 : FontWeight.w600,
-                    color: value == null
+                  style: AppText.p(14, weight: value == null ? FontWeight.w500 : FontWeight.w600, color: value == null
                         ? dark.withValues(alpha: 0.35)
-                        : dark,
-                  ),
+                        : dark),
                 ),
               ),
               Icon(Icons.expand_more_rounded,
@@ -609,8 +538,6 @@ class _SelectField extends StatelessWidget {
     );
   }
 }
-
-// ── Date picker bottom sheet ────────────────────────────────────────────────
 
 class _DatePickerSheet extends StatelessWidget {
   final DateTime pengajuanAt;
@@ -625,8 +552,8 @@ class _DatePickerSheet extends StatelessWidget {
     required this.initialDate,
   });
 
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
 
   DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
   DateTime _endOfDay(DateTime d) =>
@@ -644,12 +571,9 @@ class _DatePickerSheet extends StatelessWidget {
       case 2:
         return 'Lusa';
       default:
-        return _capitalize(DateFormat('EEEE', 'id_ID').format(date));
+        return AppDate.namaHari(date);
     }
   }
-
-  String _capitalize(String s) =>
-      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
   @override
   Widget build(BuildContext context) {
@@ -677,14 +601,9 @@ class _DatePickerSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'Pilih Tanggal',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: dark,
-            ),
+            style: AppText.w700(16, dark),
           ),
           const SizedBox(height: 16),
           ...dates.asMap().entries.map((e) {
@@ -707,7 +626,7 @@ class _DatePickerSheet extends StatelessWidget {
                     color: isSelected
                         ? primary.withValues(alpha: 0.1)
                         : enabled
-                            ? const Color(0xFFF5F7F5)
+                            ? AppColors.surface
                             : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
@@ -725,25 +644,16 @@ class _DatePickerSheet extends StatelessWidget {
                           children: [
                             Text(
                               _labelFor(offset, date),
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
-                                color: enabled
+                              style: AppText.w600(13.5, enabled
                                     ? (isSelected ? primary : dark)
-                                    : dark.withValues(alpha: 0.3),
-                              ),
+                                    : dark.withValues(alpha: 0.3)),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              DateFormat('d MMMM yyyy', 'id_ID').format(date),
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 11.5,
-                                color: enabled
+                              AppDate.tanggalPanjang(date),
+                              style: AppText.r(11.5, enabled
                                     ? dark.withValues(alpha: 0.5)
-                                    : dark.withValues(alpha: 0.25),
-                              ),
+                                    : dark.withValues(alpha: 0.25)),
                             ),
                           ],
                         ),
@@ -763,8 +673,6 @@ class _DatePickerSheet extends StatelessWidget {
   }
 }
 
-// ── Time picker bottom sheet (format jam:menit) ────────────────────────────
-
 class _TimePickerSheet extends StatefulWidget {
   final TimeOfDay? initialTime;
   const _TimePickerSheet({required this.initialTime});
@@ -774,8 +682,8 @@ class _TimePickerSheet extends StatefulWidget {
 }
 
 class _TimePickerSheetState extends State<_TimePickerSheet> {
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
 
   late int _hour;
   late int _minute;
@@ -819,12 +727,7 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
             return Center(
               child: Text(
                 index.toString().padLeft(2, '0'),
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: primary,
-                ),
+                style: AppText.w700(20, primary),
               ),
             );
           },
@@ -872,14 +775,9 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
                     itemCount: 24,
                     onChanged: (i) => setState(() => _hour = i),
                   ),
-                  const Text(
+                  Text(
                     ':',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: primary,
-                    ),
+                    style: AppText.w700(22, primary),
                   ),
                   _buildWheel(
                     controller: _minuteCtrl,
@@ -906,13 +804,9 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
                 context,
                 TimeOfDay(hour: _hour, minute: _minute),
               ),
-              child: const Text(
+              child: Text(
                 'Pilih Waktu',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
+                style: AppText.w600(14),
               ),
             ),
           ),

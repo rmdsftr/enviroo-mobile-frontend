@@ -1,7 +1,7 @@
-import 'package:enviroo/providers/auth_provider.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class JadwalBsiMendatangScreen extends StatefulWidget {
   @override
@@ -11,8 +11,6 @@ class JadwalBsiMendatangScreen extends StatefulWidget {
 class _JadwalBsiMendatangState extends State<JadwalBsiMendatangScreen> {
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 30),
       child: Column(
@@ -36,7 +34,7 @@ class _JadwalBsiMendatangState extends State<JadwalBsiMendatangScreen> {
                 date: "Senin, 20 Februari 2026",
                 time: "14:00 - 16:00",
                 status: "Mendatang",
-                statusColor: const Color(0xFF4EA771),
+                statusColor: AppColors.green,
               ),
             ],
           ),
@@ -54,12 +52,7 @@ class _JadwalBsiMendatangState extends State<JadwalBsiMendatangScreen> {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
+            style: AppText.w600(15, Colors.black),
           ),
         ],
       ),
@@ -73,21 +66,21 @@ class _JadwalBsiMendatangState extends State<JadwalBsiMendatangScreen> {
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.88),
+            color: Colors.white.withValues(alpha: 0.88),
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               width: 1.0,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF013236).withOpacity(0.08),
+                color: AppColors.dark.withValues(alpha: 0.08),
                 blurRadius: 20,
                 spreadRadius: 0,
                 offset: const Offset(0, 5),
               ),
               BoxShadow(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 blurRadius: 1,
                 spreadRadius: 0,
                 offset: const Offset(0, -1),
@@ -105,7 +98,7 @@ class _JadwalBsiMendatangState extends State<JadwalBsiMendatangScreen> {
                 separatorBuilder: (_, __) => Divider(
                   height: 1,
                   thickness: 1,
-                  color: const Color(0xFF013236).withOpacity(0.06),
+                  color: AppColors.dark.withValues(alpha: 0.06),
                   indent: 18,
                   endIndent: 18,
                 ),
@@ -123,37 +116,30 @@ class _JadwalBsiMendatangState extends State<JadwalBsiMendatangScreen> {
   Widget _buildScheduleRow(_ScheduleItem item) {
     return Container(
       color: item.isActive
-          ? item.statusColor.withOpacity(0.04)
+          ? item.statusColor.withValues(alpha: 0.04)
           : Colors.transparent,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
       child: Row(
         children: [
-          // Left accent bar
           Container(
             width: 3.5,
             height: 36,
             decoration: BoxDecoration(
               color: item.isActive
                   ? item.statusColor
-                  : item.statusColor.withOpacity(0.4),
+                  : item.statusColor.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(4),
             ),
           ),
           const SizedBox(width: 13),
 
-          // Date & Time
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   item.date,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF013236),
-                  ),
+                  style: AppText.w600(13, AppColors.dark),
                 ),
                 const SizedBox(height: 4),
                 Row(
@@ -161,17 +147,12 @@ class _JadwalBsiMendatangState extends State<JadwalBsiMendatangScreen> {
                     Icon(
                       Icons.access_time_rounded,
                       size: 12,
-                      color: const Color(0xFF013236).withOpacity(0.38),
+                      color: AppColors.dark.withValues(alpha: 0.38),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       item.time,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xFF013236).withOpacity(0.42),
-                      ),
+                      style: AppText.w400(11.5, AppColors.dark.withValues(alpha: 0.42)),
                     ),
                   ],
                 ),
@@ -179,11 +160,10 @@ class _JadwalBsiMendatangState extends State<JadwalBsiMendatangScreen> {
             ),
           ),
 
-          // Status pill badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
             decoration: BoxDecoration(
-              color: item.statusColor.withOpacity(0.12),
+              color: item.statusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(30),
             ),
             child: Row(
@@ -202,12 +182,7 @@ class _JadwalBsiMendatangState extends State<JadwalBsiMendatangScreen> {
                 ],
                 Text(
                   item.status,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: item.statusColor,
-                  ),
+                  style: AppText.w600(11, item.statusColor),
                 ),
               ],
             ),

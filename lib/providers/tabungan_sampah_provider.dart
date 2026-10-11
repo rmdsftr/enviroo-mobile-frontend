@@ -4,13 +4,7 @@ import '../models/tabungan_sampah_model.dart';
 import '../services/tabungan_sampah_service.dart';
 import 'penjualan_provider.dart' show FetchStatus;
 
-/// State untuk endpoint `/tabungan-sampah`.
-///
-/// Dua slice terpisah karena bentuk datanya memang beda — buku tabungan nasabah
-/// berisi kelompok setoran, buku tabungan BSU berisi kelompok pengangkutan.
-/// Dipisah juga supaya tidak saling menimpa kalau suatu saat dipakai bersamaan.
 class TabunganSampahProvider extends ChangeNotifier {
-  // ── Buku tabungan nasabah ──────────────────────────────────────────────────
   FetchStatus _nasabahStatus = FetchStatus.idle;
   BukuTabunganResponse? _nasabah;
   String? _nasabahError;
@@ -19,7 +13,6 @@ class TabunganSampahProvider extends ChangeNotifier {
   BukuTabunganResponse? get nasabah => _nasabah;
   String? get nasabahError => _nasabahError;
 
-  // ── Buku tabungan BSU ──────────────────────────────────────────────────────
   FetchStatus _bsuStatus = FetchStatus.idle;
   BukuTabunganBsuResponse? _bsu;
   String? _bsuError;
@@ -27,8 +20,6 @@ class TabunganSampahProvider extends ChangeNotifier {
   FetchStatus get bsuStatus => _bsuStatus;
   BukuTabunganBsuResponse? get bsu => _bsu;
   String? get bsuError => _bsuError;
-
-  // ───────────────────────────────────────────────────────────────────────────
 
   Future<void> fetchNasabah(
     String nasabahId, {

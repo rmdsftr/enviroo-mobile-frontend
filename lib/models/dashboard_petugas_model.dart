@@ -2,10 +2,10 @@ class DashboardPetugasModel {
   final String namaBank;
   final String photoBank;
   final String alamatBank;
-  final String? namaBankPusat; // BSU
-  final int jumlahNasabah; // BSU, BSI, BSM
-  final int? jumlahStaff; // BSU, BSM
-  final int? jumlahBsu; // BSI
+  final String? namaBankPusat;
+  final int jumlahNasabah;
+  final int? jumlahStaff;
+  final int? jumlahBsu;
   final double kasUang;
 
   DashboardPetugasModel({

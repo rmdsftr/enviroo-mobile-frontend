@@ -2,14 +2,12 @@ import 'package:enviroo/models/katalog_model.dart';
 import 'package:enviroo/providers/barang_provider.dart';
 import 'package:enviroo/widgets/foto_thumbnail.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:enviroo/core/format/app_date.dart';
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-class _C {
-  static const dark   = Color(0xFF0D3B3E);
-  static const accent = Color(0xFF4EA771);
-  static const red    = Color(0xFFE53935);
-}
 
 class DetailBarangSheet extends StatefulWidget {
   final String role;
@@ -38,20 +36,6 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
     super.dispose();
   }
 
-  String _formatDouble(double value) {
-    if (value == value.truncateToDouble()) {
-      return value
-          .toInt()
-          .toString()
-          .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-    }
-    return value
-        .toStringAsFixed(2)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '')
-        .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -76,7 +60,7 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
               ),
               if (barang.isDetailLoading)
                 const Expanded(
-                  child: Center(child: CircularProgressIndicator(color: _C.accent)),
+                  child: Center(child: CircularProgressIndicator(color: AppColors.green)),
                 )
               else if (barang.currentDetail == null)
                 Expanded(
@@ -85,7 +69,7 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
                       'Data tidak tersedia',
                       style: TextStyle(
                         fontFamily: 'Poppins',
-                        color: _C.dark.withValues(alpha: 0.4),
+                        color: AppColors.darkAlt.withValues(alpha: 0.4),
                       ),
                     ),
                   ),
@@ -110,27 +94,19 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
               margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                color: const Color(0xFFF0F0F0),
+                color: AppColors.divider,
                 borderRadius: BorderRadius.circular(50),
               ),
               child: TabBar(
                 controller: _tabController,
                 indicator: BoxDecoration(
-                  color: _C.accent,
+                  color: AppColors.green,
                   borderRadius: BorderRadius.circular(50),
                 ),
                 labelColor: Colors.white,
-                unselectedLabelColor: _C.dark.withValues(alpha: 0.5),
-                labelStyle: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-                unselectedLabelStyle: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
+                unselectedLabelColor: AppColors.darkAlt.withValues(alpha: 0.5),
+                labelStyle: AppText.w600(13),
+                unselectedLabelStyle: AppText.w500(13),
                 dividerColor: Colors.transparent,
                 indicatorSize: TabBarIndicatorSize.tab,
                 tabAlignment: TabAlignment.fill,
@@ -166,7 +142,7 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
             photoUrl: item.photoUrl,
             nama: item.namaBarang,
             fallbackIcon: Icons.storefront_rounded,
-            accent: _C.accent,
+            accent: AppColors.green,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -175,22 +151,13 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
               children: [
                 Text(
                   item.namaBarang,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: _C.dark,
-                  ),
+                  style: AppText.w700(15, AppColors.darkAlt),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   'ID: ${item.produkId}',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    color: _C.dark.withValues(alpha: 0.4),
-                  ),
+                  style: AppText.r(10, AppColors.darkAlt.withValues(alpha: 0.4)),
                 ),
               ],
             ),
@@ -216,9 +183,9 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
               Divider(height: 1, color: Colors.grey.shade200),
               _infoRow('ID Barang', item.produkId),
               Divider(height: 1, color: Colors.grey.shade200),
-              _infoRow('Nilai Poin per Item', '${_formatDouble(item.nilaiPoin)} poin'),
+              _infoRow('Nilai Poin per Item', '${AppNumber.desimal(item.nilaiPoin)} poin'),
               Divider(height: 1, color: Colors.grey.shade200),
-              _infoRow('Stok Tersedia', '${_formatDouble(item.stok)} item'),
+              _infoRow('Stok Tersedia', '${AppNumber.desimal(item.stok)} item'),
             ],
           ),
         ),
@@ -233,15 +200,11 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.local_shipping_rounded,
-                size: 40, color: _C.dark.withValues(alpha: 0.15)),
+                size: 40, color: AppColors.darkAlt.withValues(alpha: 0.15)),
             const SizedBox(height: 8),
             Text(
               'Belum ada riwayat distribusi',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: _C.dark.withValues(alpha: 0.4),
-              ),
+              style: AppText.r(13, AppColors.darkAlt.withValues(alpha: 0.4)),
             ),
           ],
         ),
@@ -268,7 +231,7 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
                       width: 12,
                       height: 12,
                       decoration: BoxDecoration(
-                        color: isFirst ? _C.accent : Colors.grey.shade300,
+                        color: isFirst ? AppColors.green : Colors.grey.shade300,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -284,12 +247,12 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: isFirst
-                        ? _C.accent.withValues(alpha: 0.06)
+                        ? AppColors.green.withValues(alpha: 0.06)
                         : Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: isFirst
-                          ? _C.accent.withValues(alpha: 0.15)
+                          ? AppColors.green.withValues(alpha: 0.15)
                           : Colors.grey.shade200,
                     ),
                   ),
@@ -299,21 +262,16 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
                       Row(
                         children: [
                           Icon(Icons.calendar_today_rounded,
-                              size: 13, color: _C.dark.withValues(alpha: 0.4)),
+                              size: 13, color: AppColors.darkAlt.withValues(alpha: 0.4)),
                           const SizedBox(width: 6),
                           Text(
-                            DateFormat('dd MMM yyyy, HH:mm')
-                                .format(entry.tanggalKirim),
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 10,
-                              color: _C.dark.withValues(alpha: 0.5),
-                            ),
+                            AppDate.tanggalSingkatJam(entry.tanggalKirim),
+                            style: AppText.r(10, AppColors.darkAlt.withValues(alpha: 0.5)),
                           ),
                           const Spacer(),
                           Builder(builder: (_) {
                             final isBsi = widget.role == 'petugas_bsi';
-                            final badgeColor = isBsi ? _C.red : _C.accent;
+                            final badgeColor = isBsi ? AppColors.dangerAlt : AppColors.green;
                             final prefix = isBsi ? '-' : '+';
                             return Container(
                               padding: const EdgeInsets.symmetric(
@@ -323,13 +281,8 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                '$prefix${_formatDouble(entry.item)} item',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: badgeColor,
-                                ),
+                                '$prefix${AppNumber.desimal(entry.item)} item',
+                                style: AppText.w700(10, badgeColor),
                               ),
                             );
                           }),
@@ -344,27 +297,18 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
                               children: [
                                 Text(
                                   'Stok Sebelum',
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 9.5,
-                                    color: _C.dark.withValues(alpha: 0.4),
-                                  ),
+                                  style: AppText.r(9.5, AppColors.darkAlt.withValues(alpha: 0.4)),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  _formatDouble(entry.stokSebelum),
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: _C.dark.withValues(alpha: 0.7),
-                                  ),
+                                  AppNumber.desimal(entry.stokSebelum),
+                                  style: AppText.w600(13, AppColors.darkAlt.withValues(alpha: 0.7)),
                                 ),
                               ],
                             ),
                           ),
                           Builder(builder: (_) {
-                            final arrowColor = widget.role == 'petugas_bsi' ? _C.red : _C.accent;
+                            final arrowColor = widget.role == 'petugas_bsi' ? AppColors.dangerAlt : AppColors.green;
                             return Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
@@ -382,21 +326,12 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
                               children: [
                                 Text(
                                   'Stok Sesudah',
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 9.5,
-                                    color: _C.dark.withValues(alpha: 0.4),
-                                  ),
+                                  style: AppText.r(9.5, AppColors.darkAlt.withValues(alpha: 0.4)),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  _formatDouble(entry.stokSesudah),
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: widget.role == 'petugas_bsi' ? _C.red : _C.accent,
-                                  ),
+                                  AppNumber.desimal(entry.stokSesudah),
+                                  style: AppText.w700(13, widget.role == 'petugas_bsi' ? AppColors.dangerAlt : AppColors.green),
                                 ),
                               ],
                             ),
@@ -421,11 +356,7 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              color: _C.dark.withValues(alpha: 0.5),
-            ),
+            style: AppText.r(13, AppColors.darkAlt.withValues(alpha: 0.5)),
           ),
           const Spacer(),
           Text(
@@ -433,12 +364,7 @@ class _DetailBarangSheetState extends State<DetailBarangSheet>
             textAlign: TextAlign.end,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: _C.dark,
-            ),
+            style: AppText.w600(13, AppColors.darkAlt),
           ),
         ],
       ),

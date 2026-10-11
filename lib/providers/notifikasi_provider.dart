@@ -15,9 +15,6 @@ class NotifikasiProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   int get unreadCount => _notifikasi.where((n) => !n.isRead).length;
 
-  // Khusus nasabah: ref_type 'penimbangan'/'jadwal_penimbangan' udah punya
-  // "inbox" sendiri di ChatInfoBankSampahScreen, jadi gak perlu ikut dihitung
-  // di badge notif topbar biar gak keitung dobel.
   int unreadCountFor(String role) => _notifikasi.where((n) {
         if (n.isRead) return false;
         if (role == 'nasabah' && n.isChatInfoBank) return false;

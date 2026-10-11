@@ -1,6 +1,5 @@
-import 'package:intl/intl.dart';
+import '../core/format/app_date.dart';
 
-// ─── Riwayat item (satu entry perubahan status) ──────────────────────────────
 class RiwayatSesiPengangkutanModel {
   final String status;
   final DateTime changedAt;
@@ -23,14 +22,11 @@ class RiwayatSesiPengangkutanModel {
     );
   }
 
-  String get jamFormatted =>
-      DateFormat('HH:mm', 'id_ID').format(changedAt);
+  String get jamFormatted => AppDate.jam(changedAt);
 
-  String get tanggalFormatted =>
-      DateFormat('dd MMM yyyy', 'id_ID').format(changedAt);
+  String get tanggalFormatted => AppDate.tanggalSingkat(changedAt);
 }
 
-// ─── Detail sesi aktif pengangkutan ─────────────────────────────────────────
 class DetailSesiPengangkutanModel {
   final String pengangkutanId;
   final String bsiId;

@@ -1,23 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:enviroo/core/format/app_date.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-/// Row of two tappable month-year chips (Dari / Sampai).
-/// Parent owns [filterStart] and [filterEnd]; [onChanged] receives the updated
-/// pair after the picker closes. Auto-clamps: if start > end or end < start,
-/// the other bound is adjusted to match.
 class MonthYearFilterRow extends StatelessWidget {
   final DateTime filterStart;
   final DateTime filterEnd;
   final void Function(DateTime start, DateTime end) onChanged;
 
-  /// Kalau true, bulan-bulan setelah bulan berjalan gak di-disable di bottom
-  /// sheet — dipakai untuk fitur yang justru butuh milih jadwal mendatang
-  /// (misal pembatalan jadwal), bukan riwayat yang cuma masuk akal ke masa lalu.
   final bool allowFutureMonths;
 
-  /// Kalau false, bulan-bulan sebelum bulan berjalan di-disable — dipakai
-  /// untuk fitur yang cuma masuk akal ke jadwal mendatang (misal pembatalan
-  /// jadwal), bukan riwayat yang justru butuh milih bulan-bulan lalu.
   final bool allowPastMonths;
 
   const MonthYearFilterRow({
@@ -94,10 +86,10 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: Color(0xFF4EA771).withOpacity(0.075),
+          color: AppColors.green.withValues(alpha: 0.075),
           borderRadius: BorderRadius.circular(15),
           border: Border.all(
-              color: const Color(0xFF4EA771).withOpacity(0.75),
+              color: AppColors.green.withValues(alpha: 0.75),
           ),
         ),
         child: Row(
@@ -105,20 +97,15 @@ class _FilterChip extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                DateFormat('MMMM yyyy', 'id_ID').format(value),
+                AppDate.bulanTahun(value),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF4EA771),
-                ),
+                style: AppText.w600(12.5, AppColors.green),
               ),
             ),
             const SizedBox(width: 4),
             const Icon(Icons.expand_more_rounded,
-                size: 18, color: Color(0xFF4EA771)),
+                size: 18, color: AppColors.green),
           ],
         ),
       ),
@@ -126,17 +113,12 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-/// Bottom-sheet month-year picker. Pops with the selected [DateTime] on tap.
 class MonthYearPickerSheet extends StatefulWidget {
   final int initialYear;
   final int initialMonth;
 
-  /// Kalau true, tahun & bulan setelah saat ini tetap bisa dipilih (gak ada
-  /// yang di-disable). Dipakai untuk fitur yang butuh milih jadwal mendatang.
   final bool allowFutureMonths;
 
-  /// Kalau false, tahun & bulan sebelum saat ini di-disable. Dipakai untuk
-  /// fitur yang cuma masuk akal ke jadwal mendatang.
   final bool allowPastMonths;
 
   const MonthYearPickerSheet({
@@ -194,7 +176,7 @@ class _MonthYearPickerSheetState extends State<MonthYearPickerSheet> {
                   Icons.chevron_left_rounded,
                   color: (!widget.allowPastMonths && _year <= now.year)
                       ? Colors.grey[300]
-                      : const Color(0xFF013236),
+                      : AppColors.dark,
                 ),
                 onPressed: (!widget.allowPastMonths && _year <= now.year)
                     ? null
@@ -202,19 +184,14 @@ class _MonthYearPickerSheetState extends State<MonthYearPickerSheet> {
               ),
               Text(
                 '$_year',
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF013236),
-                ),
+                style: AppText.w700(18, AppColors.dark),
               ),
               IconButton(
                 icon: Icon(
                   Icons.chevron_right_rounded,
                   color: (!widget.allowFutureMonths && _year >= now.year)
                       ? Colors.grey[300]
-                      : const Color(0xFF013236),
+                      : AppColors.dark,
                 ),
                 onPressed: (!widget.allowFutureMonths && _year >= now.year)
                     ? null
@@ -252,7 +229,7 @@ class _MonthYearPickerSheetState extends State<MonthYearPickerSheet> {
                   duration: const Duration(milliseconds: 150),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? const Color(0xFF4EA771)
+                        ? AppColors.green
                         : isDisabled
                             ? Colors.grey[100]
                             : const Color(0xFFF0F9F4),
@@ -261,17 +238,11 @@ class _MonthYearPickerSheetState extends State<MonthYearPickerSheet> {
                   alignment: Alignment.center,
                   child: Text(
                     _monthLabels[i],
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected
+                    style: AppText.p(12, weight: isSelected ? FontWeight.w700 : FontWeight.w500, color: isSelected
                           ? Colors.white
                           : isDisabled
                               ? Colors.grey[400]
-                              : const Color(0xFF013236),
-                    ),
+                              : AppColors.dark),
                   ),
                 ),
               );

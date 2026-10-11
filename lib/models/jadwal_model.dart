@@ -1,3 +1,5 @@
+import '../core/format/app_date.dart';
+
 const _dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
 class JadwalRutin {
@@ -119,14 +121,10 @@ class JadwalModel {
   }
 
   String get formattedWaktu {
-    String mulai = jamMulai.length >= 5 ? jamMulai.substring(0, 5) : jamMulai;
-    String selesai = jamSelesai.length >= 5 ? jamSelesai.substring(0, 5) : jamSelesai;
-    return '$mulai - $selesai';
+    return AppDate.rentangJam(jamMulai, jamSelesai);
   }
 }
 
-// ── Jadwal Penimbangan (endpoint GET /jadwal/penimbangan/:bank_id) ──────────
-// Dipakai khusus JadwalScreen role petugas_bsm.
 class JadwalPenimbanganItem {
   final String jadwalId;
   final DateTime tanggal;
@@ -162,8 +160,6 @@ class JadwalPenimbanganItem {
   }
 
   String get formattedJam {
-    String mulai = jamMulai.length >= 5 ? jamMulai.substring(0, 5) : jamMulai;
-    String selesai = jamSelesai.length >= 5 ? jamSelesai.substring(0, 5) : jamSelesai;
-    return '$mulai - $selesai';
+    return AppDate.rentangJam(jamMulai, jamSelesai);
   }
 }

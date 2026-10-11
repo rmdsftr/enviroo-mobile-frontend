@@ -14,15 +14,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-/// Scanner QR petugas BSU + fallback foto bukti.
-///
-/// Alur:
-///  1. Petugas BSI scan QR petugas BSU → ambil admin_bsu_id dari token QR.
-///  2. Jika scan tidak bekerja, petugas BSI dapat mengambil foto bukti.
-///     Foto dikirim sebagai bukti_foto pada multipart request input
-///     pengangkutan. [adminBsuIdAwal] dipakai sebagai adminBsuId jika tersedia,
-///     atau kosong jika sesi dimulai dari sisi BSI.
 class ScanPetugasBsuScreen extends StatefulWidget {
   final String pengangkutanId;
   final String namaBsu;
@@ -70,7 +64,6 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
     super.dispose();
   }
 
-  // ── QR detect ──────────────────────────────────────────────────────────────
   void _onDetect(BarcodeCapture capture) async {
     if (_isProcessing || _isSubmitting) return;
     final barcode = capture.barcodes.firstOrNull;
@@ -92,12 +85,9 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
     await _submit(raw, null);
   }
 
-  // ── Foto fallback ──────────────────────────────────────────────────────────
   Future<void> _ambilFotoBukti() async {
     _scannerController.stop();
 
-    // Kalau adminBsuIdAwal sudah diketahui (BSU scan duluan), langsung foto.
-    // Kalau belum, tampilkan picker petugas BSU dulu baru foto.
     String adminBsuId = widget.adminBsuIdAwal;
 
     if (adminBsuId.isEmpty) {
@@ -111,7 +101,6 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
       if (!mounted) return;
 
       if (picked == null) {
-        // User tutup picker tanpa pilih — batalkan, kembali ke scan
         _scannerController.start();
         return;
       }
@@ -140,7 +129,6 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
     await _submit(qrData, foto);
   }
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
   Future<void> _submit(String qrData, File? bukti) async {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
@@ -173,7 +161,6 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -206,11 +193,11 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF013236),
+        color: AppColors.dark,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF013236).withOpacity(0.25),
+            color: AppColors.dark.withValues(alpha: 0.25),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -221,12 +208,12 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
           Container(
             padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
-              color: const Color(0xFF06C0C9).withOpacity(0.18),
+              color: AppColors.cyan.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(11),
             ),
             child: const Icon(
               Icons.local_shipping_rounded,
-              color: Color(0xFF06C0C9),
+              color: AppColors.cyan,
               size: 22,
             ),
           ),
@@ -237,23 +224,14 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
               children: [
                 Text(
                   widget.namaBsu,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: Colors.white,
-                  ),
+                  style: AppText.w700(13, Colors.white),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${widget.items.length} jenis sampah',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    color: Colors.white.withOpacity(0.65),
-                  ),
+                  style: AppText.r(11, Colors.white.withValues(alpha: 0.65)),
                 ),
               ],
             ),
@@ -268,7 +246,7 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF06C0C9).withOpacity(0.10),
+        color: AppColors.cyan.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -276,25 +254,20 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF06C0C9).withOpacity(0.18),
+              color: AppColors.cyan.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
               Icons.qr_code_scanner_rounded,
-              color: Color(0xFF06C0C9),
+              color: AppColors.cyan,
               size: 18,
             ),
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Text(
               'Scan QR identitas petugas BSU untuk memvalidasi & menyimpan setoran pengangkutan.',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF013236),
-              ),
+              style: AppText.w500(11.5, AppColors.dark),
             ),
           ),
         ],
@@ -310,7 +283,7 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF013236).withOpacity(0.18),
+            color: AppColors.dark.withValues(alpha: 0.18),
             blurRadius: 32,
             offset: const Offset(0, 16),
           ),
@@ -349,7 +322,7 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
 
   Widget _buildProcessingOverlay() {
     return Container(
-      color: Colors.black.withOpacity(0.65),
+      color: Colors.black.withValues(alpha: 0.65),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -357,11 +330,11 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
             Container(
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
-                color: const Color(0xFF06C0C9),
+                color: AppColors.cyan,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF06C0C9).withOpacity(0.45),
+                    color: AppColors.cyan.withValues(alpha: 0.45),
                     blurRadius: 28,
                     spreadRadius: 6,
                   ),
@@ -385,23 +358,14 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
             const SizedBox(height: 18),
             Text(
               _isSubmitting ? 'Mengirim Setoran...' : 'Memverifikasi Petugas...',
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-                color: Colors.white,
-              ),
+              style: AppText.w700(15, Colors.white),
             ),
             const SizedBox(height: 4),
             Text(
               _isSubmitting
                   ? 'Mohon tunggu sebentar'
                   : 'Memproses identitas BSU',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: Colors.white.withOpacity(0.7),
-              ),
+              style: AppText.r(12, Colors.white.withValues(alpha: 0.7)),
             ),
           ],
         ),
@@ -420,7 +384,7 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF013236).withOpacity(0.10),
+              color: AppColors.dark.withValues(alpha: 0.10),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -431,31 +395,26 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF06C0C9).withOpacity(0.12),
+                color: AppColors.cyan.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
                 Icons.photo_camera_rounded,
-                color: Color(0xFF06C0C9),
+                color: AppColors.cyan,
                 size: 18,
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
                 'QR tidak bekerja? Ambil foto bukti',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: Color(0xFF013236),
-                ),
+                style: AppText.w600(13, AppColors.dark),
               ),
             ),
             const Icon(
               Icons.arrow_forward_ios_rounded,
               size: 13,
-              color: Color(0xFF06C0C9),
+              color: AppColors.cyan,
             ),
           ],
         ),
@@ -465,8 +424,6 @@ class _ScanPetugasBsuScreenState extends State<ScanPetugasBsuScreen>
 
 }
 
-// ─── Scan frame & painters ──────────────────────────────────────────────────
-
 class _ScanFrame extends StatelessWidget {
   const _ScanFrame();
 
@@ -475,7 +432,7 @@ class _ScanFrame extends StatelessWidget {
     const double size = 230;
     const double bracketLen = 30;
     const double bracketThick = 3.5;
-    const Color bracketColor = Color(0xFF06C0C9);
+    const Color bracketColor = AppColors.cyan;
 
     return SizedBox(
       width: size,
@@ -488,7 +445,7 @@ class _ScanFrame extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 width: 1,
               ),
             ),
@@ -544,12 +501,7 @@ class _ScanFrame extends StatelessWidget {
             child: Center(
               child: Text(
                 'Arahkan ke QR Code petugas BSU',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white.withOpacity(0.75),
-                ),
+                style: AppText.w500(11, Colors.white.withValues(alpha: 0.75)),
               ),
             ),
           ),
@@ -630,7 +582,7 @@ class _OverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.black.withOpacity(0.52)
+      ..color = Colors.black.withValues(alpha: 0.52)
       ..style = PaintingStyle.fill;
     const double frameSize = 230;
     final double left = (size.width - frameSize) / 2;
@@ -648,8 +600,6 @@ class _OverlayPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter old) => false;
 }
-
-// ─── Picker petugas BSU (bottom sheet) ────────────────────────────────────────
 
 class _PetugasBsuPickerSheet extends StatefulWidget {
   final String bsuId;
@@ -729,22 +679,13 @@ class _PetugasBsuPickerSheetState extends State<_PetugasBsuPickerSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Pilih Petugas BSU',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          color: Color(0xFF013236),
-                        ),
+                        style: AppText.w700(15, AppColors.dark),
                       ),
                       Text(
                         'Pilih petugas yang hadir saat pengangkutan',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11.5,
-                          color: Colors.grey[500],
-                        ),
+                        style: AppText.r(11.5, Colors.grey[500]),
                       ),
                     ],
                   ),
@@ -757,7 +698,7 @@ class _PetugasBsuPickerSheetState extends State<_PetugasBsuPickerSheet> {
                       color: Colors.grey[100],
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF013236)),
+                    child: const Icon(Icons.close_rounded, size: 18, color: AppColors.dark),
                   ),
                 ),
               ],
@@ -778,18 +719,14 @@ class _PetugasBsuPickerSheetState extends State<_PetugasBsuPickerSheet> {
           ),
           Flexible(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF06C0C9)))
+                ? const Center(child: CircularProgressIndicator(color: AppColors.cyan))
                 : _filtered.isEmpty
                     ? Padding(
                         padding: const EdgeInsets.symmetric(vertical: 32),
                         child: Center(
                           child: Text(
                             'Petugas tidak ditemukan',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 13,
-                              color: Colors.grey[400],
-                            ),
+                            style: AppText.r(13, Colors.grey[400]),
                           ),
                         ),
                       )
@@ -815,25 +752,16 @@ class _PetugasBsuPickerSheetState extends State<_PetugasBsuPickerSheet> {
                                 : _avatar(initial),
                             title: Text(
                               p.nama,
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                                color: Color(0xFF013236),
-                              ),
+                              style: AppText.w600(13, AppColors.dark),
                             ),
                             subtitle: Text(
                               p.email,
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 11,
-                                color: Colors.grey[500],
-                              ),
+                              style: AppText.r(11, Colors.grey[500]),
                             ),
                             trailing: const Icon(
                               Icons.arrow_forward_ios_rounded,
                               size: 13,
-                              color: Color(0xFF06C0C9),
+                              color: AppColors.cyan,
                             ),
                           );
                         },
@@ -848,18 +776,13 @@ class _PetugasBsuPickerSheetState extends State<_PetugasBsuPickerSheet> {
     return Container(
       width: 44, height: 44,
       decoration: const BoxDecoration(
-        color: Color(0xFF06C0C9),
+        color: AppColors.cyan,
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
       child: Text(
         initial,
-        style: const TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-          color: Colors.white,
-        ),
+        style: AppText.w700(16, Colors.white),
       ),
     );
   }

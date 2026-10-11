@@ -157,9 +157,6 @@ class PengangkutanService {
         return request;
       });
 
-      // Cek content-type sebelum jsonDecode — respons redirect atau error
-      // non-JSON (misal 301/404 HTML dari Gin) akan melempar FormatException
-      // jika langsung di-decode.
       final contentType = response.headers['content-type'] ?? '';
       if (!contentType.contains('application/json')) {
         return {

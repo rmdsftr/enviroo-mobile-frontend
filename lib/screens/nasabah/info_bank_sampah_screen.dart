@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class InfoBankSampahScreen extends StatefulWidget {
   @override
@@ -22,7 +24,7 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchBankData();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fetchBankData());
   }
 
   Future<void> _fetchBankData() async {
@@ -45,7 +47,7 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        color: const Color(0xFFFFFFFF),
+        color: Colors.white,
         child: SafeArea(
           child: Column(
             children: [
@@ -54,15 +56,10 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 4),
                 child: Text(
                   "Kamu bisa lihat ada bank sampah apa aja yang ada di sekitarmu beserta alamat lengkapnya",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    color: const Color(0xFF013236).withOpacity(0.7),
-                  ),
+                  style: AppText.r(13, AppColors.dark.withValues(alpha: 0.7)),
                 ),
               ),
               const SizedBox(height: 10),
-              // Map
               Expanded(
                 child: ClipRRect(
                   borderRadius: const BorderRadius.only(
@@ -77,7 +74,6 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
                           initialCenter: const LatLng(-0.9135, 100.3550),
                           initialZoom: 14.0,
                           onTap: (_, __) {
-                            // Dismiss selection when tapping on map
                             if (_selectedBankIndex != null) {
                               setState(() => _selectedBankIndex = null);
                             }
@@ -91,7 +87,7 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
                           if (_isLoading)
                             const Center(
                               child: CircularProgressIndicator(
-                                color: Color(0xFF4EA771),
+                                color: AppColors.green,
                               ),
                             )
                           else
@@ -100,18 +96,17 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
                             ),
                         ],
                       ),
-                      // Bank count badge
                       Positioned(
                         top: 16,
                         left: 16,
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF013236),
+                            color: AppColors.dark,
                             borderRadius: BorderRadius.circular(50),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF013236).withOpacity(0.3),
+                                color: AppColors.dark.withValues(alpha: 0.3),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -122,24 +117,18 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
                             children: [
                               const Icon(
                                 Icons.location_on_rounded,
-                                color: Color(0xFF94DF0C),
+                                color: AppColors.neon,
                                 size: 16,
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 _isLoading ? 'Memuat...' : '${_bankList.length} Bank Sampah Ditemukan',
-                                style: const TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
+                                style: AppText.w600(12, Colors.white),
                               ),
                             ],
                           ),
                         ),
                       ),
-                      // Recenter button
                       Positioned(
                         bottom: 20,
                         right: 16,
@@ -157,7 +146,7 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
+                                  color: Colors.black.withValues(alpha: 0.15),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -165,7 +154,7 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
                             ),
                             child: const Icon(
                               Icons.my_location_rounded,
-                              color: Color(0xFF013236),
+                              color: AppColors.dark,
                               size: 22,
                             ),
                           ),
@@ -201,8 +190,8 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
             duration: const Duration(milliseconds: 200),
             decoration: BoxDecoration(
               color: isSelected
-                  ? const Color(0xFF013236)
-                  : const Color(0xFF94DF0C),
+                  ? AppColors.dark
+                  : AppColors.neon,
               shape: BoxShape.circle,
               border: Border.all(
                 color: Colors.white,
@@ -211,9 +200,9 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
               boxShadow: [
                 BoxShadow(
                   color: (isSelected
-                          ? const Color(0xFF013236)
-                          : const Color(0xFF4EA771))
-                      .withOpacity(0.4),
+                          ? AppColors.dark
+                          : AppColors.green)
+                      .withValues(alpha: 0.4),
                   blurRadius: isSelected ? 14 : 8,
                   spreadRadius: isSelected ? 2 : 0,
                   offset: const Offset(0, 3),
@@ -240,18 +229,13 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
           Icon(
             icon,
             size: 15,
-            color: const Color(0xFF4EA771),
+            color: AppColors.green,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF013236).withOpacity(0.75),
-              ),
+              style: AppText.w500(12, AppColors.dark.withValues(alpha: 0.75)),
             ),
           ),
         ],
@@ -269,7 +253,7 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
           maxHeight: MediaQuery.of(context).size.height * 0.65,
         ),
         decoration: const BoxDecoration(
-          color: Color(0xFFFFFFFF),
+          color: Colors.white,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(28),
             topRight: Radius.circular(28),
@@ -281,20 +265,18 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Drag handle
               Center(
                 child: Container(
                   margin: const EdgeInsets.only(top: 12, bottom: 8),
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF013236).withAlpha(30),
+                    color: AppColors.dark.withAlpha(30),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
 
-              // Foto BSU
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: ClipRRect(
@@ -302,7 +284,7 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
                   child: Container(
                     width: double.infinity,
                     height: 180,
-                    color: const Color(0xFFFFFFFF),
+                    color: Colors.white,
                     child: Image.network(
                       bank.photoUrl,
                       fit: BoxFit.cover,
@@ -314,7 +296,7 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
                                 ? loadingProgress.cumulativeBytesLoaded /
                                     loadingProgress.expectedTotalBytes!
                                 : null,
-                            color: const Color(0xFF4EA771),
+                            color: AppColors.green,
                             strokeWidth: 2,
                           ),
                         );
@@ -327,16 +309,12 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
                               Icon(
                                 Icons.store_rounded,
                                 size: 48,
-                                color: const Color(0xFF4EA771).withOpacity(0.5),
+                                color: AppColors.green.withValues(alpha: 0.5),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 'Foto tidak tersedia',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 12,
-                                  color: const Color(0xFF013236).withOpacity(0.4),
-                                ),
+                                style: AppText.r(12, AppColors.dark.withValues(alpha: 0.4)),
                               ),
                             ],
                           ),
@@ -347,42 +325,29 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
                 ),
               ),
 
-              // Nama BSU
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
                 child: Text(
                   bank.namaBank,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF013236),
-                  ),
+                  style: AppText.w700(16, AppColors.dark),
                 ),
               ),
 
-              // Divider
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 child: Divider(
                   height: 1,
-                  color: const Color(0xFF013236).withAlpha(20),
+                  color: AppColors.dark.withAlpha(20),
                 ),
               ),
 
-              // Lokasi header
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   children: [
-                    const Text(
+                    Text(
                       'Lokasi',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF013236),
-                      ),
+                      style: AppText.w600(13, AppColors.dark),
                     ),
                   ],
                 ),
@@ -390,7 +355,6 @@ class _InfoBankSampahScreenState extends State<InfoBankSampahScreen> {
 
               const SizedBox(height: 12),
 
-              // Lokasi detail
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(

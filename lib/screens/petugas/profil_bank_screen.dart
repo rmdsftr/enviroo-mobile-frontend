@@ -1,30 +1,20 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/format/app_date.dart';
 import 'package:enviroo/models/detail_bank_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/screens/lihat_foto_screen.dart';
 import 'package:enviroo/providers/profil_provider.dart';
 import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
 import 'package:enviroo/widgets/topbar_back.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-/// Profil sebuah bank sampah — dipakai dari dua pintu:
-///
-/// 1. **Tab di beranda petugas** (`bankId` null) — menampilkan bank milik
-///    petugas yang sedang login, dengan [onBack] untuk kembali ke tab beranda.
-/// 2. **Route dari daftar BSU** (`bankId` diisi) — BSI membuka profil salah
-///    satu BSU-nya.
-///
-/// Dulu pintu kedua punya salinan layar sendiri (`list_nasabah_screen.dart`,
-/// 465 baris) yang badan layarnya identik dan cuma beda sumber `bankId`.
 class ProfilBankScreen extends StatefulWidget {
-  /// Null = bank milik petugas yang login. Diisi = bank lain.
   final String? bankId;
   final VoidCallback? onBack;
 
-  /// Kedua pintu memakai judul berbeda sejak sebelum digabung; dibiarkan
-  /// begitu supaya penggabungan ini nol perubahan terlihat.
   final String judul;
 
   const ProfilBankScreen({
@@ -50,8 +40,6 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
   }
 
   Future<void> _fetchBankDetail() async {
-    // Urutannya penting: bankId dari pemanggil menang. Kalau dibalik, BSI akan
-    // selalu melihat banknya sendiri saat membuka profil BSU mana pun.
     final bankId = widget.bankId ?? context.read<AuthProvider>().bankId;
 
     if (bankId == null || bankId.isEmpty) {
@@ -91,7 +79,7 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
                 TopBarBack(title: widget.judul, onBack: widget.onBack),
                 Expanded(
                   child: _isLoading
-                      ? const Center(child: CircularProgressIndicator(color: Color(0xFF4EA771)))
+                      ? const Center(child: CircularProgressIndicator(color: AppColors.green))
                       : _error.isNotEmpty
                           ? _buildErrorState()
                           : _bank == null
@@ -105,8 +93,6 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
       ),
     );
   }
-
-  // ─── Error State ────────────────────────────────────────────────────────────
 
   Widget _buildErrorState() {
     return Center(
@@ -125,19 +111,15 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
             Text(
               _error,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: const Color(0xFF013236).withValues(alpha: 0.7),
-              ),
+              style: AppText.r(13, AppColors.dark.withValues(alpha: 0.7)),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: _fetchBankDetail,
               icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Coba Lagi', style: TextStyle(fontFamily: 'Poppins', fontSize: 13)),
+              label: Text('Coba Lagi', style: AppText.r(13)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4EA771),
+                backgroundColor: AppColors.green,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -150,16 +132,14 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
     );
   }
 
-  // ─── Main Content ───────────────────────────────────────────────────────────
-
   Widget _buildContent() {
     final bank = _bank!;
     final joinedAtStr = bank.joinedAt != null
-        ? DateFormat('dd MMMM yyyy', 'id_ID').format(bank.joinedAt!)
+        ? AppDate.tanggalPanjang(bank.joinedAt!)
         : '-';
 
     return RefreshIndicator(
-      color: const Color(0xFF4EA771),
+      color: AppColors.green,
       onRefresh: _fetchBankDetail,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
@@ -178,17 +158,15 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
     );
   }
 
-  // ─── Hero Card ──────────────────────────────────────────────────────────────
-
   Widget _buildHeroCard(DetailBankModel bank) {
-    final borderColor = bank.isActive ? const Color(0xFF4EA771) : Colors.red.shade400;
+    final borderColor = bank.isActive ? AppColors.green : Colors.red.shade400;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 17),
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: const Color(0xFF013236),
+          color: AppColors.dark,
           borderRadius: BorderRadius.circular(30),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
@@ -226,12 +204,10 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
             Text(
               bank.namaBank,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: 'Poppins', fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white,
-              ),
+              style: AppText.w700(17, Colors.white),
             ),
             const SizedBox(height: 10),
-            _buildBadge(bank.jenisBank, const Color(0xFF94DF0C), const Color(0xFF013236)),
+            _buildBadge(bank.jenisBank, AppColors.neon, AppColors.dark),
           ],
         ),
       ),
@@ -241,8 +217,8 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
   Widget _defaultBankAvatar() {
     return Container(
       width: 90, height: 90,
-      color: const Color(0xFF4EA771).withValues(alpha: 0.2),
-      child: const Icon(Icons.account_balance_rounded, color: Color(0xFF4EA771), size: 40),
+      color: AppColors.green.withValues(alpha: 0.2),
+      child: const Icon(Icons.account_balance_rounded, color: AppColors.green, size: 40),
     );
   }
 
@@ -252,12 +228,10 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
       decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(20)),
       child: Text(
         text,
-        style: TextStyle(fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w600, color: textColor),
+        style: AppText.w600(10, textColor),
       ),
     );
   }
-
-  // ─── Info Card ──────────────────────────────────────────────────────────────
 
   Widget _buildInfoCard(DetailBankModel bank, String joinedAtStr) {
     return _buildSectionCard(
@@ -273,8 +247,6 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
     );
   }
 
-  // ─── Deskripsi Card ─────────────────────────────────────────────────────────
-
   Widget _buildDeskripsiCard(String deskripsi) {
     return _buildSectionCard(
       icon: CupertinoIcons.text_alignleft,
@@ -282,17 +254,11 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
       children: [
         Text(
           deskripsi,
-          style: TextStyle(
-            fontFamily: 'Poppins', fontSize: 12,
-            color: const Color(0xFF013236).withValues(alpha: 0.75),
-            height: 1.7,
-          ),
+          style: AppText.p(12, color: AppColors.dark.withValues(alpha: 0.75), height: 1.7),
         ),
       ],
     );
   }
-
-  // ─── Lokasi Card ────────────────────────────────────────────────────────────
 
   Widget _buildLokasiCard(DetailBankModel bank) {
     return _buildSectionCard(
@@ -310,8 +276,6 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
     );
   }
 
-  // ─── Staff Card ─────────────────────────────────────────────────────────────
-
   Widget _buildStaffCard(List<AdminBankModel> admins) {
     return _buildSectionCard(
       icon: Icons.people_alt_rounded,
@@ -323,10 +287,7 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
                     'Belum ada staff terdaftar',
-                    style: TextStyle(
-                      fontFamily: 'Poppins', fontSize: 12,
-                      color: const Color(0xFF013236).withValues(alpha: 0.45),
-                    ),
+                    style: AppText.r(12, AppColors.dark.withValues(alpha: 0.45)),
                   ),
                 ),
               ),
@@ -338,7 +299,7 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
                   _buildStaffTile(entry.value),
                   if (!isLast)
                     Divider(
-                      color: const Color(0xFF013236).withValues(alpha: 0.07),
+                      color: AppColors.dark.withValues(alpha: 0.07),
                       height: 1, thickness: 0.5,
                     ),
                 ],
@@ -351,14 +312,14 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
     Color roleTextColor;
     Color roleBg;
     if (admin.roleAdmin == 'Admin') {
-      roleTextColor = const Color(0xFF013236);
-      roleBg = const Color(0xFF94DF0C);
+      roleTextColor = AppColors.dark;
+      roleBg = AppColors.neon;
     } else if (admin.roleAdmin == 'Superadmin') {
       roleTextColor = Colors.white;
-      roleBg = const Color(0xFF013236);
+      roleBg = AppColors.dark;
     } else {
-      roleTextColor = const Color(0xFF4EA771);
-      roleBg = const Color(0xFF4EA771).withValues(alpha: 0.12);
+      roleTextColor = AppColors.green;
+      roleBg = AppColors.green.withValues(alpha: 0.12);
     }
 
     return Padding(
@@ -369,7 +330,7 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
             width: 42, height: 42,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFF4EA771).withValues(alpha: 0.4), width: 1.5),
+              border: Border.all(color: AppColors.green.withValues(alpha: 0.4), width: 1.5),
             ),
             child: ClipOval(
               child: admin.photoUrl.isNotEmpty
@@ -387,14 +348,12 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
               children: [
                 Text(
                   admin.namaAdmin,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF013236),
-                  ),
+                  style: AppText.w600(13, AppColors.dark),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   admin.adminId,
-                  style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: const Color(0xFF013236).withValues(alpha: 0.4)),
+                  style: AppText.r(10, AppColors.dark.withValues(alpha: 0.4)),
                 ),
               ],
             ),
@@ -404,7 +363,7 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
             decoration: BoxDecoration(color: roleBg, borderRadius: BorderRadius.circular(20)),
             child: Text(
               admin.roleAdmin,
-              style: TextStyle(fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w600, color: roleTextColor),
+              style: AppText.w600(10, roleTextColor),
             ),
           ),
         ],
@@ -415,12 +374,10 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
   Widget _defaultStaffAvatar() {
     return Container(
       width: 42, height: 42,
-      color: const Color(0xFF013236).withValues(alpha: 0.08),
-      child: Icon(Icons.person_rounded, color: const Color(0xFF013236).withValues(alpha: 0.4), size: 22),
+      color: AppColors.dark.withValues(alpha: 0.08),
+      child: Icon(Icons.person_rounded, color: AppColors.dark.withValues(alpha: 0.4), size: 22),
     );
   }
-
-  // ─── Reusable Widgets ───────────────────────────────────────────────────────
 
   Widget _buildInfoRow({
     required IconData icon,
@@ -436,10 +393,10 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
           Container(
             width: 32, height: 32,
             decoration: BoxDecoration(
-              color: const Color(0xFF4EA771).withValues(alpha: 0.1),
+              color: AppColors.green.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(9),
             ),
-            child: Icon(icon, size: 15, color: const Color(0xFF4EA771)),
+            child: Icon(icon, size: 15, color: AppColors.green),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -448,12 +405,12 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: const Color(0xFF013236).withValues(alpha: 0.5)),
+                  style: AppText.r(10, AppColors.dark.withValues(alpha: 0.5)),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF013236)),
+                  style: AppText.w600(13, AppColors.dark),
                 ),
               ],
             ),
@@ -474,7 +431,7 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: const Color(0xFF013236).withValues(alpha: 0.1)),
+          border: Border.all(color: AppColors.dark.withValues(alpha: 0.1)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -485,20 +442,20 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
                 children: [
                   Container(
                     width: 25, height: 25,
-                    decoration: BoxDecoration(color: const Color(0xFF013236), borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(color: AppColors.dark, borderRadius: BorderRadius.circular(10)),
                     child: Icon(icon, color: Colors.white, size: 14),
                   ),
                   const SizedBox(width: 12),
                   Text(
                     title,
-                    style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF013236)),
+                    style: AppText.w600(13, AppColors.dark),
                   ),
                 ],
               ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              child: Container(height: 0.5, color: const Color(0xFF013236).withValues(alpha: 0.08)),
+              child: Container(height: 0.5, color: AppColors.dark.withValues(alpha: 0.08)),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),

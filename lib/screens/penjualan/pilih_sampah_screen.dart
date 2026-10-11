@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format/app_number.dart';
 import '../../models/katalog_model.dart';
 import '../../models/penjualan_model.dart';
 import '../../providers/auth_provider.dart';
@@ -12,16 +12,10 @@ import '../../widgets/custom_snackbar.dart';
 import '../../widgets/search.dart';
 import '../../widgets/topbar_back.dart';
 import 'hitung_penjualan_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-class _C {
-  static const dark = Color(0xFF013236);
-  static const green = Color(0xFF94DF0C);
-  static const teal = Color(0xFF4EA771);
-  static const cardBg = Color(0xFFF7FBF5);
-  static const muted = Color(0xFF8A9A92);
-  static const danger = Color(0xFFD94848);
-  static const border = Color(0xFFE6EDE9);
-}
 
 class PilihSampahScreen extends StatefulWidget {
   const PilihSampahScreen({super.key});
@@ -83,8 +77,6 @@ class _PilihSampahScreenState extends State<PilihSampahScreen> {
     }
   }
 
-  /// Filter katalog: search query + hanya tampilkan sampah yang reward_id-nya
-  /// sesuai dengan reward yang dipilih user di step sebelumnya.
   List<KatalogSampahModel> _filteredKatalog(PenjualanProvider prov) {
     final selectedRewardId = prov.selectedReward?.rewardId;
     return _katalog.where((k) {
@@ -148,7 +140,7 @@ class _PilihSampahScreenState extends State<PilihSampahScreen> {
             Expanded(
               child: _loading
                   ? const Center(
-                      child: CircularProgressIndicator(color: _C.teal))
+                      child: CircularProgressIndicator(color: AppColors.green))
                   : _error != null
                       ? _buildError(_error!)
                       : _buildContent(prov, filtered),
@@ -176,7 +168,6 @@ class _PilihSampahScreenState extends State<PilihSampahScreen> {
           ),
         ),
 
-        // Search bar
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 15),
           child: CustomSearchBar(
@@ -192,13 +183,10 @@ class _PilihSampahScreenState extends State<PilihSampahScreen> {
         ),
         Expanded(
           child: filtered.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text(
                     'Sampah tidak ditemukan',
-                    style: TextStyle(
-                        fontFamily: 'Poppins',
-                        color: _C.muted,
-                        fontSize: 12),
+                    style: AppText.r(12, AppColors.muted),
                   ),
                 )
               : ListView.separated(
@@ -213,35 +201,13 @@ class _PilihSampahScreenState extends State<PilihSampahScreen> {
     );
   }
 
-  Widget _buildError(String msg) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, color: _C.danger, size: 42),
-              const SizedBox(height: 10),
-              Text(
-                msg,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontFamily: 'Poppins', color: _C.danger, fontSize: 12),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: _init,
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: _C.dark, foregroundColor: Colors.white),
-                child: const Text('Coba Lagi',
-                    style: TextStyle(fontFamily: 'Poppins')),
-              ),
-            ],
-          ),
-        ),
+  Widget _buildError(String msg) => StateMessage(
+        illustration: StateArt.error,
+        message: msg,
+        action: StateRetryButton(onPressed: _init),
       );
 }
 
-// ─── Card Sampah ─────────────────────────────────────────────────────────────
 class _SampahCard extends StatefulWidget {
   final KatalogSampahModel item;
   final PenjualanProvider prov;
@@ -299,11 +265,9 @@ class _SampahCardState extends State<_SampahCard>
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat('#,##0.##', 'id_ID');
     final stok = widget.item.stok;
     final isSelected = selected;
 
-    // sync animCtrl bila state berubah dari luar (e.g. reset)
     if (isSelected && _animCtrl.status == AnimationStatus.dismissed) {
       _animCtrl.forward();
     } else if (!isSelected && _animCtrl.status == AnimationStatus.completed) {
@@ -313,17 +277,15 @@ class _SampahCardState extends State<_SampahCard>
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: isSelected ? _C.teal : _C.border),
+        border: Border.all(color: isSelected ? AppColors.green : AppColors.border),
         borderRadius: BorderRadius.circular(20),
       ),
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header row: foto + info + checkbox ──────────────────────────
           Row(
             children: [
-              // Foto sampah
               widget.item.photoUrl.isNotEmpty
                   ? ClipOval(
                       child: Image.network(
@@ -336,34 +298,23 @@ class _SampahCardState extends State<_SampahCard>
                     )
                   : _photoPlaceholder(),
               const SizedBox(width: 12),
-              // Nama + stok
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       widget.item.namaSampah,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: _C.dark,
-                      ),
+                      style: AppText.w700(13, AppColors.dark),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
                         Icon(Icons.inventory_2_outlined,
-                            size: 12, color: stok > 0 ? _C.teal : _C.danger),
+                            size: 12, color: stok > 0 ? AppColors.green : AppColors.dangerSoft),
                         const SizedBox(width: 4),
                         Text(
-                          'Stok: ${fmt.format(stok)} ${widget.item.satuan}',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: stok > 0 ? _C.teal : _C.danger,
-                          ),
+                          'Stok: ${AppNumber.desimal(stok)} ${widget.item.satuan}',
+                          style: AppText.w600(11, stok > 0 ? AppColors.green : AppColors.dangerSoft),
                         ),
                       ],
                     ),
@@ -378,14 +329,13 @@ class _SampahCardState extends State<_SampahCard>
             ],
           ),
 
-          // ── Expanded: input qty + harga jual ────────────────────────────
           SizeTransition(
             sizeFactor: _expandAnim,
             axisAlignment: -1,
             child: Column(
               children: [
                 const SizedBox(height: 12),
-                Divider(height: 1, color: _C.border),
+                Divider(height: 1, color: AppColors.border),
                 const SizedBox(height: 12),
                 Builder(builder: (context) {
                   final reward = widget.prov.selectedReward;
@@ -394,7 +344,6 @@ class _SampahCardState extends State<_SampahCard>
                   final rewardSatuan = reward?.satuan ?? '';
                   return Row(
                     children: [
-                      // Qty
                       Expanded(
                         child: _InputField(
                           controller: _qtyCtrl,
@@ -405,7 +354,7 @@ class _SampahCardState extends State<_SampahCard>
                                 double.tryParse(v.replaceAll(',', '.')) ?? 0;
                             if (qty > stok) {
                               showCustomSnackBar(context,
-                                  'Qty melebihi stok (${fmt.format(stok)})');
+                                  'Qty melebihi stok (${AppNumber.desimal(stok)})');
                             }
                             widget.prov.updateQtySampah(
                                 widget.item.sampahId, qty);
@@ -413,7 +362,6 @@ class _SampahCardState extends State<_SampahCard>
                         ),
                       ),
                       const SizedBox(width: 10),
-                      // Harga jual
                       Expanded(
                         child: _InputField(
                           controller: _hargaCtrl,
@@ -434,7 +382,6 @@ class _SampahCardState extends State<_SampahCard>
                   );
                 }),
                 const SizedBox(height: 8),
-                // Subtotal preview
                 _SubtotalRow(
                   prov: widget.prov,
                   sampahId: widget.item.sampahId,
@@ -451,14 +398,13 @@ class _SampahCardState extends State<_SampahCard>
         width: 52,
         height: 52,
         decoration: const BoxDecoration(
-          color: _C.cardBg,
+          color: AppColors.surfaceMint,
           shape: BoxShape.circle,
         ),
-        child: const Icon(Icons.recycling_rounded, size: 24, color: _C.teal),
+        child: const Icon(Icons.recycling_rounded, size: 24, color: AppColors.green),
       );
 }
 
-// ─── Subtotal per Item ───────────────────────────────────────────────────────
 class _SubtotalRow extends StatelessWidget {
   final PenjualanProvider prov;
   final String sampahId;
@@ -466,7 +412,6 @@ class _SubtotalRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat('#,##0', 'id_ID');
     final idx = prov.itemsSampah.indexWhere((e) => e.sampahId == sampahId);
     if (idx == -1) return const SizedBox.shrink();
     final item = prov.itemsSampah[idx];
@@ -475,18 +420,16 @@ class _SubtotalRow extends StatelessWidget {
     final isBarang =
         prov.selectedReward?.namaReward.toLowerCase() == 'barang';
     final rewardSatuan = prov.selectedReward?.satuan ?? '';
-    final hargaStr = isBarang
-        ? '${fmt.format(item.hargaJual)} $rewardSatuan'
-        : 'Rp ${fmt.format(item.hargaJual)}';
-    final subtotalStr = isBarang
-        ? '= ${fmt.format(subtotal)} $rewardSatuan'
-        : '= Rp ${fmt.format(subtotal)}';
+    final hargaStr = AppNumber.nominalSatuan(item.hargaJual, rewardSatuan,
+        isUang: !isBarang);
+    final subtotalStr =
+        '= ${AppNumber.nominalSatuan(subtotal, rewardSatuan, isUang: !isBarang)}';
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: _C.cardBg,
+        color: AppColors.surfaceMint,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -494,28 +437,20 @@ class _SubtotalRow extends StatelessWidget {
         children: [
           Text(
             '${_fmtQty(item.qty)} ${item.satuan} × $hargaStr',
-            style: const TextStyle(
-                fontFamily: 'Poppins', fontSize: 11, color: _C.muted),
+            style: AppText.r(11, AppColors.muted),
           ),
           Text(
             subtotalStr,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: _C.dark,
-            ),
+            style: AppText.w700(12, AppColors.dark),
           ),
         ],
       ),
     );
   }
 
-  String _fmtQty(double v) =>
-      v == v.toInt() ? v.toInt().toString() : v.toString();
+  String _fmtQty(double v) => AppNumber.desimal(v);
 }
 
-// ─── Reusable Input Field ────────────────────────────────────────────────────
 class _InputField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -538,8 +473,7 @@ class _InputField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-              fontFamily: 'Poppins', fontSize: 10.5, color: _C.muted),
+          style: AppText.r(10.5, AppColors.muted),
         ),
         const SizedBox(height: 4),
         TextField(
@@ -552,39 +486,34 @@ class _InputField extends StatelessWidget {
           onChanged: onChanged,
           decoration: InputDecoration(
             prefixText: prefix != null ? '$prefix ' : null,
-            prefixStyle: const TextStyle(
-                fontFamily: 'Poppins', fontSize: 12, color: _C.dark),
+            prefixStyle: AppText.r(12, AppColors.dark),
             suffixText: suffix,
-            suffixStyle: const TextStyle(
-                fontFamily: 'Poppins', fontSize: 11, color: _C.muted),
+            suffixStyle: AppText.r(11, AppColors.muted),
             hintText: '0',
-            hintStyle: const TextStyle(
-                fontFamily: 'Poppins', fontSize: 12, color: _C.muted),
+            hintStyle: AppText.r(12, AppColors.muted),
             isDense: true,
             contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12, vertical: 10),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: _C.border),
+              borderSide: const BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: _C.border),
+              borderSide: const BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: _C.teal, width: 1.5),
+              borderSide: const BorderSide(color: AppColors.green, width: 1.5),
             ),
           ),
-          style: const TextStyle(
-              fontFamily: 'Poppins', fontSize: 13, color: _C.dark),
+          style: AppText.r(13, AppColors.dark),
         ),
       ],
     );
   }
 }
 
-// ─── Step Indicator ──────────────────────────────────────────────────────────
 class _StepIndicator extends StatelessWidget {
   final int currentStep;
   const _StepIndicator({required this.currentStep});
@@ -600,7 +529,7 @@ class _StepIndicator extends StatelessWidget {
             margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
             height: 5,
             decoration: BoxDecoration(
-              color: isActive ? _C.green : _C.border,
+              color: isActive ? AppColors.neon : AppColors.border,
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -610,7 +539,6 @@ class _StepIndicator extends StatelessWidget {
   }
 }
 
-// ─── Bottom Bar ──────────────────────────────────────────────────────────────
 class _BottomBar extends StatelessWidget {
   final int total;
   final bool loading;
@@ -627,15 +555,14 @@ class _BottomBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: _C.border)),
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(
               '$total item dipilih',
-              style: const TextStyle(
-                  fontFamily: 'Poppins', fontSize: 12, color: _C.muted),
+              style: AppText.r(12, AppColors.muted),
             ),
           ),
           SizedBox(
@@ -652,15 +579,12 @@ class _BottomBar extends StatelessWidget {
                   : const Icon(Icons.calculate_rounded, size: 18),
               label: Text(
                 loading ? 'Menghitung…' : 'Hitung Penjualan',
-                style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13.5),
+                style: AppText.w600(13.5),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _C.dark,
+                backgroundColor: AppColors.dark,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: _C.muted.withValues(alpha: 0.5),
+                disabledBackgroundColor: AppColors.muted.withValues(alpha: 0.5),
                 disabledForegroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 22),
@@ -675,7 +599,6 @@ class _BottomBar extends StatelessWidget {
   }
 }
 
-// ─── Modern Checkbox ─────────────────────────────────────────────────────────
 class _ModernCheckbox extends StatelessWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
@@ -686,7 +609,6 @@ class _ModernCheckbox extends StatelessWidget {
     this.enabled = true,
   });
 
-  static const _green  = Color(0xFF4EA771);
   static const _border = Color(0xFFD8E0DA);
 
   @override
@@ -703,10 +625,10 @@ class _ModernCheckbox extends StatelessWidget {
           width: 20,
           height: 20,
           decoration: BoxDecoration(
-            color: value ? _green : Colors.white,
+            color: value ? AppColors.green : Colors.white,
             borderRadius: BorderRadius.circular(5),
             border: Border.all(
-              color: value ? _green : _border,
+              color: value ? AppColors.green : _border,
               width: 1.5,
             ),
           ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class ProfilBsuScreen extends StatefulWidget {
   final String namaBank;
@@ -45,7 +47,7 @@ class _ProfilBsuScreenState extends State<ProfilBsuScreen> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: const Color(0xFF94DF0C), // Green border
+                color: AppColors.neon,
                 width: 2.5,
               ),
               color: Colors.white,
@@ -70,24 +72,12 @@ class _ProfilBsuScreenState extends State<ProfilBsuScreen> {
               children: [
                 Text(
                   widget.namaBank,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF013236),
-                    height: 1.2,
-                    letterSpacing: -0.5,
-                  ),
+                  style: AppText.p(16, weight: FontWeight.w800, color: AppColors.dark, height: 1.2, letterSpacing: -0.5),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   roleText,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF057642),
-                  ),
+                  style: AppText.w500(12, Color(0xFF057642)),
                 ),
               ],
             ),

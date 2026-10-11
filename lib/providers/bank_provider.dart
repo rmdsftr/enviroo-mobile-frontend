@@ -5,10 +5,6 @@ import '../models/bsu_unit_model.dart';
 import '../services/bank_service.dart';
 import 'penjualan_provider.dart' show FetchStatus;
 
-/// State untuk endpoint `/bank` yang dilayani `BankService`.
-///
-/// Dua slice: daftar seluruh bank sampah (peta `info_bank_sampah_screen`)
-/// dan daftar BSU di bawah sebuah BSI.
 class BankProvider extends ChangeNotifier {
   FetchStatus _semuaStatus = FetchStatus.idle;
   List<BankSampahModel> _semuaBank = [];
@@ -35,12 +31,6 @@ class BankProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // -- Daftar BSU di bawah satu BSI -------------------------------------------
-  //
-  // Tiga pemanggilnya dulu mem-parse BsuUnitModel sendiri-sendiri; sekarang
-  // parsing-nya sekali di sini. `_bsiId` jadi penanda cache: ketiganya selalu
-  // menanyakan BSI yang sama dalam satu sesi, jadi request kedua dan seterusnya
-  // tidak perlu ditembakkan lagi.
   FetchStatus _bsuStatus = FetchStatus.idle;
   List<BsuUnitModel> _bsuList = [];
   String? _bsuError;

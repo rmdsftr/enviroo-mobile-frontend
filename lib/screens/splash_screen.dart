@@ -9,6 +9,8 @@ import 'package:enviroo/screens/nasabah/home_screen.dart';
 import 'package:enviroo/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class SplashScreen extends StatefulWidget {
   @override
@@ -17,8 +19,8 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  static const Color bgColor = Color(0xFF013236);
-  static const Color neonGreen = Color(0xFF94DF0C);
+  static const Color bgColor = AppColors.dark;
+  static const Color neonGreen = AppColors.neon;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -66,7 +68,6 @@ class _SplashScreenState extends State<SplashScreen>
         if (!mounted) return;
         _animationController.forward();
 
-        // Tunggu animasi selesai, lalu cek sesi
         Future.delayed(const Duration(seconds: 2), () async {
           debugPrint("Splash: Future.delayed selesai");
           if (!mounted) return;
@@ -80,15 +81,10 @@ class _SplashScreenState extends State<SplashScreen>
 
           if (restored) {
             debugPrint("Splash: Navigasi ke Home (${auth.role})");
-            // Sesi masih valid → langsung ke home sesuai role
             _navigateToHome(auth.role);
           } else {
             debugPrint("Splash: Navigasi ke LoginScreen");
-            // Sesi sudah habis padahal app dibuka dari notifikasi — buang
-            // deep-link-nya supaya tidak menggantung dan kepicu di waktu yang
-            // tidak nyambung setelah user login ulang.
             context.read<FcmMessaging>().takePendingDeepLink();
-            // Tidak ada sesi → ke login
             Navigator.pushReplacement(
               context,
               PageRouteBuilder(
@@ -126,9 +122,6 @@ class _SplashScreenState extends State<SplashScreen>
       destination = const HomeBsuScreen();
     }
 
-    // Keduanya diambil sebelum navigasi: setelah pushAndRemoveUntil, context
-    // milik SplashScreen sudah tercabut dari tree. NavigatorState-nya sendiri
-    // milik root navigator, jadi tetap hidup dan masih bisa dipakai push.
     final navigator = Navigator.of(context);
     final pendingDeepLink = context.read<FcmMessaging>().takePendingDeepLink();
 
@@ -143,9 +136,6 @@ class _SplashScreenState extends State<SplashScreen>
       (route) => false,
     );
 
-    // App dibuka dari notifikasi saat terminated. Baru sekarang tree siap, dan
-    // home sudah jadi route dasar sehingga tombol back dari layar tujuan
-    // kembali ke home, bukan keluar app.
     if (pendingDeepLink != null) {
       NotifRouter.open(
         navigator,
@@ -173,22 +163,14 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Logo
                 Image.asset(
                   "assets/images/logo-fix.png",
                   height: 90,
                 ),
                 const SizedBox(height: 12),
-                // Teks "enviroo"
-                const Text(
+                Text(
                   "enviroo",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 24,
-                    color: neonGreen,
-                    letterSpacing: 3,
-                  ),
+                  style: AppText.p(24, weight: FontWeight.w700, color: neonGreen, letterSpacing: 3),
                 ),
               ],
             ),

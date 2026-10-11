@@ -6,17 +6,26 @@ import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class VerifikasiOtpScreen extends StatefulWidget {
   final String email;
-  const VerifikasiOtpScreen({Key? key, required this.email}) : super(key: key);
+
+  final String? expiredAt;
+
+  const VerifikasiOtpScreen({
+    Key? key,
+    required this.email,
+    this.expiredAt,
+  }) : super(key: key);
 
   @override
   State<VerifikasiOtpScreen> createState() => _VerifikasiOtpScreenState();
 }
 
-class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
-  // 6 controller & focusNode untuk setiap kotak OTP
+class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen>
+    with WidgetsBindingObserver {
   final List<TextEditingController> _controllers =
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
@@ -25,30 +34,83 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
   String _errorMessage = '';
   bool _isLoading = false;
 
-  // Timer countdown 10 menit (backend menetapkan expiry, timer ini hanya UI)
-  late Timer _timer;
-  int _secondsRemaining = 10 * 60;
+  static const Duration _masaBerlakuDefault = Duration(minutes: 10);
+  static const Duration _jedaKirimUlang = Duration(seconds: 60);
+
+  Timer? _timer;
+  DateTime? _kadaluarsaPada;
+  DateTime? _kirimUlangPada;
+
+  int _secondsRemaining = 0;
+  int _resendCooldown = 0;
   bool _isExpired = false;
   bool _isResending = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _kadaluarsaPada = _hitungKadaluarsa(widget.expiredAt);
+    _kirimUlangPada = DateTime.now().add(_jedaKirimUlang);
     _startTimer();
-    for (final f in _focusNodes) {
-      f.addListener(() => setState(() {}));
+    for (var i = 0; i < 6; i++) {
+      _focusNodes[i].addListener(() {
+        if (_focusNodes[i].hasFocus && _controllers[i].text.isNotEmpty) {
+          _controllers[i].selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _controllers[i].text.length,
+          );
+        }
+        setState(() {});
+      });
     }
   }
 
+  DateTime _hitungKadaluarsa(String? expiredAt) {
+    final sekarang = DateTime.now();
+    final parsed = expiredAt == null ? null : DateTime.tryParse(expiredAt);
+    if (parsed == null) return sekarang.add(_masaBerlakuDefault);
+
+    final sisa = parsed.difference(sekarang);
+    if (sisa <= Duration.zero || sisa > const Duration(minutes: 30)) {
+      return sekarang.add(_masaBerlakuDefault);
+    }
+    return parsed.toLocal();
+  }
+
   void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_secondsRemaining == 0) {
-        timer.cancel();
-        setState(() => _isExpired = true);
-      } else {
-        setState(() => _secondsRemaining--);
-      }
-    });
+    _timer?.cancel();
+    _timer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => setState(_hitungSisa),
+    );
+    _hitungSisa();
+  }
+
+  void _hitungSisa() {
+    final sekarang = DateTime.now();
+    final sisaOtp = _kadaluarsaPada!.difference(sekarang).inSeconds;
+    final sisaJeda = _kirimUlangPada == null
+        ? 0
+        : _kirimUlangPada!.difference(sekarang).inSeconds;
+
+    _secondsRemaining = sisaOtp > 0 ? sisaOtp : 0;
+    _isExpired = sisaOtp <= 0;
+    _resendCooldown = sisaJeda > 0 ? sisaJeda : 0;
+
+    if (_isExpired && _resendCooldown == 0) {
+      _timer?.cancel();
+      _timer = null;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    setState(_hitungSisa);
+    if (_timer == null && (!_isExpired || _resendCooldown > 0)) {
+      _startTimer();
+    }
   }
 
   Future<void> _resendOtp() async {
@@ -62,32 +124,33 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
     setState(() => _isResending = false);
 
     if (result['success'] == true) {
-      // Reset timer dan bersihkan seluruh kotak OTP
-      _timer.cancel();
+      await context
+          .read<AuthProvider>()
+          .savePendingReset(widget.email, result['expired_at'] as String?);
+
+      if (!mounted) return;
+
       for (final c in _controllers) {
         c.clear();
       }
       setState(() {
-        _secondsRemaining = 10 * 60;
-        _isExpired = false;
+        _kadaluarsaPada = _hitungKadaluarsa(result['expired_at'] as String?);
+        _kirimUlangPada = DateTime.now().add(_jedaKirimUlang);
         _isOtpInvalid = false;
         _errorMessage = '';
       });
-      // Fokuskan kursor ke kotak pertama
       FocusScope.of(context).requestFocus(_focusNodes[0]);
       _startTimer();
 
-      // Tampilkan snackbar sukses yang informatif
       showCustomSnackBar(
         context,
         'Kode OTP baru telah dikirim!',
-        subtitle: 'Cek email ${widget.email}. Berlaku 10 menit.',
+        subtitle: 'Cek email ${widget.email}. Berlaku $_formattedTime lagi.',
         type: SnackBarType.info,
         icon: Icons.mark_email_read_outlined,
         hideCurrent: true,
       );
     } else {
-      // Tampilkan snackbar error
       showCustomSnackBar(
         context,
         result['message'] ?? 'Gagal mengirim ulang OTP',
@@ -95,6 +158,8 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
       );
     }
   }
+
+  bool get _bisaKirimUlang => _resendCooldown == 0 && !_isResending;
 
   String get _formattedTime {
     final minutes = _secondsRemaining ~/ 60;
@@ -111,7 +176,7 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
     if (otp.length < 6) {
       setState(() {
         _isOtpInvalid = true;
-        _errorMessage = 'Kode OTP harus diisi lengkap (6 karakter)';
+        _errorMessage = 'Kode OTP harus diisi lengkap (6 digit)';
       });
       return;
     }
@@ -134,7 +199,6 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      // Lanjut ke reset password — kirim email & otp agar bisa dipakai di step 3
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -153,7 +217,18 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
   }
 
   void _onOtpChanged(String value, int index) {
-    if (value.isNotEmpty) {
+    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (digits.length > 1) {
+      _distributeCode(digits, index);
+      return;
+    }
+
+    if (digits != value) {
+      _controllers[index].text = digits;
+    }
+
+    if (digits.isNotEmpty) {
       if (index < 5) {
         FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
       } else {
@@ -165,6 +240,29 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
       }
     }
 
+    _clearError();
+  }
+
+  void _distributeCode(String digits, int index) {
+    final start = digits.length >= 6 ? 0 : index;
+    var lastFilled = start;
+
+    for (var i = 0; i < digits.length && start + i < 6; i++) {
+      _controllers[start + i].text = digits[i];
+      lastFilled = start + i;
+    }
+
+    if (lastFilled < 5) {
+      FocusScope.of(context).requestFocus(_focusNodes[lastFilled + 1]);
+    } else {
+      _focusNodes[lastFilled].unfocus();
+    }
+
+    _clearError();
+    setState(() {});
+  }
+
+  void _clearError() {
     if (_isOtpInvalid) {
       setState(() {
         _isOtpInvalid = false;
@@ -175,7 +273,8 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
 
   @override
   void dispose() {
-    _timer.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _timer?.cancel();
     for (final c in _controllers) {
       c.dispose();
     }
@@ -188,42 +287,31 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const TopBarBack(title: ""),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 30),
                 child: Text(
                   "Verifikasi Kode OTP",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF013236),
-                    fontSize: 20,
-                  ),
+                  style: AppText.w700(20, AppColors.dark),
                 ),
               ),
               const SizedBox(height: 15),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: Text(
-                  "Masukkan 6 karakter kode OTP yang telah dikirim ke ${widget.email} agar bisa melakukan reset password. Kode OTP hanya berlaku selama 10 menit",
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    height: 1.5,
-                    color: Color(0xFF013236),
-                  ),
+                  "Masukkan 6 digit kode OTP yang telah dikirim ke ${widget.email} agar bisa melakukan reset password. Kode OTP hanya berlaku selama 10 menit",
+                  style: AppText.p(13, color: AppColors.dark, height: 1.5),
                   textAlign: TextAlign.justify,
                 ),
               ),
               const SizedBox(height: 28),
 
-              // ── 6 Kotak OTP ────────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 25),
                 child: Row(
@@ -232,79 +320,67 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
                 ),
               ),
 
-              // Pesan error
               if (_isOtpInvalid)
                 Padding(
                   padding: const EdgeInsets.only(top: 10, left: 33),
                   child: Text(
                     _errorMessage,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      color: Color(0xFFB61E20),
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppText.w600(12, AppColors.dangerDeep),
                   ),
                 ),
 
               const SizedBox(height: 24),
 
-              // ── Timer & Kirim Ulang ─────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Timer countdown
                     Row(
                       children: [
                         Icon(
                           Icons.timer_outlined,
                           size: 18,
                           color: _isExpired
-                              ? const Color(0xFFB61E20)
-                              : const Color(0xFF013236).withOpacity(0.6),
+                              ? AppColors.dangerDeep
+                              : AppColors.dark.withValues(alpha: 0.6),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           _isExpired ? "Kode kadaluarsa" : _formattedTime,
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: _isExpired
-                                ? const Color(0xFFB61E20)
-                                : const Color(0xFF013236).withOpacity(0.6),
-                          ),
+                          style: AppText.w600(13, _isExpired
+                                ? AppColors.dangerDeep
+                                : AppColors.dark.withValues(alpha: 0.6)),
                         ),
                       ],
                     ),
 
-                    // Tombol kirim ulang
                     GestureDetector(
-                      onTap: (_isExpired && !_isResending) ? _resendOtp : null,
+                      onTap: _bisaKirimUlang ? _resendOtp : null,
                       child: _isResending
                           ? const SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Color(0xFF013236),
+                                color: AppColors.dark,
                               ),
                             )
                           : Text(
-                              "Kirim Ulang",
+                              _resendCooldown > 0
+                                  ? "Kirim Ulang (${_resendCooldown}s)"
+                                  : "Kirim Ulang",
                               style: TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: _isExpired
-                                    ? const Color(0xFF013236)
-                                    : const Color(0xFF013236).withOpacity(0.3),
+                                color: _bisaKirimUlang
+                                    ? AppColors.dark
+                                    : AppColors.dark.withValues(alpha: 0.3),
                                 decoration: TextDecoration.underline,
-                                decorationColor: _isExpired
-                                    ? const Color(0xFF013236)
-                                    : const Color(0xFF013236).withOpacity(0.3),
+                                decorationColor: _bisaKirimUlang
+                                    ? AppColors.dark
+                                    : AppColors.dark.withValues(alpha: 0.3),
                               ),
                             ),
                     ),
@@ -317,9 +393,8 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
         ),
       ),
 
-      // ── Bottom Button ─────────────────────────────────────────────────
       bottomNavigationBar: Container(
-        color: const Color(0xFFFFFFFF),
+        color: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
         child: SafeArea(
           child: SizedBox(
@@ -330,7 +405,7 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
+                    color: Colors.black.withValues(alpha: 0.15),
                     blurRadius: 12,
                     offset: const Offset(0, 6),
                   ),
@@ -339,9 +414,9 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
               child: ElevatedButton(
                 onPressed: (_isLoading || _isExpired) ? null : _onKonfirmasi,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF013236),
+                  backgroundColor: AppColors.dark,
                   disabledBackgroundColor:
-                      const Color(0xFF013236).withOpacity(0.4),
+                      AppColors.dark.withValues(alpha: 0.4),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
@@ -354,17 +429,12 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                              Color(0xFFFFFFFF)),
+                              Colors.white),
                         ),
                       )
-                    : const Text(
+                    : Text(
                         "Konfirmasi Kode OTP",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFFFFFFF),
-                        ),
+                        style: AppText.w600(16, Colors.white),
                       ),
               ),
             ),
@@ -385,18 +455,18 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
         duration: const Duration(milliseconds: 180),
         decoration: BoxDecoration(
           color: _isOtpInvalid
-              ? const Color(0xFFB61E20).withOpacity(0.08)
+              ? AppColors.dangerDeep.withValues(alpha: 0.08)
               : hasValue
-                  ? const Color(0xFF013236).withOpacity(0.08)
-                  : const Color(0xFF013236).withOpacity(0.07),
+                  ? AppColors.dark.withValues(alpha: 0.08)
+                  : AppColors.dark.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: _isOtpInvalid
-                ? const Color(0xFFB61E20)
+                ? AppColors.dangerDeep
                 : isActive
-                    ? const Color(0xFF013236)
+                    ? AppColors.dark
                     : hasValue
-                        ? const Color(0xFF013236).withOpacity(0.5)
+                        ? AppColors.dark.withValues(alpha: 0.5)
                         : Colors.transparent,
             width: isActive ? 1.8 : 1.2,
           ),
@@ -405,21 +475,11 @@ class _VerifikasiOtpScreenState extends State<VerifikasiOtpScreen> {
           controller: _controllers[index],
           focusNode: _focusNodes[index],
           textAlign: TextAlign.center,
-          keyboardType: TextInputType.text,
-          textCapitalization: TextCapitalization.characters,
-          maxLength: 1,
+          keyboardType: TextInputType.number,
           enabled: !_isLoading,
           onChanged: (val) => _onOtpChanged(val, index),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
-            LengthLimitingTextInputFormatter(1),
-          ],
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF013236),
-          ),
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          style: AppText.w700(20, AppColors.dark),
           decoration: const InputDecoration(
             border: InputBorder.none,
             counterText: '',

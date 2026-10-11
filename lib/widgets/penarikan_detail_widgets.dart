@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import '../core/format/app_date.dart';
+import '../core/format/app_number.dart';
 
 import '../models/penarikan_model.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-/// Widget bersama untuk layar detail penarikan (nasabah & petugas) supaya
-/// kartunya konsisten satu desain di kedua sisi.
 
-const Color _primary = Color(0xFF4EA771);
-const Color _dark = Color(0xFF013236);
-
-/// Header gaya struk: nominal besar, badge status, dan ID transaksi — dipakai
-/// paling atas di layar detail penarikan (nasabah & petugas).
 class PenarikanDetailHeader extends StatelessWidget {
   final double nominal;
   final String satuan;
@@ -29,25 +25,15 @@ class PenarikanDetailHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final f = NumberFormat.decimalPattern('id_ID');
-    f.maximumFractionDigits = 4;
-    f.minimumFractionDigits = 0;
-    final nominalText = isUang
-        ? 'Rp ${f.format(nominal)}'
-        : '${f.format(nominal)} ${satuan.isEmpty ? 'poin' : satuan}';
+    final nominalText =
+        AppNumber.nominal(nominal, satuan: satuan, isUang: isUang);
 
     return Center(
       child: Column(
         children: [
           Text(
             nominalText,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 30,
-              fontWeight: FontWeight.w800,
-              color: _primary,
-              letterSpacing: -0.8,
-            ),
+            style: AppText.p(30, weight: FontWeight.w800, color: AppColors.green, letterSpacing: -0.8),
           ),
           const SizedBox(height: 10),
           Container(
@@ -58,22 +44,13 @@ class PenarikanDetailHeader extends StatelessWidget {
             ),
             child: Text(
               status.label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: status.color,
-              ),
+              style: AppText.w700(12, status.color),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'ID: $penarikanId',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 11,
-              color: _dark.withValues(alpha: 0.4),
-            ),
+            style: AppText.r(11, AppColors.dark.withValues(alpha: 0.4)),
           ),
         ],
       ),
@@ -81,8 +58,6 @@ class PenarikanDetailHeader extends StatelessWidget {
   }
 }
 
-/// Card generik icon + judul + divider, dipakai untuk semua section
-/// (Informasi Nasabah, Informasi Penarikan, Detail Barang, Estimasi Konfirmasi, dst).
 class SectionCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -103,28 +78,23 @@ class SectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(width: 1, color: _dark.withValues(alpha: 0.1)),
+        border: Border.all(width: 1, color: AppColors.dark.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: _primary),
+              Icon(icon, size: 16, color: AppColors.green),
               const SizedBox(width: 8),
               Text(
                 title,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _dark,
-                ),
+                style: AppText.w700(13, AppColors.dark),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: 10),
           ...children,
         ],
@@ -133,7 +103,6 @@ class SectionCard extends StatelessWidget {
   }
 }
 
-/// Baris label-value, dipakai di dalam [SectionCard].
 class PenarikanInfoRow extends StatelessWidget {
   final String label;
   final String value;
@@ -151,22 +120,13 @@ class PenarikanInfoRow extends StatelessWidget {
             width: 125,
             child: Text(
               label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                color: Colors.black.withValues(alpha: 0.5),
-              ),
+              style: AppText.r(11, Colors.black.withValues(alpha: 0.5)),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: _dark,
-              ),
+              style: AppText.w600(12, AppColors.dark),
             ),
           ),
         ],
@@ -175,8 +135,6 @@ class PenarikanInfoRow extends StatelessWidget {
   }
 }
 
-/// Card "Riwayat Penarikan" expandable — tap judul untuk buka/tutup daftar
-/// log status. Dipakai di layar detail nasabah maupun petugas.
 class PenarikanRiwayatCard extends StatefulWidget {
   final List<PenarikanRiwayatItem> riwayat;
 
@@ -190,7 +148,7 @@ class _PenarikanRiwayatCardState extends State<PenarikanRiwayatCard> {
   bool _expanded = false;
 
   String _fmtDate(DateTime d) =>
-      DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(d);
+      AppDate.tanggalSingkatJam(d);
 
   @override
   Widget build(BuildContext context) {
@@ -200,7 +158,7 @@ class _PenarikanRiwayatCardState extends State<PenarikanRiwayatCard> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(width: 1, color: _dark.withValues(alpha: 0.1)),
+        border: Border.all(width: 1, color: AppColors.dark.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,24 +168,19 @@ class _PenarikanRiwayatCardState extends State<PenarikanRiwayatCard> {
             onTap: () => setState(() => _expanded = !_expanded),
             child: Row(
               children: [
-                const Icon(Icons.history_rounded, size: 16, color: _primary),
+                const Icon(Icons.history_rounded, size: 16, color: AppColors.green),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Riwayat Penarikan',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: _dark,
-                    ),
+                    style: AppText.w700(13, AppColors.dark),
                   ),
                 ),
                 Icon(
                   _expanded
                       ? Icons.keyboard_arrow_up_rounded
                       : Icons.keyboard_arrow_down_rounded,
-                  color: _dark.withValues(alpha: 0.4),
+                  color: AppColors.dark.withValues(alpha: 0.4),
                   size: 22,
                 ),
               ],
@@ -244,11 +197,11 @@ class _PenarikanRiwayatCardState extends State<PenarikanRiwayatCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                        const Divider(height: 1, color: AppColors.divider),
                         const SizedBox(height: 6),
                         for (int i = 0; i < widget.riwayat.length; i++) ...[
                           if (i > 0)
-                            const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                            const Divider(height: 1, color: AppColors.divider),
                           _buildItem(widget.riwayat[i]),
                         ],
                       ],
@@ -273,12 +226,7 @@ class _PenarikanRiwayatCardState extends State<PenarikanRiwayatCard> {
               Expanded(
                 child: Text(
                   item.createdBy.isEmpty ? '-' : item.createdBy,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: _dark,
-                  ),
+                  style: AppText.w600(13, AppColors.dark),
                 ),
               ),
               const SizedBox(width: 8),
@@ -287,21 +235,12 @@ class _PenarikanRiwayatCardState extends State<PenarikanRiwayatCard> {
                 children: [
                   Text(
                     item.status.label,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: item.status.color,
-                    ),
+                    style: AppText.w600(12, item.status.color),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     _fmtDate(item.createdAt),
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: Colors.black.withValues(alpha: 0.4),
-                    ),
+                    style: AppText.r(11, Colors.black.withValues(alpha: 0.4)),
                   ),
                 ],
               ),
@@ -313,21 +252,15 @@ class _PenarikanRiwayatCardState extends State<PenarikanRiwayatCard> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F7F5),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(10),
                 border: const Border(
-                  left: BorderSide(color: _primary, width: 3),
+                  left: BorderSide(color: AppColors.green, width: 3),
                 ),
               ),
               child: Text(
                 item.catatan!,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                  color: _dark.withValues(alpha: 0.7),
-                  height: 1.4,
-                ),
+                style: AppText.p(12, color: AppColors.dark.withValues(alpha: 0.7), height: 1.4, fontStyle: FontStyle.italic),
               ),
             ),
           ],
@@ -337,18 +270,12 @@ class _PenarikanRiwayatCardState extends State<PenarikanRiwayatCard> {
   }
 }
 
-/// Breakdown item barang (barang) 2-kolom: nama+nilai poin (kiri),
-/// qty+subtotal poin (kanan). Dipakai di [SectionCard] "Detail Barang".
 class DetailBarangRow extends StatelessWidget {
   final DetailBarangItem item;
   const DetailBarangRow({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
-    final f = NumberFormat.decimalPattern('id_ID');
-    f.maximumFractionDigits = 2;
-    f.minimumFractionDigits = 0;
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
@@ -360,21 +287,12 @@ class DetailBarangRow extends StatelessWidget {
               children: [
                 Text(
                   item.namaBarang,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: _dark,
-                  ),
+                  style: AppText.w600(13, AppColors.dark),
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '${f.format(item.nilaiPoin)} poin',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11.5,
-                    color: Colors.black.withValues(alpha: 0.45),
-                  ),
+                  '${AppNumber.desimal(item.nilaiPoin)} poin',
+                  style: AppText.r(11.5, Colors.black.withValues(alpha: 0.45)),
                 ),
               ],
             ),
@@ -383,22 +301,13 @@ class DetailBarangRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${f.format(item.qty)} item',
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: _dark,
-                ),
+                '${AppNumber.desimal(item.qty)} item',
+                style: AppText.w600(13, AppColors.dark),
               ),
               const SizedBox(height: 3),
               Text(
-                '${f.format(item.subtotalPoin)} poin',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11.5,
-                  color: Colors.black.withValues(alpha: 0.45),
-                ),
+                '${AppNumber.desimal(item.subtotalPoin)} poin',
+                style: AppText.r(11.5, Colors.black.withValues(alpha: 0.45)),
               ),
             ],
           ),

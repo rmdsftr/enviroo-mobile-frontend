@@ -4,6 +4,8 @@ import 'package:enviroo/screens/notifikasi_screen.dart';
 import 'package:enviroo/widgets/profile_corner.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class TopBarCustom extends StatefulWidget implements PreferredSizeWidget {
   final Color backgroundColor;
@@ -13,10 +15,10 @@ class TopBarCustom extends StatefulWidget implements PreferredSizeWidget {
 
   const TopBarCustom({
     super.key,
-    this.backgroundColor = const Color(0xFFEAF8E7),
+    this.backgroundColor = AppColors.mintSoft,
     this.logo = "assets/images/logo-fix.png",
-    this.borderFoto = const Color(0xFF94DF0C),
-    this.bgFoto = const Color(0xFF013236),
+    this.borderFoto = AppColors.neon,
+    this.bgFoto = AppColors.dark,
   });
 
   @override
@@ -56,27 +58,6 @@ class _TopBarCustomState extends State<TopBarCustom> {
                 widget.logo ?? "assets/images/logo-fix.png",
                 height: 22,
               ),
-              // SizedBox(width: 4),
-              // Text(
-              //   'envir',
-              //   style: TextStyle(
-              //     fontFamily: 'Poppins',
-              //     fontSize: 17,
-              //     fontWeight: FontWeight.w700,
-              //     color: const Color(0xFF013236),
-              //   ),
-              // ),
-              // SizedBox(width: 1),
-              // Text(
-              //   'oo',
-              //   style: TextStyle(
-              //     fontFamily: 'Poppins',
-              //     fontSize: 17,
-              //     fontWeight: FontWeight.w700,
-              //     color: const Color(0xFF013236),
-              //     letterSpacing: -2,
-              //   ),
-              // )
             ]
           ),
           Row(
@@ -96,7 +77,7 @@ class _TopBarCustomState extends State<TopBarCustom> {
                     const Icon(
                       Icons.circle_notifications_rounded,
                       size: 40,
-                      color: Color(0xFF013236),
+                      color: AppColors.dark,
                     ),
                     Consumer<NotifikasiProvider>(
                       builder: (context, notifProvider, _) {
@@ -111,7 +92,7 @@ class _TopBarCustomState extends State<TopBarCustom> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 5, vertical: 2),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF94DF0C),
+                              color: AppColors.neon,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                   color: Colors.white, width: 1.5),
@@ -120,13 +101,7 @@ class _TopBarCustomState extends State<TopBarCustom> {
                             child: Text(
                               label,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 9,
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF013236),
-                                height: 1.2,
-                              ),
+                              style: AppText.p(9, weight: FontWeight.w700, color: AppColors.dark, height: 1.2),
                             ),
                           ),
                         );

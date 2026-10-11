@@ -10,20 +10,9 @@ import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-/// Menerjemahkan `namaReward` jadi label **jenis saldo** untuk ditampilkan.
-///
-/// Beda dari `katalog_screen` yang labelnya literal: di sini
-/// teksnya datang dari data (`item.reward.namaReward`), dan backend masih
-/// memakai istilah insentif "Uang"/"Barang". Padahal di layar ini konteksnya
-/// saldo — nasabah menyetor sampah dan mendapat rupiah atau poin.
-///
-/// ⚠️ Pemetaan ini **hanya untuk tampilan**. Nilai aslinya tetap dipakai
-/// sebagai kunci penyaring (`_selectedReward`) dan pencocokan warna badge,
-/// jadi jangan dipakai di tempat yang membandingkan data.
-///
-/// Nilai yang tidak dikenali dilewatkan apa adanya — termasuk 'Semua', dan
-/// nanti kalau backend sudah menamainya "Rupiah"/"Poin" sendiri.
 String _labelSaldo(String namaReward) {
   switch (namaReward.toLowerCase()) {
     case 'uang':
@@ -34,10 +23,6 @@ String _labelSaldo(String namaReward) {
       return namaReward;
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 
 class InputSetoranScreen extends StatefulWidget {
   final String penimbanganId;
@@ -96,7 +81,7 @@ class _InputSetoranState extends State<InputSetoranScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchKatalog();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fetchKatalog());
   }
 
   Future<void> _fetchKatalog() async {
@@ -168,14 +153,14 @@ class _InputSetoranState extends State<InputSetoranScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
             TopBarBack(title: "Input Setoran"),
             Expanded(
               child: _isLoading 
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF4EA771)))
+                ? const Center(child: CircularProgressIndicator(color: AppColors.green))
                 : ListView(
                 padding: EdgeInsets.zero,
                 children: [
@@ -215,7 +200,6 @@ class _InputSetoranState extends State<InputSetoranScreen> {
     );
   }
 
-  // ── Nasabah card ──────────────────────────────────────────────────────────
   Widget _buildNasabahCard() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -224,16 +208,15 @@ class _InputSetoranState extends State<InputSetoranScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: const Color(0xFF4EA771).withValues(alpha:0.3)),
+          border: Border.all(color: AppColors.green.withValues(alpha:0.3)),
         ),
         child: Row(
           children: [
-            // Avatar
             Container(
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: const Color(0xFF4EA771).withValues(alpha:0.12),
+                color: AppColors.green.withValues(alpha:0.12),
                 borderRadius: BorderRadius.circular(13),
                 image: widget.photoUrl.isNotEmpty
                     ? DecorationImage(
@@ -245,43 +228,32 @@ class _InputSetoranState extends State<InputSetoranScreen> {
               child: widget.photoUrl.isEmpty
                   ? const Icon(
                       Icons.person_rounded,
-                      color: Color(0xFF4EA771),
+                      color: AppColors.green,
                       size: 24,
                     )
                   : null,
             ),
             const SizedBox(width: 14),
-            // Nama + ID
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     widget.nasabahName,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: Color(0xFF013236),
-                    ),
+                    style: AppText.w700(14, AppColors.dark),
                   ),
                   const SizedBox(height: 1),
                   Text(
                     widget.nasabahId,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: const Color(0xFF013236).withValues(alpha:0.45),
-                    ),
+                    style: AppText.r(11, AppColors.dark.withValues(alpha:0.45)),
                   ),
                 ],
               ),
             ),
-            // Badge QR / Manual
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: const Color(0xFF4EA771).withValues(alpha:0.12),
+                color: AppColors.green.withValues(alpha:0.12),
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Row(
@@ -290,17 +262,12 @@ class _InputSetoranState extends State<InputSetoranScreen> {
                   Icon(
                     widget.dariQr ? Icons.qr_code_rounded : Icons.person_search_rounded,
                     size: 12,
-                    color: const Color(0xFF4EA771),
+                    color: AppColors.green,
                   ),
                   const SizedBox(width: 5),
                   Text(
                     widget.dariQr ? 'Via QR' : 'Manual',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF4EA771),
-                    ),
+                    style: AppText.w600(10, AppColors.green),
                   ),
                 ],
               ),
@@ -311,7 +278,6 @@ class _InputSetoranState extends State<InputSetoranScreen> {
     );
   }
 
-  // ── Search bar ────────────────────────────────────────────────────────────
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -336,7 +302,6 @@ class _InputSetoranState extends State<InputSetoranScreen> {
     );
   }
 
-  // ── Reward filter chips ───────────────────────────────────────────────────
   Widget _buildRewardFilter() {
     final options = _rewardOptions;
     return FilterChipRow<String>(
@@ -348,20 +313,14 @@ class _InputSetoranState extends State<InputSetoranScreen> {
     );
   }
 
-  // ── Header katalog ────────────────────────────────────────────────────────
   Widget _buildKatalogHeader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
-          const Text(
+          Text(
             'Katalog Sampah',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-              color: Color(0xFF013236),
-            ),
+            style: AppText.w600(12, AppColors.dark),
           ),
           const Spacer(),
           Container(
@@ -372,12 +331,7 @@ class _InputSetoranState extends State<InputSetoranScreen> {
             ),
             child: Text(
               '${_filtered.length} item',
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF4EA771),
-              ),
+              style: AppText.w500(10, AppColors.green),
             ),
           ),
         ],
@@ -385,7 +339,6 @@ class _InputSetoranState extends State<InputSetoranScreen> {
     );
   }
 
-  // ── Bottom bar — tombol simpan saja ───────────────────────────────────────
   Widget _buildBottomBar() {
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -395,7 +348,7 @@ class _InputSetoranState extends State<InputSetoranScreen> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF013236).withValues(alpha:0.08),
+            color: AppColors.dark.withValues(alpha:0.08),
             blurRadius: 24,
             offset: const Offset(0, -8),
           ),
@@ -407,7 +360,7 @@ class _InputSetoranState extends State<InputSetoranScreen> {
         child: Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: Color(0xFF013236),
+            color: AppColors.dark,
             borderRadius: BorderRadius.circular(30),
           ),
           child: ElevatedButton(
@@ -426,15 +379,9 @@ class _InputSetoranState extends State<InputSetoranScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
+                Text(
                   'Preview Setoran Nasabah',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    letterSpacing: 0.2,
-                    color: Colors.white,
-                  ),
+                  style: AppText.p(13, weight: FontWeight.w600, color: Colors.white, letterSpacing: 0.2),
                 ),
               ],
             ),
@@ -445,10 +392,6 @@ class _InputSetoranState extends State<InputSetoranScreen> {
   }
 
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Card Input — flat row: [foto] [nama sampah]  [input] [satuan]
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _CardInput extends StatelessWidget {
   final KatalogSampahModel item;
@@ -473,17 +416,16 @@ class _CardInput extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             width: 1,
-            color: const Color(0xFF013236).withValues(alpha:0.1), // Brand color dengan opacity cuma 10%
+            color: AppColors.dark.withValues(alpha:0.1),
           ),
         ),
         child: Row(
           children: [
-            // Foto sampah
             Container(
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFF4EA771).withValues(alpha:0.12),
+                color: AppColors.green.withValues(alpha:0.12),
                 borderRadius: BorderRadius.circular(11),
               ),
               clipBehavior: Clip.antiAlias,
@@ -494,18 +436,17 @@ class _CardInput extends StatelessWidget {
                       errorBuilder: (_, __, ___) => const Icon(
                         Icons.recycling_rounded,
                         size: 20,
-                        color: Color(0xFF4EA771),
+                        color: AppColors.green,
                       ),
                     )
                   : const Icon(
                       Icons.recycling_rounded,
                       size: 20,
-                      color: Color(0xFF4EA771),
+                      color: AppColors.green,
                     ),
             ),
             const SizedBox(width: 12),
 
-            // Nama sampah + reward badge
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -513,12 +454,7 @@ class _CardInput extends StatelessWidget {
                 children: [
                   Text(
                     item.namaSampah,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: Color(0xFF013236),
-                    ),
+                    style: AppText.w600(13, AppColors.dark),
                   ),
                   const SizedBox(height: 4),
                   _RewardBadge(namaReward: item.reward?.namaReward ?? ''),
@@ -527,7 +463,6 @@ class _CardInput extends StatelessWidget {
             ),
             const SizedBox(width: 12),
 
-            // Input qty
             SizedBox(
               width: 70,
               height: 42,
@@ -539,40 +474,30 @@ class _CardInput extends StatelessWidget {
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                 ],
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  color: Color(0xFF013236),
-                ),
+                style: AppText.w700(14, AppColors.dark),
                 decoration: InputDecoration(
                   hintText: '0',
-                  hintStyle: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: const Color(0xFF013236).withValues(alpha:0.18),
-                  ),
+                  hintStyle: AppText.w700(14, AppColors.dark.withValues(alpha:0.18)),
                   filled: true,
                   fillColor: const Color(0xFFF4FCF4),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
                     borderSide: BorderSide(
-                      color: const Color(0xFF4EA771).withValues(alpha:0.2),
+                      color: AppColors.green.withValues(alpha:0.2),
                       width: 1,
                     ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
                     borderSide: BorderSide(
-                      color: const Color(0xFF4EA771).withValues(alpha:0.2),
+                      color: AppColors.green.withValues(alpha:0.2),
                       width: 1,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
                     borderSide: const BorderSide(
-                      color: Color(0xFF4EA771),
+                      color: AppColors.green,
                       width: 1,
                     ),
                   ),
@@ -583,15 +508,9 @@ class _CardInput extends StatelessWidget {
             ),
             const SizedBox(width: 8),
 
-            // Satuan
             Text(
               item.satuan,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF013236).withValues(alpha:0.55),
-              ),
+              style: AppText.w500(12, AppColors.dark.withValues(alpha:0.55)),
             ),
           ],
         ),
@@ -600,10 +519,6 @@ class _CardInput extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Reward badge
-// ─────────────────────────────────────────────────────────────────────────────
-
 class _RewardBadge extends StatelessWidget {
   final String namaReward;
 
@@ -611,11 +526,9 @@ class _RewardBadge extends StatelessWidget {
 
   Color get _color {
     switch (namaReward.toLowerCase()) {
-      // Dua nama pertama dari backend sekarang; dua berikutnya jaga-jaga
-      // kalau backend menamainya sesuai jenis saldo nanti.
       case 'uang':
       case 'rupiah':
-        return const Color(0xFF4EA771);
+        return AppColors.green;
       case 'barang':
       case 'poin':
         return const Color(0xFFE57C2C);
@@ -636,13 +549,7 @@ class _RewardBadge extends StatelessWidget {
       ),
       child: Text(
         _labelSaldo(namaReward),
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-          color: color,
-          letterSpacing: 0.2,
-        ),
+        style: AppText.p(9, weight: FontWeight.w700, color: color, letterSpacing: 0.2),
       ),
     );
   }

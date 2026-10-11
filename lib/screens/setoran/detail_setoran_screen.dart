@@ -1,3 +1,5 @@
+import 'package:enviroo/core/format/app_date.dart';
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:enviroo/models/setoran_nasabah_model.dart';
 import 'package:enviroo/models/setoran_model.dart';
 import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
@@ -5,10 +7,11 @@ import 'package:enviroo/providers/setoran_provider.dart';
 import 'package:enviroo/screens/lihat_foto_screen.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-// ── Screen ───────────────────────────────────────────────────────────────────
 class DetailSetoranScreen extends StatefulWidget {
   final String setoranId;
   const DetailSetoranScreen({super.key, required this.setoranId});
@@ -18,8 +21,6 @@ class DetailSetoranScreen extends StatefulWidget {
 }
 
 class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
-  static const _teal = Color(0xFF013236);
-  static const _accent = Color(0xFF4EA771);
 
   SetoranDetailHeader? _header;
   List<SetoranItem> _items = [];
@@ -29,7 +30,7 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchDetail();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fetchDetail());
   }
 
   Future<void> _fetchDetail() async {
@@ -50,15 +51,12 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
     }
   }
 
-  String _fmtQty(double v) {
-    if (v == v.truncateToDouble()) return v.toInt().toString();
-    return v.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-  }
+  String _fmtQty(double v) => AppNumber.desimal(v);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -72,7 +70,7 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
               TopBarBack(title: 'Detail Setoran'),
               Expanded(
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator(color: _accent))
+                    ? const Center(child: CircularProgressIndicator(color: AppColors.green))
                     : _error != null
                         ? _buildError()
                         : _buildStruk(),
@@ -86,20 +84,19 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
 
   Widget _buildStruk() {
     final h = _header!;
-    const statusColor = _accent;
+    const statusColor = AppColors.green;
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
       child: Column(
         children: [
-          // ── Hero status (di atas background gambar) ──────────────────────
           Column(
             children: [
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
+                  color: statusColor.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -109,25 +106,15 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Setoran Berhasil',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 17,
-                  color: statusColor,
-                ),
+                style: AppText.w700(17, statusColor),
               ),
               const SizedBox(height: 4),
               Text(
-                DateFormat('EEEE, dd MMMM yyyy · HH:mm', 'id_ID')
-                    .format(h.transaksiTimestamp),
+                AppDate.tanggalPenuhJam(h.transaksiTimestamp),
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  color: const Color(0xFF013236).withOpacity(0.5),
-                ),
+                style: AppText.r(11, AppColors.dark.withValues(alpha: 0.5)),
               ),
             ],
           ),
@@ -161,20 +148,15 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
               Container(
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: _accent.withOpacity(0.08),
+                  color: AppColors.green.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.camera_alt_rounded, size: 15, color: _accent),
+                child: const Icon(Icons.camera_alt_rounded, size: 15, color: AppColors.green),
               ),
               const SizedBox(width: 12),
-              const Text(
+              Text(
                 'Bukti Foto Nasabah',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: _teal,
-                ),
+                style: AppText.w700(13, AppColors.dark),
               ),
             ],
           ),
@@ -199,9 +181,9 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
                   loadingBuilder: (_, child, p) => p == null
                       ? child
                       : const Center(
-                          child: CircularProgressIndicator(color: _accent)),
+                          child: CircularProgressIndicator(color: AppColors.green)),
                   errorBuilder: (_, __, ___) => Container(
-                    color: const Color(0xFFF0F0F0),
+                    color: AppColors.divider,
                     child: const Center(
                       child: Icon(Icons.broken_image_rounded,
                           color: Colors.grey, size: 36),
@@ -215,7 +197,6 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
       ),
     );
   }
-
 
 
   Widget _buildInfoCard(SetoranDetailHeader h) {
@@ -249,10 +230,10 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: _accent.withOpacity(0.08),
+              color: AppColors.green.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 15, color: _accent),
+            child: Icon(icon, size: 15, color: AppColors.green),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -261,20 +242,11 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    color: _teal.withOpacity(0.45),
-                  ),
+                  style: AppText.r(10, AppColors.dark.withValues(alpha: 0.45)),
                 ),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    color: _teal,
-                  ),
+                  style: AppText.w600(12, AppColors.dark),
                 ),
               ],
             ),
@@ -284,7 +256,7 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
     );
   }
 
-  Widget _divider() => Divider(color: _teal.withOpacity(0.06), height: 1);
+  Widget _divider() => Divider(color: AppColors.dark.withValues(alpha: 0.06), height: 1);
 
   Widget _buildItemsCard() {
     return Container(
@@ -297,42 +269,30 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header tabel
           Row(
-            children: const [
-              Icon(Icons.list_alt_rounded, color: _accent, size: 18),
+            children: [
+              Icon(Icons.list_alt_rounded, color: AppColors.green, size: 18),
               SizedBox(width: 8),
               Text(
                 'Detail Item Sampah',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: _teal,
-                ),
+                style: AppText.w700(13, AppColors.dark),
               ),
             ],
           ),
           const SizedBox(height: 14),
-          // Table header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: _teal.withOpacity(0.04),
+              color: AppColors.dark.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
-              children: const [
+              children: [
                 Expanded(
                   flex: 5,
                   child: Text(
                     'Nama Sampah',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: _teal,
-                    ),
+                    style: AppText.w600(10, AppColors.dark),
                   ),
                 ),
                 SizedBox(
@@ -340,7 +300,7 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
                   child: Text(
                     'Qty',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w600, color: _teal),
+                    style: AppText.w600(10, AppColors.dark),
                   ),
                 ),
                 SizedBox(
@@ -348,14 +308,13 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
                   child: Text(
                     'Satuan',
                     textAlign: TextAlign.right,
-                    style: TextStyle(fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.w600, color: _teal),
+                    style: AppText.w600(10, AppColors.dark),
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 4),
-          // Rows
           ..._items.asMap().entries.map((entry) {
             final i = entry.key;
             final item = entry.value;
@@ -363,7 +322,7 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: isEven ? Colors.transparent : _teal.withOpacity(0.02),
+                color: isEven ? Colors.transparent : AppColors.dark.withValues(alpha: 0.02),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -372,12 +331,7 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
                     flex: 5,
                     child: Text(
                       item.namaSampah,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: _teal,
-                      ),
+                      style: AppText.w500(11, AppColors.dark),
                     ),
                   ),
                   SizedBox(
@@ -385,11 +339,7 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
                     child: Text(
                       _fmtQty(item.qty),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: _teal.withOpacity(0.7),
-                      ),
+                      style: AppText.r(11, AppColors.dark.withValues(alpha: 0.7)),
                     ),
                   ),
                   SizedBox(
@@ -397,11 +347,7 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
                     child: Text(
                       item.satuan,
                       textAlign: TextAlign.right,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: _teal.withOpacity(0.55),
-                      ),
+                      style: AppText.r(11, AppColors.dark.withValues(alpha: 0.55)),
                     ),
                   ),
                 ],
@@ -413,33 +359,9 @@ class _DetailSetoranScreenState extends State<DetailSetoranScreen> {
     );
   }
 
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline_rounded, size: 40, color: Colors.red.withOpacity(0.5)),
-            const SizedBox(height: 12),
-            Text(
-              _error ?? 'Terjadi kesalahan',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: _teal.withOpacity(0.5)),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _fetchDetail,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _teal,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Coba Lagi', style: TextStyle(fontFamily: 'Poppins')),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildError() => StateMessage(
+        illustration: StateArt.error,
+        message: _error ?? 'Terjadi kesalahan',
+        action: StateRetryButton(onPressed: _fetchDetail),
+      );
 }

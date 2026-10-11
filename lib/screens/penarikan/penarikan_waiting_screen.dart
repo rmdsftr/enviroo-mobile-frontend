@@ -6,13 +6,11 @@ import '../../widgets/navbar.dart';
 import '../../widgets/penarikan_petugas_card.dart';
 import '../../widgets/topbar_back.dart';
 import 'detail_transaksi_penarikan_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-/// Daftar pengajuan penarikan sisi petugas yang masih berjalan — dibuka dari
-/// kartu statistik di [PenarikanPetugasScreen]. Struktur & gaya sama persis
-/// dengan [PenarikanOngoingScreen] (versi nasabah), cuma sumber data & tujuan
-/// tap kartunya beda (sisi petugas).
 class PenarikanWaitingScreen extends StatefulWidget {
-  /// 0 = Pengajuan (pending), 1 = Siap Dijemput (approved)
   final int initialTab;
 
   const PenarikanWaitingScreen({super.key, this.initialTab = 0});
@@ -22,8 +20,8 @@ class PenarikanWaitingScreen extends StatefulWidget {
 }
 
 class _PenarikanWaitingScreenState extends State<PenarikanWaitingScreen> {
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
 
   late int _tabIndex;
 
@@ -39,7 +37,7 @@ class _PenarikanWaitingScreenState extends State<PenarikanWaitingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -66,7 +64,7 @@ class _PenarikanWaitingScreenState extends State<PenarikanWaitingScreen> {
                     tabs: const ['Pengajuan', 'Siap Dijemput'],
                     backgroundColor: Colors.white.withValues(alpha: 0.6),
                     border: Border.all(
-                      color: const Color(0xFF013236).withValues(alpha: 0.1),
+                      color: AppColors.dark.withValues(alpha: 0.1),
                       width: 1,
                     ),
                     onTabChanged: (i) => setState(() => _tabIndex = i),
@@ -75,12 +73,7 @@ class _PenarikanWaitingScreenState extends State<PenarikanWaitingScreen> {
                     padding: const EdgeInsets.fromLTRB(28, 12, 28, 4),
                     child: Text(
                       tabDescription,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12.5,
-                        height: 1.6,
-                        color: dark.withValues(alpha: 0.65),
-                      ),
+                      style: AppText.p(12.5, color: dark.withValues(alpha: 0.65), height: 1.6),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -148,8 +141,6 @@ class _PenarikanWaitingScreenState extends State<PenarikanWaitingScreen> {
   }
 }
 
-// ── Shimmer placeholder ───────────────────────────────────────────────────────
-
 class _ShimmerCard extends StatelessWidget {
   const _ShimmerCard();
 
@@ -166,43 +157,25 @@ class _ShimmerCard extends StatelessWidget {
   }
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
-
 class _EmptyState extends StatelessWidget {
   final int tabIndex;
   const _EmptyState({required this.tabIndex});
 
   @override
   Widget build(BuildContext context) {
-    const dark = Color(0xFF013236);
     final label = tabIndex == 0
-        ? 'Belum ada pengajuan menunggu persetujuan'
-        : 'Belum ada penarikan yang menunggu penjemputan';
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 64, horizontal: 32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.inbox_rounded,
-              size: 64, color: dark.withValues(alpha: 0.12)),
-          const SizedBox(height: 14),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: dark.withValues(alpha: 0.4),
-            ),
-          ),
-        ],
-      ),
+        ? 'Belum ada pengajuan'
+        : 'Belum ada penjemputan';
+    final keterangan = tabIndex ==0
+        ? 'Belum ada penarikan saldo nasabah yang menunggu persetujuan'
+        : 'Belum ada penarikan saldo nasabah yang menunggu penjemputan';
+    return StateMessage(
+      illustration: StateArt.empty,
+      message: label,
+      subtitle: keterangan,
     );
   }
 }
-
-// ── Error state ───────────────────────────────────────────────────────────────
 
 class _ErrorState extends StatelessWidget {
   final String message;
@@ -211,34 +184,14 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline_rounded,
-                color: Colors.redAccent, size: 48),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontFamily: 'Poppins', fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4EA771),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50)),
-              ),
-              onPressed: onRetry,
-              child: const Text('Coba lagi',
-                  style: TextStyle(fontFamily: 'Poppins')),
-            ),
-          ],
-        ),
+    return StateMessage(
+      illustration: StateArt.error,
+      message: message,
+      action: StateRetryButton(
+        onPressed: onRetry,
+        label: 'Coba lagi',
+        color: AppColors.green,
+        radius: 50,
       ),
     );
   }

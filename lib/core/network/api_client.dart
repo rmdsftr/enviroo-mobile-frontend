@@ -13,10 +13,6 @@ class ApiClient {
   static http.Client? _client;
   static http.Client get _httpClient {
     if (_client != null) return _client!;
-    // Allowlist bad-cert disediakan oleh HttpOverrides.global
-    // (EnvirooHttpOverrides, dipasang di main()). JANGAN set
-    // badCertificateCallback di sini: itu menimpa allowlist tersebut dan
-    // membuat sertifikat invalid dari host mana pun ikut diterima.
     _client = IOClient(HttpClient());
     return _client!;
   }
@@ -41,7 +37,6 @@ class ApiClient {
     Future<http.Response> Function(Map<String, String> headers) makeRequest,
   ) async {
     final response = await makeRequest(_headers());
-    // Response apa pun -- termasuk 4xx/5xx -- membuktikan server tercapai.
     NetworkStatus.instance.reportSuccess();
 
     if (response.statusCode == 401 && _onUnauthorized != null) {
@@ -63,12 +58,6 @@ class ApiClient {
     return response;
   }
 
-  /// Kirim request multipart lewat jalur yang sama dengan [_send] — 401 →
-  /// refresh → ulangi, plus deteksi akun nonaktif.
-  ///
-  /// [build] dipanggil ulang saat retry karena [http.MultipartRequest] sekali
-  /// pakai: stream file-nya sudah habis begitu dikirim. Jangan set header
-  /// Authorization di dalam [build], diisi di sini.
   static Future<http.Response> sendMultipart(
     Future<http.MultipartRequest> Function() build, {
     Duration timeout = const Duration(seconds: 30),
@@ -128,22 +117,6 @@ class ApiClient {
       _send((h) => _httpClient.delete(uri, headers: h).timeout(timeout));
 }
 
-/// Sukses untuk seluruh rentang **2xx**, bukan cuma 200.
-///
-/// Backend tidak selalu membalas 200 di jalur sukses. Contoh yang sempat bikin
-/// bug: `POST /penimbangan/batal` membalas **201** kalau row sesinya baru
-/// dibuat saat pembatalan (membatalkan sesi mendatang yang belum disentuh
-/// worker), dan 200 kalau row-nya sudah ada. Beberapa endpoint pengangkutan
-/// dan setoran juga membalas 201.
-///
-/// Sebelumnya tiap service mengecek `statusCode == 200` persis, jadi respons
-/// sukses ber-201 jatuh ke cabang error. Tambalannya dulu ad-hoc: sembilan
-/// tempat sempat diperbaiki satu per satu jadi `== 200 || == 201`. Ini
-/// memperbaiki akarnya, jadi endpoint baru yang membalas 2xx selain 200 tidak
-/// perlu ditambal lagi.
-///
-/// ⚠️ Jangan dipakai untuk cabang error yang memang memeriksa kode tertentu
-/// (mis. `== 404` atau `== 400`) — itu bukan jalur sukses.
 extension SuksesResponse on http.Response {
   bool get sukses => statusCode >= 200 && statusCode < 300;
 }

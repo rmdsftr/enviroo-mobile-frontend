@@ -5,6 +5,8 @@ import 'package:enviroo/screens/penarikan/penarikan_petugas_screen.dart';
 import 'package:enviroo/screens/penimbangan/penimbangan_screen.dart';
 import 'package:enviroo/screens/penjualan/riwayat_penjualan_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class MenuAdminBSI extends StatefulWidget {
   @override
@@ -22,12 +24,7 @@ class _MenuAdminBSIState extends State<MenuAdminBSI> {
             alignment: Alignment.centerLeft,
             child: Text(
               "Menu Petugas BSI",
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF013236),
-              ),
+              style: AppText.w600(15, AppColors.dark),
             ),
           ),
           SizedBox(height: 15),
@@ -68,7 +65,7 @@ class _MenuAdminBSIState extends State<MenuAdminBSI> {
                       context: context,
                       label: "Penjualan",
                       icon: Icons.monetization_on_rounded,
-                      color: const Color(0xFF4EA771),
+                      color: AppColors.green,
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const RiwayatPenjualanScreen())),
@@ -104,7 +101,7 @@ class _MenuAdminBSIState extends State<MenuAdminBSI> {
                       context: context,
                       label: "Barang",
                       icon: Icons.storefront_rounded,
-                      color: const Color(0xFF4EA771),
+                      color: AppColors.green,
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const KatalogBarangScreen())),
@@ -148,12 +145,7 @@ class _MenuAdminBSIState extends State<MenuAdminBSI> {
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF013236),
-            ),
+            style: AppText.w600(11, AppColors.dark),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

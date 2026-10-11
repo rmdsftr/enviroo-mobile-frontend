@@ -5,6 +5,8 @@ import 'package:enviroo/screens/bsi_bsu/tabungan_sampah_bsu_screen.dart';
 import 'package:enviroo/screens/penimbangan/penimbangan_screen.dart';
 import 'package:enviroo/screens/penarikan/penarikan_petugas_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class MenuAdminBSU extends StatefulWidget {
   @override
@@ -22,12 +24,7 @@ class _MenuAdminBSUState extends State<MenuAdminBSU> {
             alignment: Alignment.centerLeft,
             child: Text(
               "Menu Petugas BSU",
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF013236),
-              ),
+              style: AppText.w600(15, AppColors.dark),
             ),
           ),
           const SizedBox(height: 15),
@@ -44,7 +41,7 @@ class _MenuAdminBSUState extends State<MenuAdminBSU> {
                       context: context,
                       label: "Timbang",
                       icon: Icons.document_scanner_rounded,
-                      color: const Color(0xFFFAA324),
+                      color: AppColors.warningAlt,
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => PenimbanganScreen())),
@@ -56,7 +53,7 @@ class _MenuAdminBSUState extends State<MenuAdminBSU> {
                       context: context,
                       label: "Angkut",
                       icon: Icons.fire_truck_rounded,
-                      color: const Color(0xFF06C0C9),
+                      color: AppColors.cyan,
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const PengangkutanBsuScreen())),
@@ -68,7 +65,7 @@ class _MenuAdminBSUState extends State<MenuAdminBSU> {
                       context: context,
                       label: "Bagi Hasil",
                       icon: Icons.volunteer_activism_rounded,
-                      color: const Color(0xFF4EA771),
+                      color: AppColors.green,
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const ListBagiHasilBsuScreen())),
@@ -92,7 +89,7 @@ class _MenuAdminBSUState extends State<MenuAdminBSU> {
                       context: context,
                       label: "Tabungan Sampah",
                       icon: Icons.savings_rounded,
-                      color: const Color(0xFF4EA771),
+                      color: AppColors.green,
                       iconColor: Colors.white,
                       onTap: () => Navigator.push(context,
                           MaterialPageRoute(builder: (_) => const TabunganSampahBsuScreen())),
@@ -148,12 +145,7 @@ class _MenuAdminBSUState extends State<MenuAdminBSU> {
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF013236),
-            ),
+            style: AppText.w600(11, AppColors.dark),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

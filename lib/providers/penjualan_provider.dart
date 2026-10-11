@@ -5,16 +5,9 @@ import 'package:flutter/material.dart';
 import '../models/penjualan_model.dart';
 import '../services/penjualan_service.dart';
 
-/// Status fetch generik
 enum FetchStatus { idle, loading, success, error }
 
-/// Provider yang menampung seluruh state untuk fitur Penjualan Eksternal.
-///
-/// Bertindak sebagai "wadah lintas-screen" agar form yang terbagi ke
-/// beberapa halaman (Jenis Transaksi → Pilih Sampah → Barter Barang →
-/// Bukti Foto) tetap konsisten datanya tanpa harus di-pass manual.
 class PenjualanProvider extends ChangeNotifier {
-  // ── Riwayat ────────────────────────────────────────────────────────────────
   FetchStatus _riwayatStatus = FetchStatus.idle;
   String? _riwayatError;
   List<RiwayatPenjualanModel> _riwayat = [];
@@ -23,7 +16,6 @@ class PenjualanProvider extends ChangeNotifier {
   String? get riwayatError => _riwayatError;
   List<RiwayatPenjualanModel> get riwayat => _riwayat;
 
-  // ── Detail ─────────────────────────────────────────────────────────────────
   FetchStatus _detailStatus = FetchStatus.idle;
   String? _detailError;
   DetailPenjualanModel? _detail;
@@ -32,7 +24,6 @@ class PenjualanProvider extends ChangeNotifier {
   String? get detailError => _detailError;
   DetailPenjualanModel? get detail => _detail;
 
-  // ── Form (lintas-screen) ───────────────────────────────────────────────────
   RewardModel? _selectedReward;
   String _namaMitra = '';
   String? _selectedMitraId;
@@ -45,7 +36,6 @@ class PenjualanProvider extends ChangeNotifier {
   List<ItemSampahPilihan> get itemsSampah => _itemsSampah;
   File? get buktiFoto => _buktiFoto;
 
-  /// Total harga penjualan real-time: jumlah (qty × hargaJual) tiap item.
   double get totalHarga {
     double total = 0;
     for (final item in _itemsSampah) {
@@ -55,7 +45,6 @@ class PenjualanProvider extends ChangeNotifier {
   }
 
 
-  // ── Preview ────────────────────────────────────────────────────────────────
   FetchStatus _previewStatus = FetchStatus.idle;
   String? _previewError;
   PreviewPenjualanModel? _preview;
@@ -64,7 +53,6 @@ class PenjualanProvider extends ChangeNotifier {
   String? get previewError => _previewError;
   PreviewPenjualanModel? get preview => _preview;
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
   bool _submitting = false;
   String? _submitError;
   String? _lastPenjualanId;
@@ -73,10 +61,6 @@ class PenjualanProvider extends ChangeNotifier {
   String? get submitError => _submitError;
   String? get lastPenjualanId => _lastPenjualanId;
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Form mutations
-  // ───────────────────────────────────────────────────────────────────────────
-
   void setReward(RewardModel? reward) {
     _selectedReward = reward;
     notifyListeners();
@@ -84,13 +68,9 @@ class PenjualanProvider extends ChangeNotifier {
 
   void setNamaMitra(String value) {
     _namaMitra = value;
-    // Ketik manual = gak pakai mitra existing lagi, walau sebelumnya sempat dipilih dari list.
     _selectedMitraId = null;
-    // Tidak perlu notify — biasanya dipakai di TextField yang sudah re-render sendiri.
   }
 
-  /// Pilih mitra yang sudah terdaftar (master data) — dipakai buat submit
-  /// via `mitra_id`, beda jalur dari [setNamaMitra] yang submit via `nama_mitra`.
   void selectMitra(MitraModel mitra) {
     _namaMitra = mitra.namaMitra;
     _selectedMitraId = mitra.mitraId;
@@ -146,8 +126,6 @@ class PenjualanProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Bersihkan seluruh state form. Dipanggil setelah submit sukses
-  /// atau ketika user keluar dari alur input.
   void resetForm() {
     _selectedReward = null;
     _namaMitra = '';
@@ -162,10 +140,6 @@ class PenjualanProvider extends ChangeNotifier {
     _lastPenjualanId = null;
     notifyListeners();
   }
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // Network calls
-  // ───────────────────────────────────────────────────────────────────────────
 
   Future<void> fetchRiwayat(String bankId, {String? startDate, String? endDate}) async {
     _riwayatStatus = FetchStatus.loading;
@@ -201,7 +175,6 @@ class PenjualanProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Mitra Penjualan ─────────────────────────────────────────────────────────
   FetchStatus _mitraStatus = FetchStatus.idle;
   List<MitraModel> _mitraList = [];
   String? _mitraError;
@@ -230,10 +203,7 @@ class PenjualanProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Daftar jenis reward pindah ke RewardProvider — endpoint-nya /reward.
 
-
-  // ── Preview Penjualan ─────────────────────────────────────────────────────
   Future<bool> fetchPreview({required String bankId}) async {
     if (_selectedReward == null || _itemsSampah.isEmpty) {
       _previewError = 'Data belum lengkap';
@@ -267,7 +237,6 @@ class PenjualanProvider extends ChangeNotifier {
     }
   }
 
-  // ── Submit Penjualan ──────────────────────────────────────────────────────
   Future<bool> submitPenjualan({
     required String bankId,
     required String adminId,

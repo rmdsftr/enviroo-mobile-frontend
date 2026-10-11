@@ -1,29 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 enum SnackBarType { error, success, info }
 
-/// Snackbar standar aplikasi — muncul di **atas layar**, bukan bawah.
-///
-/// [subtitle] menambah baris kedua yang lebih kecil di bawah [message] —
-/// dipakai saat pesan butuh keterangan lanjutan.
-/// [icon] menimpa ikon bawaan tipe, untuk kasus yang punya makna spesifik
-/// (mis. ikon amplop saat OTP dikirim ulang).
-/// [hideCurrent] dipertahankan demi kecocokan pemanggil lama. Sekarang
-/// perilakunya sudah jadi bawaan: snackbar baru selalu menimpa yang lama.
-///
-/// ## Kenapa Overlay, bukan ScaffoldMessenger
-///
-/// `SnackBar` bawaan Flutter **tidak punya properti posisi** — yang
-/// menempatkannya adalah `Scaffold`, dan selalu di bawah. `SnackBarBehavior`
-/// cuma menawarkan `fixed`/`floating`, dua-duanya tetap di bawah.
-///
-/// Trik memberi `margin` bawah sebesar tinggi layar memang bisa mendorongnya
-/// ke atas, tapi rapuh: ikut melompat saat keyboard muncul, berantakan saat
-/// rotasi, dan bisa melempar error layout kalau margin melebihi ruang yang
-/// tersedia. Jadi presentasinya dipindah ke [OverlayEntry] — posisinya
-/// dikendalikan penuh dan sadar akan safe area.
 void showCustomSnackBar(
   BuildContext context,
   String message, {
@@ -32,7 +14,6 @@ void showCustomSnackBar(
   IconData? icon,
   bool hideCurrent = false,
 }) {
-  // maybeOf, bukan of: gagal menampilkan snackbar tidak boleh menjatuhkan app.
   final overlay = Overlay.maybeOf(context);
   if (overlay == null) return;
 
@@ -45,7 +26,7 @@ void showCustomSnackBar(
     case SnackBarType.error:
       borderColor = const Color(0xFFFFD6D6);
       iconBgColor = const Color(0xFFFFEBEE);
-      iconColor = const Color(0xFFB61E20);
+      iconColor = AppColors.dangerDeep;
       defaultIcon = Icons.error_outline_rounded;
     case SnackBarType.success:
       borderColor = const Color(0xFFB8E6C8);
@@ -55,13 +36,10 @@ void showCustomSnackBar(
     case SnackBarType.info:
       borderColor = const Color(0xFFC7E0DE);
       iconBgColor = const Color(0xFFE8F2F1);
-      iconColor = const Color(0xFF013236);
+      iconColor = AppColors.dark;
       defaultIcon = Icons.info_outline_rounded;
   }
 
-  // Selalu timpa yang sedang tampil. Antrean ala ScaffoldMessenger sengaja
-  // tidak ditiru: di posisi atas, pesan yang mengantre sering baru muncul saat
-  // user sudah pindah layar.
   _tutupAktif();
 
   late final OverlayEntry entry;
@@ -74,7 +52,6 @@ void showCustomSnackBar(
       iconBgColor: iconBgColor,
       iconColor: iconColor,
       onSelesai: () {
-        // Jaga-jaga kalau entry ini sudah keburu diganti yang lebih baru.
         if (_entriAktif == entry) _tutupAktif();
       },
     ),
@@ -84,8 +61,6 @@ void showCustomSnackBar(
   overlay.insert(entry);
 }
 
-// ── Satu snackbar aktif pada satu waktu ──────────────────────────────────────
-
 OverlayEntry? _entriAktif;
 
 void _tutupAktif() {
@@ -93,8 +68,6 @@ void _tutupAktif() {
   _entriAktif = null;
 }
 
-/// Isi visualnya sama persis dengan versi SnackBar sebelumnya — yang berganti
-/// cuma cara menampilkannya.
 class _TopSnackBar extends StatefulWidget {
   final String message;
   final String? subtitle;
@@ -148,7 +121,6 @@ class _TopSnackBarState extends State<_TopSnackBar>
     super.dispose();
   }
 
-  /// Animasi keluar dulu, baru entry-nya dicopot.
   Future<void> _tutup() async {
     _timer?.cancel();
     if (!mounted) return;
@@ -159,7 +131,6 @@ class _TopSnackBarState extends State<_TopSnackBar>
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      // Sadar safe area — jangan tertimpa status bar atau poni layar.
       top: MediaQuery.of(context).padding.top + 8,
       left: 16,
       right: 16,
@@ -203,12 +174,7 @@ class _TopSnackBarState extends State<_TopSnackBar>
                       child: widget.subtitle == null
                           ? Text(
                               widget.message,
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                                color: Color(0xFF222222),
-                              ),
+                              style: AppText.w600(12, Color(0xFF222222)),
                             )
                           : Column(
                               mainAxisSize: MainAxisSize.min,
@@ -216,22 +182,12 @@ class _TopSnackBarState extends State<_TopSnackBar>
                               children: [
                                 Text(
                                   widget.message,
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12.5,
-                                    color: Color(0xFF222222),
-                                  ),
+                                  style: AppText.w700(12.5, Color(0xFF222222)),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   widget.subtitle!,
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 11,
-                                    height: 1.4,
-                                    color: Color(0xFF6B6B6B),
-                                  ),
+                                  style: AppText.p(11, color: Color(0xFF6B6B6B), height: 1.4),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ],

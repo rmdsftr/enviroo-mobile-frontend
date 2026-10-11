@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import '../../core/format/app_number.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/distribusi_sisa_model.dart';
@@ -10,13 +10,10 @@ import '../../widgets/confirm_bottom_sheet.dart';
 import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'detail_distribusi_sisa_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-class _C {
-  static const dark = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
-  static const muted = Color(0xFF8A9A92);
-  static const danger = Color(0xFFD94848);
-}
 
 class PreviewDistribusiSisaScreen extends StatefulWidget {
   final String bagiHasilId;
@@ -110,7 +107,7 @@ class _PreviewDistribusiSisaScreenState
                   builder: (_, prov, __) {
                     if (prov.previewStatus == FetchStatus.loading) {
                       return const Center(
-                          child: CircularProgressIndicator(color: _C.green));
+                          child: CircularProgressIndicator(color: AppColors.green));
                     }
                     if (prov.previewStatus == FetchStatus.error &&
                         !prov.alreadyDistributed) {
@@ -120,7 +117,7 @@ class _PreviewDistribusiSisaScreenState
                     if (prov.previewStatus == FetchStatus.error &&
                         prov.alreadyDistributed) {
                       return const Center(
-                          child: CircularProgressIndicator(color: _C.green));
+                          child: CircularProgressIndicator(color: AppColors.green));
                     }
                     if (prov.preview == null) return const SizedBox.shrink();
                     return _buildContent(prov.preview!, prov.submitting);
@@ -134,45 +131,15 @@ class _PreviewDistribusiSisaScreenState
     );
   }
 
-  Widget _buildError(String msg) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline_rounded,
-                  size: 40, color: _C.danger.withValues(alpha: 0.5)),
-              const SizedBox(height: 12),
-              Text(msg,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      color: _C.dark.withValues(alpha: 0.5))),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _load,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _C.dark,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Coba Lagi',
-                    style: TextStyle(fontFamily: 'Poppins')),
-              ),
-            ],
-          ),
-        ),
+  Widget _buildError(String msg) => StateMessage(
+        illustration: StateArt.error,
+        message: msg,
+        action: StateRetryButton(onPressed: _load),
       );
 
   Widget _buildContent(PreviewDistribusiSisaModel preview, bool submitting) {
-    final fmtRp = NumberFormat('#,##0', 'id_ID');
-    final fmtNum = NumberFormat('#,##0.##########', 'id_ID');
-    final isRp = preview.satuan.toLowerCase() == 'rp';
-
     String fmt(double val) =>
-        isRp ? 'Rp ${fmtRp.format(val)}' : '${fmtNum.format(val)} ${preview.satuan}';
+        AppNumber.nominalSatuan(val, preview.satuan);
 
     final totalBsu = preview.penerimaBsu.fold(0.0, (s, b) => s + b.nominal);
 
@@ -183,7 +150,6 @@ class _PreviewDistribusiSisaScreenState
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
           child: Column(
             children: [
-              // ── Hero ──────────────────────────────────────────────────
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 24),
@@ -195,32 +161,24 @@ class _PreviewDistribusiSisaScreenState
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                          color: _C.green.withValues(alpha: 0.12),
+                          color: AppColors.green.withValues(alpha: 0.12),
                           shape: BoxShape.circle),
                       child: const Icon(Icons.account_balance_wallet_rounded,
-                          color: _C.green, size: 36),
+                          color: AppColors.green, size: 36),
                     ),
                     const SizedBox(height: 12),
-                    const Text('Preview Distribusi Sisa',
-                        style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w700,
-                            fontSize: 17,
-                            color: _C.green)),
+                    Text('Preview Distribusi Sisa',
+                        style: AppText.w700(17, AppColors.green)),
                     const SizedBox(height: 4),
                     Text('ID: ${preview.bagiHasilId}',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 11,
-                            color: _C.dark.withValues(alpha: 0.45))),
+                        style: AppText.r(11, AppColors.dark.withValues(alpha: 0.45))),
                   ],
                 ),
               ),
 
               const SizedBox(height: 16),
 
-              // ── Ringkasan Sisa ─────────────────────────────────────────
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -243,7 +201,6 @@ class _PreviewDistribusiSisaScreenState
 
               const SizedBox(height: 16),
 
-              // ── Tabel BSU ──────────────────────────────────────────────
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -260,10 +217,7 @@ class _PreviewDistribusiSisaScreenState
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         child: Text(
                           'Tidak ada BSU yang terlibat dalam bagi hasil ini.',
-                          style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 12,
-                              color: _C.dark.withValues(alpha: 0.45)),
+                          style: AppText.r(12, AppColors.dark.withValues(alpha: 0.45)),
                         ),
                       )
                     else
@@ -282,13 +236,13 @@ class _PreviewDistribusiSisaScreenState
                                   Container(
                                     padding: const EdgeInsets.all(6),
                                     decoration: BoxDecoration(
-                                        color: _C.dark.withValues(alpha: 0.06),
+                                        color: AppColors.dark.withValues(alpha: 0.06),
                                         borderRadius:
                                             BorderRadius.circular(8)),
                                     child: const Icon(
                                         Icons.account_balance_rounded,
                                         size: 13,
-                                        color: _C.dark),
+                                        color: AppColors.dark),
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
@@ -301,17 +255,10 @@ class _PreviewDistribusiSisaScreenState
                                               MainAxisAlignment.spaceBetween,
                                           children: [
                                             Text(bsu.namaBank,
-                                                style: const TextStyle(
-                                                    fontFamily: 'Poppins',
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: _C.dark)),
+                                                style: AppText.w600(12, AppColors.dark)),
                                             Text(
-                                              '${fmtNum.format(bsu.persenKontribusi)}%',
-                                              style: TextStyle(
-                                                  fontFamily: 'Poppins',
-                                                  fontSize: 11,
-                                                  color: _C.dark
+                                              AppNumber.persen(bsu.persenKontribusi),
+                                              style: AppText.r(11, AppColors.dark
                                                       .withValues(alpha: 0.5)),
                                             ),
                                           ],
@@ -327,18 +274,10 @@ class _PreviewDistribusiSisaScreenState
                                               MainAxisAlignment.spaceBetween,
                                           children: [
                                             Text('Total',
-                                                style: TextStyle(
-                                                    fontFamily: 'Poppins',
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: _C.dark
+                                                style: AppText.w600(11, AppColors.dark
                                                         .withValues(alpha: 0.7))),
                                             Text(fmt(bsu.nominal),
-                                                style: const TextStyle(
-                                                    fontFamily: 'Poppins',
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: _C.green)),
+                                                style: AppText.w700(12, AppColors.green)),
                                           ],
                                         ),
                                       ],
@@ -358,7 +297,6 @@ class _PreviewDistribusiSisaScreenState
           ),
         ),
 
-        // ── Submit Button ─────────────────────────────────────────────────
         if (preview.penerimaBsu.isNotEmpty)
           Positioned(
             left: 20,
@@ -376,15 +314,12 @@ class _PreviewDistribusiSisaScreenState
                   : const Icon(Icons.send_rounded, size: 18),
               label: Text(
                 submitting ? 'Memproses...' : 'Submit Sisa Distribusi',
-                style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13),
+                style: AppText.w600(13),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _C.dark,
+                backgroundColor: AppColors.dark,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: _C.dark.withValues(alpha: 0.4),
+                disabledBackgroundColor: AppColors.dark.withValues(alpha: 0.4),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(50)),
@@ -397,20 +332,14 @@ class _PreviewDistribusiSisaScreenState
   }
 }
 
-// ── Shared helpers ────────────────────────────────────────────────────────────
-
 Widget _cardHeader(IconData icon, String title) => Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: _C.green),
+          Icon(icon, size: 18, color: AppColors.green),
           const SizedBox(width: 8),
           Text(title,
-              style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: _C.dark)),
+              style: AppText.w700(13, AppColors.dark)),
         ],
       ),
     );
@@ -421,18 +350,9 @@ Widget _kvRow(String label, String value, {bool highlight = false}) => Padding(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
-              style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: highlight ? 12 : 11.5,
-                  color: _C.dark.withValues(alpha: highlight ? 0.85 : 0.55),
-                  fontWeight:
-                      highlight ? FontWeight.w600 : FontWeight.normal)),
+              style: AppText.p(highlight ? 12 : 11.5, weight: highlight ? FontWeight.w600 : FontWeight.normal, color: AppColors.dark.withValues(alpha: highlight ? 0.85 : 0.55))),
           Text(value,
-              style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: highlight ? 13 : 12,
-                  fontWeight: FontWeight.w700,
-                  color: highlight ? _C.dark : _C.green)),
+              style: AppText.w700(highlight ? 13 : 12, highlight ? AppColors.dark : AppColors.green)),
         ],
       ),
     );
@@ -443,18 +363,12 @@ Widget _subRow(String label, String value) => Padding(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
-              style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  color: _C.dark.withValues(alpha: 0.45))),
+              style: AppText.r(11, AppColors.dark.withValues(alpha: 0.45))),
           Text(value,
-              style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  color: _C.dark.withValues(alpha: 0.65))),
+              style: AppText.r(11, AppColors.dark.withValues(alpha: 0.65))),
         ],
       ),
     );
 
 Widget _divider() =>
-    Divider(color: _C.dark.withValues(alpha: 0.06), height: 1);
+    Divider(color: AppColors.dark.withValues(alpha: 0.06), height: 1);

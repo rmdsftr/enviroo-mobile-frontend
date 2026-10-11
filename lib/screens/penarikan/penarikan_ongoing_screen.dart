@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format/app_date.dart';
+import '../../core/format/app_number.dart';
 import '../../models/penarikan_model.dart';
 import '../../providers/penarikan_nasabah_provider.dart';
 import '../../widgets/navbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'detail_penarikan_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class PenarikanOngoingScreen extends StatefulWidget {
   const PenarikanOngoingScreen({super.key});
@@ -17,10 +21,9 @@ class PenarikanOngoingScreen extends StatefulWidget {
 }
 
 class _PenarikanOngoingScreenState extends State<PenarikanOngoingScreen> {
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
 
-  // 0 = Pengajuan (pending), 1 = Siap Dijemput (approved)
   int _tabIndex = 0;
 
   @override
@@ -37,7 +40,7 @@ class _PenarikanOngoingScreenState extends State<PenarikanOngoingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -68,7 +71,7 @@ class _PenarikanOngoingScreenState extends State<PenarikanOngoingScreen> {
                     tabs: const ['Pengajuan', 'Siap Dijemput'],
                     backgroundColor: Colors.white.withValues(alpha: 0.6),
                     border: Border.all(
-                      color: const Color(0xFF013236).withValues(alpha: 0.1),
+                      color: AppColors.dark.withValues(alpha: 0.1),
                       width: 1,
                     ),
                     onTabChanged: (i) => setState(() => _tabIndex = i),
@@ -77,12 +80,7 @@ class _PenarikanOngoingScreenState extends State<PenarikanOngoingScreen> {
                     padding: const EdgeInsets.fromLTRB(28, 12, 28, 4),
                     child: Text(
                       tabDescription,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12.5,
-                        height: 1.6,
-                        color: dark.withValues(alpha: 0.65),
-                      ),
+                      style: AppText.p(12.5, color: dark.withValues(alpha: 0.65), height: 1.6),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -145,35 +143,27 @@ class _PenarikanOngoingScreenState extends State<PenarikanOngoingScreen> {
   }
 }
 
-// ── Card ──────────────────────────────────────────────────────────────────────
-
 class _OngoingPenarikanCard extends StatelessWidget {
   final PenarikanItem item;
   final VoidCallback onTap;
 
   const _OngoingPenarikanCard({required this.item, required this.onTap});
 
-  static const Color dark = Color(0xFF013236);
+  static const Color dark = AppColors.dark;
 
   Color get _statusColor => item.status.color;
 
   String get _statusLabel => item.status.label;
 
-  String get _nominalText {
-    final f = NumberFormat.decimalPattern('id_ID');
-    f.maximumFractionDigits = 4;
-    f.minimumFractionDigits = 0;
-    final lower = item.satuanPenarikan.toLowerCase();
-    if (lower.contains('rupiah') || item.isUang) {
-      return 'Rp ${f.format(item.nominalPenarikan)}';
-    }
-    return '${f.format(item.nominalPenarikan)} ${item.satuanPenarikan.isEmpty ? 'poin' : item.satuanPenarikan}';
-  }
+  String get _nominalText => AppNumber.nominal(
+        item.nominalPenarikan,
+        satuan: item.satuanPenarikan,
+        isUang: item.isUang || AppNumber.tampakRupiah(item.satuanPenarikan),
+      );
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = DateFormat('dd MMM yyyy, HH:mm', 'id_ID')
-        .format(item.createdAt);
+    final dateStr = AppDate.tanggalSingkatJam(item.createdAt);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -182,7 +172,7 @@ class _OngoingPenarikanCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withValues(alpha: 0.1),
+          color: AppColors.dark.withValues(alpha: 0.1),
         ),
       ),
       child: Material(
@@ -201,12 +191,7 @@ class _OngoingPenarikanCard extends StatelessWidget {
                     children: [
                       Text(
                         dateStr,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: dark,
-                        ),
+                        style: AppText.w600(13, dark),
                       ),
                       const SizedBox(height: 6),
                       Container(
@@ -218,12 +203,7 @@ class _OngoingPenarikanCard extends StatelessWidget {
                         ),
                         child: Text(
                           _statusLabel,
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: _statusColor,
-                          ),
+                          style: AppText.w700(10, _statusColor),
                         ),
                       ),
                     ],
@@ -232,12 +212,7 @@ class _OngoingPenarikanCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Text(
                   _nominalText,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: dark,
-                  ),
+                  style: AppText.w700(15, dark),
                 ),
               ],
             ),
@@ -247,8 +222,6 @@ class _OngoingPenarikanCard extends StatelessWidget {
     );
   }
 }
-
-// ── Shimmer placeholder ───────────────────────────────────────────────────────
 
 class _ShimmerCard extends StatelessWidget {
   const _ShimmerCard();
@@ -266,49 +239,19 @@ class _ShimmerCard extends StatelessWidget {
   }
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
-
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
   @override
   Widget build(BuildContext context) {
-    const dark = Color(0xFF013236);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 64, horizontal: 32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.inbox_rounded,
-              size: 64, color: dark.withValues(alpha: 0.12)),
-          const SizedBox(height: 14),
-          Text(
-            'Belum ada transaksi di sini',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: dark.withValues(alpha: 0.4),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Transaksi penarikan yang masih dalam proses akan muncul di sini',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              color: dark.withValues(alpha: 0.3),
-            ),
-          ),
-        ],
-      ),
+    return const StateMessage(
+      illustration: StateArt.empty,
+      message: 'Belum ada transaksi di sini',
+      subtitle:
+          'Transaksi penarikan yang masih dalam proses akan muncul di sini',
     );
   }
 }
-
-// ── Error state ───────────────────────────────────────────────────────────────
 
 class _ErrorState extends StatelessWidget {
   final String message;
@@ -317,34 +260,14 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline_rounded,
-                color: Colors.redAccent, size: 48),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontFamily: 'Poppins', fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4EA771),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50)),
-              ),
-              onPressed: onRetry,
-              child: const Text('Coba lagi',
-                  style: TextStyle(fontFamily: 'Poppins')),
-            ),
-          ],
-        ),
+    return StateMessage(
+      illustration: StateArt.error,
+      message: message,
+      action: StateRetryButton(
+        onPressed: onRetry,
+        label: 'Coba lagi',
+        color: AppColors.green,
+        radius: 50,
       ),
     );
   }

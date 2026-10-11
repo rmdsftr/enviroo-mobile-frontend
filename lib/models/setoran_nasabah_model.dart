@@ -1,11 +1,6 @@
 class RiwayatSetoranModel {
   final String setoranId;
 
-  /// Sesi penimbangan tempat setoran ini dicatat.
-  ///
-  /// Beberapa setoran dari nasabah yang sama bisa berbagi satu id ini -- satu
-  /// sesi boleh menampung lebih dari satu kali transaksi. Layar riwayat
-  /// memakainya untuk menghitung jumlah sesi yang unik.
   final String penimbanganId;
 
   final String namaPetugas;
@@ -23,8 +18,6 @@ class RiwayatSetoranModel {
   factory RiwayatSetoranModel.fromJson(Map<String, dynamic> json) {
     return RiwayatSetoranModel(
       setoranId: json['setoran_id'] ?? '',
-      // Id-nya panjang dan dikirim sebagai string, tapi .toString() tetap
-      // dipakai supaya tidak pecah kalau backend mengirimnya sebagai angka.
       penimbanganId: json['penimbangan_id']?.toString() ?? '',
       namaPetugas: json['nama_petugas'] ?? 'Petugas',
       transaksiTimestamp:

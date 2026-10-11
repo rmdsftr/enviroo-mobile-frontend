@@ -4,27 +4,7 @@ import 'package:enviroo/core/config/api_config.dart';
 import 'package:enviroo/core/network/api_client.dart';
 import 'package:enviroo/core/network/api_failure.dart';
 
-/// Autentikasi & sesi.
-///
-/// ⚠️ Sebagian besar method di sini sengaja memakai `http` mentah, BUKAN
-/// `ApiClient`. Jangan "dirapikan" jadi `ApiClient` tanpa membaca ini:
-///
-/// 1. [refreshToken] **tidak boleh** lewat `ApiClient` — dia justru yang
-///    dipanggil `ApiClient` sebagai callback `onUnauthorized`. Mengalihkannya
-///    berarti rekursi tak hingga begitu access token kedaluwarsa.
-/// 2. [refreshToken] dan [logout] mengirim header `Cookie: refresh_token=…`
-///    manual (lihat catatan di [refreshToken]); `ApiClient` hanya menyuntikkan
-///    `Authorization`, jadi header itu akan hilang.
-/// 3. Enam method pra-login ([cekUserMobile], [login], [aktivasiAkun], dan tiga
-///    method forget-password) dipanggil saat belum ada token sama sekali —
-///    auto-refresh 401 tidak relevan di sana.
-///
-/// Yang memang sudah semestinya lewat `ApiClient`: [changePassword] dan
-/// [switchRole]. Profil sesi (`getProfilNasabah`/`getProfilPetugas`) sudah
-/// dipindah ke `ProfilService`.
 class AuthService {
-  /// Step 1: Cek user di mobile — mengembalikan role yang tersedia.
-  /// Response sukses: { success, user_id, multiple_roles, roles[] }
   static Future<Map<String, dynamic>> cekUserMobile(String email, String password) async {
     try {
       final response = await http.post(
@@ -63,7 +43,6 @@ class AuthService {
     }
   }
 
-  /// Step 2: Login dengan role yang dipilih — mengembalikan data user + JWT tokens.
   static Future<Map<String, dynamic>> login(String email, String password, String role) async {
     try {
       final response = await http.post(
@@ -101,7 +80,6 @@ class AuthService {
     }
   }
 
-  /// Aktivasi akun baru (NIK + OTP + Password)
   static Future<Map<String, dynamic>> aktivasiAkun(String nik, String otp, String password) async {
     try {
       final response = await http.post(
@@ -114,6 +92,7 @@ class AuthService {
           'user_id': nik,
           'otp': otp,
           'password': password,
+          'platform': 'mobile',
         }),
       ).timeout(const Duration(seconds: 10));
 
@@ -128,6 +107,7 @@ class AuthService {
         return {
           'success': false,
           'message': responseData['error'] ?? 'Gagal melakukan aktivasi',
+          'code': responseData['code'],
         };
       }
     } catch (e) {
@@ -138,10 +118,6 @@ class AuthService {
     }
   }
 
-  // ─── Forget Password ────────────────────────────────────────────────────────
-
-  /// Step 1: Kirim email OTP untuk reset password.
-  /// Response sukses: { success, message, aktivasi_id, expired_at }
   static Future<Map<String, dynamic>> sendEmailForgetPassword(String email) async {
     try {
       final response = await http.post(
@@ -176,8 +152,6 @@ class AuthService {
     }
   }
 
-  /// Step 2: Verifikasi kode OTP reset password.
-  /// Response sukses: { success, message }
   static Future<Map<String, dynamic>> verifikasiOtpForgetPassword(
       String email, String otp) async {
     try {
@@ -211,8 +185,6 @@ class AuthService {
     }
   }
 
-  /// Step 3: Reset password dengan OTP yang sudah diverifikasi.
-  /// Response sukses: { success, message }
   static Future<Map<String, dynamic>> resetPassword(
       String email, String otp, String passwordBaru, String konfirmasiPasswordBaru) async {
     try {
@@ -252,7 +224,6 @@ class AuthService {
   }
 
 
-  /// Change Password
   static Future<Map<String, dynamic>> changePassword(
     String passwordLama,
     String passwordBaru,
@@ -290,12 +261,6 @@ class AuthService {
   }
 
 
-
-  /// Logout user
-  ///
-  /// Token wajib dikirim: backend memakainya untuk mencocokkan `session_id`
-  /// sebelum mengosongkan slot sesi user. Tanpa token, sesi lama tetap
-  /// dianggap aktif di server sampai token expired sendiri.
   static Future<Map<String, dynamic>> logout(
       String accessToken, String refreshToken) async {
     try {
@@ -330,8 +295,6 @@ class AuthService {
     }
   }
 
-  /// Switch ke role lain (nasabah ↔ admin) menggunakan token aktif.
-  /// Menggunakan ApiClient agar 401 → refresh → retry otomatis.
   static Future<Map<String, dynamic>> switchRole(String targetRole) async {
     try {
       final response = await ApiClient.post(
@@ -357,12 +320,6 @@ class AuthService {
     }
   }
 
-  /// Refresh access token
-  ///
-  /// Backend membaca refresh token lewat `c.Cookie()`, sementara http package
-  /// Flutter tidak punya cookie jar seperti browser — jadi header `Cookie`
-  /// dikirim manual. Token barunya dibaca dari JSON body (bukan `Set-Cookie`,
-  /// yang tidak reliable di HTTP client Dart).
   static Future<Map<String, dynamic>> refreshToken(String refreshToken) async {
     try {
       final response = await http.post(
@@ -387,13 +344,10 @@ class AuthService {
         return {
           'success': false,
           'message': body['error'] ?? 'Gagal memperbarui token',
-          // SESSION_REVOKED → sesi digantikan login dari perangkat lain
           'code': body['code'],
         };
       }
     } catch (e) {
-      // Dibedakan dari penolakan server: sesi belum tentu mati, jadi pemanggil
-      // tidak boleh menganggapnya sebagai alasan untuk logout.
       return {
         'success': false,
         'network_error': true,

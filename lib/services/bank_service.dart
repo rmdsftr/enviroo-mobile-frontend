@@ -21,8 +21,6 @@ class BankService {
     }
   }
 
-  /// Daftar BSU di bawah sebuah BSI. Pindahan dari `NasabahService` - isinya
-  /// bank unit, sebangun dengan [getAllBankSampah] di atas.
   static Future<Map<String, dynamic>> getBsuByBsiId(String bsiId) async {
     try {
       final response = await ApiClient.get(Uri.parse('${ApiConfig.getUnitBsiUrl}/$bsiId'));

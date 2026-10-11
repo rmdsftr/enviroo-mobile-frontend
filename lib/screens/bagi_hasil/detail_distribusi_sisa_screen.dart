@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import '../../core/format/app_date.dart';
+import '../../core/format/app_number.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/distribusi_sisa_model.dart';
@@ -7,12 +8,10 @@ import '../../providers/distribusi_sisa_provider.dart';
 import '../../providers/penjualan_provider.dart' show FetchStatus;
 import '../../widgets/topbar_back.dart';
 import 'struk_bagi_hasil_bsu_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-class _C {
-  static const dark = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
-  static const danger = Color(0xFFD94848);
-}
 
 class DetailDistribusiSisaScreen extends StatefulWidget {
   final String distribusiId;
@@ -57,7 +56,7 @@ class _DetailDistribusiSisaScreenState
                   builder: (_, prov, __) {
                     if (prov.detailStatus == FetchStatus.loading) {
                       return const Center(
-                          child: CircularProgressIndicator(color: _C.green));
+                          child: CircularProgressIndicator(color: AppColors.green));
                     }
                     if (prov.detailStatus == FetchStatus.error ||
                         prov.detail == null) {
@@ -75,59 +74,22 @@ class _DetailDistribusiSisaScreenState
     );
   }
 
-  Widget _buildError(String msg) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline_rounded,
-                  size: 40, color: _C.danger.withValues(alpha: 0.5)),
-              const SizedBox(height: 12),
-              Text(
-                msg,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: _C.dark.withValues(alpha: 0.5),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _load,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _C.dark,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Coba Lagi',
-                    style: TextStyle(fontFamily: 'Poppins')),
-              ),
-            ],
-          ),
-        ),
+  Widget _buildError(String msg) => StateMessage(
+        illustration: StateArt.error,
+        message: msg,
+        action: StateRetryButton(onPressed: _load),
       );
 
   Widget _buildContent(DetailDistribusiSisaModel detail) {
-    final fmtRp = NumberFormat('#,##0', 'id_ID');
-    final fmtNum = NumberFormat('#,##0.##########', 'id_ID');
-    final isRp = detail.satuan.toLowerCase() == 'rp';
+    String fmtNominal(double val, String satuan) =>
+        AppNumber.nominalSatuan(val, satuan);
 
-    String fmtNominal(double val, String satuan) {
-      final s = satuan.toLowerCase();
-      if (s == 'rp') return 'Rp ${fmtRp.format(val)}';
-      return '${fmtNum.format(val)} $satuan';
-    }
-
-    String fmtSisa(double val) =>
-        isRp ? 'Rp ${fmtRp.format(val)}' : '${fmtNum.format(val)} ${detail.satuan}';
+    String fmtSisa(double val) => fmtNominal(val, detail.satuan);
 
     String tanggalFmt() {
       try {
         final dt = DateTime.parse(detail.createdAt).toLocal();
-        return DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(dt);
+        return AppDate.tanggalSingkatJam(dt);
       } catch (_) {
         return detail.createdAt;
       }
@@ -138,7 +100,6 @@ class _DetailDistribusiSisaScreenState
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
       child: Column(
         children: [
-          // ── Hero ────────────────────────────────────────────────────────
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 24),
@@ -151,31 +112,22 @@ class _DetailDistribusiSisaScreenState
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: _C.green.withValues(alpha: 0.12),
+                    color: AppColors.green.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.check_circle_rounded,
-                      color: _C.green, size: 36),
+                      color: AppColors.green, size: 36),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'Distribusi Sisa Selesai',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 17,
-                    color: _C.green,
-                  ),
+                  style: AppText.w700(17, AppColors.green),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'ID: ${detail.distribusiId}',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    color: _C.dark.withValues(alpha: 0.45),
-                  ),
+                  style: AppText.r(11, AppColors.dark.withValues(alpha: 0.45)),
                 ),
               ],
             ),
@@ -183,7 +135,6 @@ class _DetailDistribusiSisaScreenState
 
           const SizedBox(height: 16),
 
-          // ── Info ─────────────────────────────────────────────────────────
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
@@ -209,7 +160,6 @@ class _DetailDistribusiSisaScreenState
             ),
           ),
 
-          // ── Penerima BSI ─────────────────────────────────────────────────
           if (detail.penerimaBsi != null) ...[
             const SizedBox(height: 16),
             Container(
@@ -226,8 +176,8 @@ class _DetailDistribusiSisaScreenState
                   _penerimaRow(
                     p: detail.penerimaBsi!,
                     fmtNominal: fmtNominal,
-                    iconColor: _C.green,
-                    iconBg: _C.green.withValues(alpha: 0.08),
+                    iconColor: AppColors.green,
+                    iconBg: AppColors.green.withValues(alpha: 0.08),
                   ),
                 ],
               ),
@@ -236,7 +186,6 @@ class _DetailDistribusiSisaScreenState
 
           const SizedBox(height: 16),
 
-          // ── Penerima BSU ─────────────────────────────────────────────────
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
@@ -253,19 +202,15 @@ class _DetailDistribusiSisaScreenState
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Text(
                       'Tidak ada BSU penerima.',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        color: _C.dark.withValues(alpha: 0.45),
-                      ),
+                      style: AppText.r(12, AppColors.dark.withValues(alpha: 0.45)),
                     ),
                   )
                 else
                   ...detail.penerimaBsu.map((bsu) => _penerimaRow(
                     p: bsu,
                     fmtNominal: fmtNominal,
-                    iconColor: _C.dark,
-                    iconBg: _C.dark.withValues(alpha: 0.06),
+                    iconColor: AppColors.dark,
+                    iconBg: AppColors.dark.withValues(alpha: 0.06),
                     showAntar: true,
                     onTap: () => Navigator.push(
                       context,
@@ -303,7 +248,7 @@ class _DetailDistribusiSisaScreenState
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               margin: const EdgeInsets.only(bottom: 3),
               decoration: BoxDecoration(
-                color: _C.dark.withValues(alpha: 0.05),
+                color: AppColors.dark.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -311,16 +256,11 @@ class _DetailDistribusiSisaScreenState
                 children: [
                   Text(
                     p.namaBank,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _C.dark.withValues(alpha: 0.6),
-                    ),
+                    style: AppText.w600(11, AppColors.dark.withValues(alpha: 0.6)),
                   ),
                   if (onTap != null)
                     Icon(Icons.chevron_right_rounded,
-                        size: 14, color: _C.dark.withValues(alpha: 0.3)),
+                        size: 14, color: AppColors.dark.withValues(alpha: 0.3)),
                 ],
               ),
             ),
@@ -337,20 +277,14 @@ class _DetailDistribusiSisaScreenState
                       children: [
                         Icon(Icons.subdirectory_arrow_right_rounded,
                             size: 10,
-                            color: _C.dark.withValues(alpha: 0.3)),
+                            color: AppColors.dark.withValues(alpha: 0.3)),
                         const SizedBox(width: 3),
                         Text(t.namaBsu,
-                            style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 9.5,
-                                color: _C.dark.withValues(alpha: 0.4))),
+                            style: AppText.r(9.5, AppColors.dark.withValues(alpha: 0.4))),
                       ],
                     ),
                     Text(fmtNominal(t.transport, p.satuanNominal),
-                        style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 9.5,
-                            color: _C.dark.withValues(alpha: 0.5))),
+                        style: AppText.r(9.5, AppColors.dark.withValues(alpha: 0.5))),
                   ],
                 ),
               )),
@@ -372,27 +306,16 @@ Widget _statCell(String label, String value, {bool isTotal = false}) {
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 12,
-            color: _C.dark.withValues(alpha: 0.45),
-          ),
+          style: AppText.r(12, AppColors.dark.withValues(alpha: 0.45)),
         ),
         Text(
           value,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 12,
-            fontWeight: isTotal ? FontWeight.w700 : FontWeight.w500,
-            color: isTotal ? _C.green : _C.dark.withValues(alpha: 0.75),
-          ),
+          style: AppText.p(12, weight: isTotal ? FontWeight.w700 : FontWeight.w500, color: isTotal ? AppColors.green : AppColors.dark.withValues(alpha: 0.75)),
         ),
       ],
     ),
   );
 }
-
-// ── Shared helpers ────────────────────────────────────────────────────────────
 
 Widget _cardHeader(String title) => Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -400,12 +323,7 @@ Widget _cardHeader(String title) => Padding(
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-              color: _C.dark,
-            ),
+            style: AppText.w700(13, AppColors.dark),
           ),
         ],
       ),
@@ -420,10 +338,10 @@ Widget _infoRow(IconData icon, String label, String value,
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: _C.green.withValues(alpha: 0.08),
+              color: AppColors.green.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 15, color: _C.green),
+            child: Icon(icon, size: 15, color: AppColors.green),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -432,20 +350,11 @@ Widget _infoRow(IconData icon, String label, String value,
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    color: _C.dark.withValues(alpha: 0.45),
-                  ),
+                  style: AppText.r(10, AppColors.dark.withValues(alpha: 0.45)),
                 ),
                 Text(
                   value,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: small ? 10.5 : 12,
-                    color: _C.dark,
-                  ),
+                  style: AppText.w600(small ? 10.5 : 12, AppColors.dark),
                 ),
               ],
             ),
@@ -455,4 +364,4 @@ Widget _infoRow(IconData icon, String label, String value,
     );
 
 Widget _divider() =>
-    Divider(color: _C.dark.withValues(alpha: 0.06), height: 1);
+    Divider(color: AppColors.dark.withValues(alpha: 0.06), height: 1);

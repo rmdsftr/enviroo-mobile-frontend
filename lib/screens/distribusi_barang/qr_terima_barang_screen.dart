@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class QrTerimaBarangScreen extends StatefulWidget {
   const QrTerimaBarangScreen({super.key});
@@ -126,7 +128,7 @@ class _QrTerimaBarangScreenState extends State<QrTerimaBarangScreen>
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF94DF0C).withValues(alpha: 0.10),
+        color: AppColors.neon.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -134,12 +136,12 @@ class _QrTerimaBarangScreenState extends State<QrTerimaBarangScreen>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF94DF0C).withValues(alpha: 0.18),
+              color: AppColors.neon.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
               Icons.qr_code_scanner_rounded,
-              color: Color(0xFF94DF0C),
+              color: AppColors.neon,
               size: 18,
             ),
           ),
@@ -147,12 +149,7 @@ class _QrTerimaBarangScreenState extends State<QrTerimaBarangScreen>
           Expanded(
             child: Text(
               'Scan QR distribusi dari petugas BSI untuk mengkonfirmasi penerimaan barang.',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF013236).withValues(alpha: 0.75),
-              ),
+              style: AppText.w500(11.5, AppColors.dark.withValues(alpha: 0.75)),
             ),
           ),
         ],
@@ -168,7 +165,7 @@ class _QrTerimaBarangScreenState extends State<QrTerimaBarangScreen>
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF013236).withValues(alpha: 0.18),
+            color: AppColors.dark.withValues(alpha: 0.18),
             blurRadius: 32,
             offset: const Offset(0, 16),
           ),
@@ -215,11 +212,11 @@ class _QrTerimaBarangScreenState extends State<QrTerimaBarangScreen>
             Container(
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
-                color: const Color(0xFF94DF0C),
+                color: AppColors.neon,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF94DF0C).withValues(alpha: 0.45),
+                    color: AppColors.neon.withValues(alpha: 0.45),
                     blurRadius: 28,
                     spreadRadius: 6,
                   ),
@@ -243,21 +240,12 @@ class _QrTerimaBarangScreenState extends State<QrTerimaBarangScreen>
             const SizedBox(height: 18),
             Text(
               _isSubmitting ? 'Memproses Distribusi...' : 'Memverifikasi QR...',
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-                color: Colors.white,
-              ),
+              style: AppText.w700(15, Colors.white),
             ),
             const SizedBox(height: 4),
             Text(
               _isSubmitting ? 'Mohon tunggu sebentar' : 'Memproses data distribusi',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.7),
-              ),
+              style: AppText.r(12, Colors.white.withValues(alpha: 0.7)),
             ),
           ],
         ),
@@ -265,8 +253,6 @@ class _QrTerimaBarangScreenState extends State<QrTerimaBarangScreen>
     );
   }
 }
-
-// ─── Scan frame & painters ────────────────────────────────────────────────────
 
 class _ScanFrame extends StatelessWidget {
   const _ScanFrame();
@@ -276,7 +262,7 @@ class _ScanFrame extends StatelessWidget {
     const double size = 230;
     const double bracketLen = 30;
     const double bracketThick = 3.5;
-    const Color bracketColor = Color(0xFF06C0C9);
+    const Color bracketColor = AppColors.cyan;
 
     return SizedBox(
       width: size,
@@ -319,12 +305,7 @@ class _ScanFrame extends StatelessWidget {
             child: Center(
               child: Text(
                 'Arahkan ke QR Distribusi BSI',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white.withValues(alpha: 0.75),
-                ),
+                style: AppText.w500(11, Colors.white.withValues(alpha: 0.75)),
               ),
             ),
           ),

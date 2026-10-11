@@ -12,6 +12,7 @@ import 'package:enviroo/widgets/bottom_bar_custom.dart';
 import 'package:enviroo/screens/petugas/profil_bank_screen.dart';
 import 'package:enviroo/providers/konten_provider.dart';
 import 'package:enviroo/core/network/network_status.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
 
 class HomeBsmScreen extends StatefulWidget {
   const HomeBsmScreen({Key? key}) : super(key: key);
@@ -49,25 +50,17 @@ class _HomeBsmScreenState extends State<HomeBsmScreen> {
     }
   }
 
-  // ─── Muat ulang otomatis saat jaringan pulih ───────────────────────────────
-  //
-  // Menutup NoConnectionScreen saja tidak cukup: layar ini di baliknya masih
-  // menampilkan data gagal-muat dari waktu offline tadi.
-
   NetworkStatus? _net;
   int _lastRecoveryToken = 0;
 
   @override
   void dispose() {
-    // WAJIB — NetworkStatus itu singleton yang hidup seumur app.
     _net?.removeListener(_onNetworkRecovered);
     super.dispose();
   }
 
   void _onNetworkRecovered() {
     if (!mounted || _net == null) return;
-    // Bandingkan token, jangan sekadar "ada notifikasi": NetworkStatus juga
-    // notify saat offline MENYALA, dan itu tidak boleh memicu fetch.
     final token = _net!.recoveryToken;
     if (token == _lastRecoveryToken) return;
     _lastRecoveryToken = token;
@@ -78,7 +71,7 @@ class _HomeBsmScreenState extends State<HomeBsmScreen> {
     return Consumer<DashboardProvider>(
       builder: (context, dashboardProv, child) {
         if (dashboardProv.isLoading) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFF4EA771)));
+          return const Center(child: CircularProgressIndicator(color: AppColors.green));
         }
         if (dashboardProv.error.isNotEmpty) {
           return Center(child: Text(dashboardProv.error, style: const TextStyle(color: Colors.red)));
@@ -95,8 +88,8 @@ class _HomeBsmScreenState extends State<HomeBsmScreen> {
                 child: Column(
                   children: [
                     TopBarCustom(
-                      bgFoto: const Color(0xFF06C0C9),
-                      backgroundColor: const Color(0xFFEAF8E7),
+                      bgFoto: AppColors.cyan,
+                      backgroundColor: AppColors.mintSoft,
                     ),
                     ProfilBsuScreen(
                       namaBank: data.namaBank,
@@ -146,20 +139,17 @@ class _HomeBsmScreenState extends State<HomeBsmScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Katalog & Jadwal tidak lagi jadi tab — keduanya dibuka lewat menu di
-    // beranda (MenuAdminBSM) sebagai route biasa. Urutan di sini harus tetap
-    // sejajar dengan items BottomBarCustom di bawah.
     final List<Widget> pages = [
       _buildDashboardBody(),
       PopScope(
         canPop: false,
-        onPopInvoked: (_) => _goHome(),
+        onPopInvokedWithResult: (_, __) => _goHome(),
         child: ProfilBankScreen(onBack: _goHome),
       ),
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF8E7),
+      backgroundColor: AppColors.mintSoft,
       extendBodyBehindAppBar: true,
       body: Stack(
         children: [

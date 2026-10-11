@@ -8,8 +8,8 @@ import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/pengangkutan_provider.dart';
 import 'package:enviroo/screens/pengangkutan/detail_pengangkutan_screen.dart';
 import 'package:enviroo/screens/pengangkutan/sesi_pengangkutan_screen.dart';
-
-// ─── Screen ─────────────────────────────────────────────────────────────────
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class PengangkutanBsuScreen extends StatefulWidget {
   const PengangkutanBsuScreen({super.key});
@@ -21,16 +21,14 @@ class PengangkutanBsuScreen extends StatefulWidget {
 class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
   bool _isLoading = true;
   List<PengangkutanBsuData> _riwayat = [];
-  SesiActiveData? _sesiAktif; // ← pakai model baru
+  SesiActiveData? _sesiAktif;
 
   PengangkutanProvider? _pengangkutanProvider;
   int _lastRefreshToken = -1;
 
-  // ── Filter bulan-tahun (default 3 bulan terakhir) ─────────────────────────
   DateTime _filterStart = DateTime(DateTime.now().year, DateTime.now().month - 2);
   DateTime _filterEnd = DateTime(DateTime.now().year, DateTime.now().month);
 
-  // Terminal statuses — tidak bisa diubah lagi
   static const _terminalStatuses = {'completed', 'canceled', 'rejected'};
 
   @override
@@ -69,10 +67,8 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
       return;
     }
 
-    // ── Fetch sesi aktif dari endpoint baru ──────────────────────────────────
     final sesiRes = await PengangkutanService.checkSesiActive(bankId);
 
-    // ── Fetch riwayat (get-all) ──────────────────────────────────────────────
     final startDate = '${_filterStart.year}-${_filterStart.month.toString().padLeft(2, '0')}-01';
     final endDate = '${_filterEnd.year}-${_filterEnd.month.toString().padLeft(2, '0')}-${DateTime(_filterEnd.year, _filterEnd.month + 1, 0).day.toString().padLeft(2, '0')}';
     final riwayatRes = await PengangkutanService.getAllPengangkutan(bankId, startDate: startDate, endDate: endDate);
@@ -112,14 +108,10 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
     }).toList();
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  BUILD
-  // ═══════════════════════════════════════════════════════════════════════════
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9F8),
+      backgroundColor: AppColors.surfaceCool,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -133,15 +125,14 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _loadData,
-                color: const Color(0xFF06C0C9),
+                color: AppColors.cyan,
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF06C0C9)))
+                    ? const Center(child: CircularProgressIndicator(color: AppColors.cyan))
                     : SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           const SizedBox(height: 16),
 
-                          // ── Sesi aktif / info card ──
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
                             child: _sesiAktif != null
@@ -150,7 +141,6 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          // ── Riwayat (white container) ──
                           Container(
                             width: double.infinity,
                             constraints: BoxConstraints(
@@ -159,10 +149,7 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
                             decoration: const BoxDecoration(color: Colors.white),
                             padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
                             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              const Text('Riwayat Pengangkutan', style: TextStyle(
-                                fontFamily: 'Poppins', fontSize: 14,
-                                fontWeight: FontWeight.w600, color: Color(0xFF013236),
-                              )),
+                              Text('Riwayat Pengangkutan', style: AppText.w600(14, AppColors.dark)),
                               const SizedBox(height: 12),
                               MonthYearFilterRow(
                                 filterStart: _filterStart,
@@ -189,7 +176,6 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
     );
   }
 
-  // ── Card sesi aktif ─────────────────────────────────────────────────────
   Widget _buildAktifCard(SesiActiveData sesi) {
     final statusColor = _statusColor(sesi.statusTerkini);
     final statusLabel = _statusLabel(sesi.statusTerkini);
@@ -198,50 +184,38 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF013236),
+        color: AppColors.dark,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header row ────────────────────────────────────────────────
           Row(
             children: [
-              const Text(
+              Text(
                 'Pengangkutan Aktif',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
+                style: AppText.w700(14, Colors.white),
               ),
               const Spacer(),
             ],
           ),
 
           const SizedBox(height: 16),
-          Divider(color: Colors.white.withOpacity(0.1), height: 1),
+          Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
           const SizedBox(height: 16),
 
-          // ── Info rows ─────────────────────────────────────────────────
           _infoDetailRowDark(
             Icons.info_outline_rounded,
             'Status Terkini',
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.15),
+                color: statusColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 statusLabel,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: statusColor,
-                ),
+                style: AppText.w700(10, statusColor),
               ),
             ),
           ),
@@ -251,12 +225,7 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
             'BSI',
             Text(
               sesi.namaBsi,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+              style: AppText.w600(12, Colors.white),
             ),
           ),
           const SizedBox(height: 10),
@@ -265,18 +234,12 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
             'ID Pengangkutan',
             Text(
               sesi.pengangkutanId,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+              style: AppText.w600(12, Colors.white),
             ),
           ),
 
           const SizedBox(height: 16),
 
-          // ── Tombol lihat detail ────────────────────────────────────────
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -291,17 +254,13 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
                 );
               },
               icon: const Icon(Icons.open_in_new_rounded, size: 16),
-              label: const Text(
+              label: Text(
                 'Lihat Detail Pengangkutan',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
+                style: AppText.w600(13),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF013236),
+                foregroundColor: AppColors.dark,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(
@@ -322,7 +281,7 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08),
+            color: Colors.white.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, size: 13, color: Colors.white70),
@@ -334,11 +293,7 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  color: Colors.white60,
-                ),
+                style: AppText.r(10, Colors.white60),
               ),
               const SizedBox(height: 2),
               valueWidget,
@@ -349,7 +304,6 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
     );
   }
 
-  // ── Riwayat (terminal statuses) ──────────────────────────────────────────
   Widget _buildRiwayatList() {
     if (_riwayat.isEmpty) {
       return Center(
@@ -358,9 +312,7 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
           child: Column(children: [
             Icon(Icons.history_toggle_off_rounded, size: 44, color: Colors.grey[300]),
             const SizedBox(height: 10),
-            Text('Belum ada riwayat pengangkutan', style: TextStyle(
-              fontFamily: 'Poppins', fontSize: 13, color: Colors.grey[400],
-            )),
+            Text('Belum ada riwayat pengangkutan', style: AppText.r(13, Colors.grey[400])),
           ]),
         ),
       );
@@ -374,9 +326,7 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
           child: Column(children: [
             Icon(Icons.search_off_rounded, size: 44, color: Colors.grey[300]),
             const SizedBox(height: 10),
-            Text('Tidak ada riwayat di rentang waktu ini', style: TextStyle(
-              fontFamily: 'Poppins', fontSize: 13, color: Colors.grey[400],
-            )),
+            Text('Tidak ada riwayat di rentang waktu ini', style: AppText.r(13, Colors.grey[400])),
           ]),
         ),
       );
@@ -393,7 +343,7 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
 
   Widget _buildRiwayatTile(PengangkutanBsuData s) {
     final color = _statusColor(s.status);
-    final bgColor = color.withOpacity(0.1);
+    final bgColor = color.withValues(alpha: 0.1);
 
     return GestureDetector(
       onTap: () {
@@ -412,40 +362,36 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.5),
+          color: Colors.white.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             width: 1,
-            color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+            color: AppColors.dark.withValues(alpha: 0.1),
           ),
         ),
         child: Row(children: [
         Container(
           padding: const EdgeInsets.all(9),
-          decoration: BoxDecoration(color: Color(0xFF013236).withOpacity(0.1), shape: BoxShape.circle),
-          child: Icon(_statusIcon(s.status), color: Color(0xFF013236), size: 18),
+          decoration: BoxDecoration(color: AppColors.dark.withValues(alpha: 0.1), shape: BoxShape.circle),
+          child: Icon(_statusIcon(s.status), color: AppColors.dark, size: 18),
         ),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(s.tanggal, style: const TextStyle(
-            fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF013236),
-          )),
+          Text(s.tanggal, style: AppText.w600(13, AppColors.dark)),
           const SizedBox(height: 3),
-          Text(s.id, style: TextStyle(fontFamily: 'Poppins', fontSize: 11.5, color: Colors.grey[500])),
+          Text(s.id, style: AppText.r(11.5, Colors.grey[500])),
         ])),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(20)),
-          child: Text(_statusLabel(s.status), style: TextStyle(
-            fontFamily: 'Poppins', fontSize: 10.5, fontWeight: FontWeight.w600, color: color,
-          )),
+          child: Text(_statusLabel(s.status), style: AppText.w600(10.5, color)),
         ),
       ]),
     ));
   }
 
   Widget _infoCard() {
-    const teal = Color(0xFF013236);
+    const teal = AppColors.dark;
 
     Widget infoItem(String text) => Padding(
           padding: const EdgeInsets.only(top: 6),
@@ -467,12 +413,7 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
               Expanded(
                 child: Text(
                   text,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    height: 1.55,
-                    color: teal.withValues(alpha: 0.6),
-                  ),
+                  style: AppText.p(11, color: teal.withValues(alpha: 0.6), height: 1.55),
                 ),
               ),
             ],
@@ -497,12 +438,7 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
               const SizedBox(width: 7),
               Text(
                 'Informasi',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11,
-                  color: teal.withValues(alpha: 0.7),
-                ),
+                style: AppText.w600(11, teal.withValues(alpha: 0.7)),
               ),
             ],
           ),
@@ -516,7 +452,6 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
     );
   }
 
-  // ── Status helpers ───────────────────────────────────────────────────────
   String _statusLabel(String s) {
     switch (s) {
       case 'requested': return 'Diajukan';
@@ -531,11 +466,11 @@ class _PengangkutanBsuScreenState extends State<PengangkutanBsuScreen> {
 
   Color _statusColor(String s) {
     switch (s) {
-      case 'completed': return const Color(0xFF4EA771);
+      case 'completed': return AppColors.green;
       case 'canceled': case 'rejected': return Colors.red.shade400;
-      case 'otw':       return const Color(0xFF06C0C9);
+      case 'otw':       return AppColors.cyan;
       case 'approved':  return const Color(0xFF8BC34A);
-      case 'requested': return const Color(0xFFFAA324);
+      case 'requested': return AppColors.warningAlt;
       default: return Colors.grey;
     }
   }

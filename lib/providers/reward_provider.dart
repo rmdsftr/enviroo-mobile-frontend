@@ -6,13 +6,7 @@ import '../models/penjualan_model.dart';
 import '../services/reward_service.dart';
 import 'penjualan_provider.dart' show FetchStatus;
 
-/// State untuk modul reward — menaungi `/reward` dan `/nilai-reward`.
-///
-/// Sebelum ada provider ini, `RewardService` dipanggil langsung oleh tiga
-/// provider berbeda dan respons `/nilai-reward` di-parse dua kali jadi dua model
-/// yang berbeda. Sekarang pemanggilan dan parsing-nya tinggal di satu tempat.
 class RewardProvider extends ChangeNotifier {
-  // ── Daftar jenis reward ──  /reward/get-all
   FetchStatus _allStatus = FetchStatus.idle;
   List<RewardModel> _allReward = [];
   String? _allError;
@@ -21,17 +15,6 @@ class RewardProvider extends ChangeNotifier {
   List<RewardModel> get allReward => _allReward;
   String? get allError => _allError;
 
-  // ── Nilai reward per bank ──  /nilai-reward/get/:bankId
-  //
-  // Satu respons, dua proyeksi: [nilaiReward] untuk konversi poin (dipakai alur
-  // penarikan nasabah) dan [persenNasabah] untuk persentase bagi hasil (dipakai
-  // layar petugas). Keduanya diisi sekali jalan supaya endpoint-nya tidak
-  // dipanggil dua kali.
-  //
-  // ⚠️ Slot ini menyimpan data untuk SATU bankId. Aman karena dua konsumennya
-  // beda peran — persen dibaca petugas, nilai konversi dibaca nasabah — jadi
-  // tidak pernah hidup bersamaan. Jangan anggap aman untuk konsumen baru tanpa
-  // mengecek ulang.
   FetchStatus _nilaiStatus = FetchStatus.idle;
   List<NilaiRewardBank> _nilaiReward = [];
   List<PersenBagiHasilReward> _persenNasabah = [];
@@ -41,8 +24,6 @@ class RewardProvider extends ChangeNotifier {
   List<NilaiRewardBank> get nilaiReward => _nilaiReward;
   List<PersenBagiHasilReward> get persenNasabah => _persenNasabah;
   String? get nilaiError => _nilaiError;
-
-  // ───────────────────────────────────────────────────────────────────────────
 
   Future<void> fetchAllReward() async {
     _allStatus = FetchStatus.loading;

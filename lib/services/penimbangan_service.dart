@@ -5,7 +5,6 @@ import 'package:enviroo/core/network/api_client.dart';
 import 'package:enviroo/core/network/api_failure.dart';
 
 class PenimbanganService {
-  /// Ambil daftar sesi penimbangan hari ini (buat bottom sheet "Kelola Sesi Penimbangan").
   static Future<Map<String, dynamic>> getSesiHariIni(String bankId) async {
     try {
       final response = await ApiClient.get(Uri.parse('${ApiConfig.checkPenimbanganUrl}/$bankId'));
@@ -61,8 +60,6 @@ class PenimbanganService {
     }
   }
 
-  /// Batalkan jadwal penimbangan mendatang (belum dimulai) — beda dari
-  /// [batalkanPenimbangan] yang membatalkan sesi yang SUDAH aktif.
   static Future<Map<String, dynamic>> batalkanJadwalPenimbangan({
     required String jadwalId,
     required String tanggalSesi,
@@ -109,10 +106,6 @@ class PenimbanganService {
     }
   }
 
-  /// Daftar setoran dalam satu sesi penimbangan.
-  ///
-  /// Endpoint-nya `/penimbangan/list-setoran`, jadi rumahnya di sini meski yang
-  /// dikembalikan data setoran — satu prefix endpoint, satu service.
   static Future<Map<String, dynamic>> getListSetoran(String penimbanganId) async {
     try {
       final res = await ApiClient.get(

@@ -8,11 +8,13 @@ import 'package:enviroo/widgets/search.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-// ─── Palette ────────────────────────────────────────────────────────────────
 class _C {
-  static const bg        = Color(0xFFF2FAF0);
-  static const dark      = Color(0xFF0D3B3E);
+  static const bg        = AppColors.surfaceLeaf;
+  static const dark      = AppColors.darkAlt;
   static const midGreen  = Color(0xFF4B9E6B);
   static const softGreen = Color(0xFFD8F0D0);
   static const redSoft   = Color(0xFFFF5A36);
@@ -124,8 +126,8 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildHeader(),        // ← pindah ke sini
-                          _buildStatCards(),     // ← pindah ke sini
+                          _buildHeader(),
+                          _buildStatCards(),
                           const SizedBox(height: 16),
                           ConstrainedBox(
                             constraints: BoxConstraints(
@@ -165,12 +167,7 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
       padding: const EdgeInsets.fromLTRB(28, 6, 28, 0),
       child: Text(
         "Di sini kamu bisa lihat seluruh Bank Sampah Unit (BSU) yang terasosiasi dengan BSI kamu",
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 12.5,
-          height: 1.6,
-          color: _C.dark.withValues(alpha: 0.75),
-        ),
+        style: AppText.p(12.5, color: _C.dark.withValues(alpha: 0.75), height: 1.6),
       ),
     );
   }
@@ -184,7 +181,7 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(child: _buildMiniStat(value: "$_totalAktif",    label: "Aktif",         color: const Color(0xFF4EA771))),
+              Expanded(child: _buildMiniStat(value: "$_totalAktif",    label: "Aktif",         color: AppColors.green)),
               const SizedBox(width: 10),
               Expanded(child: _buildMiniStat(value: "$_totalNonaktif", label: "Nonaktif",      color: _C.redSoft)),
               const SizedBox(width: 10),
@@ -203,7 +200,7 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFF013236).withValues(alpha: 0.08),
+          color: AppColors.dark.withValues(alpha: 0.08),
           width: 1,
         ),
       ),
@@ -215,22 +212,12 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
             children: [
               Text(
                 "$_totalBsu",
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: _C.dark,
-                  height: 1.0,
-                ),
+                style: AppText.p(32, weight: FontWeight.bold, color: _C.dark, height: 1.0),
               ),
               const SizedBox(height: 2),
               Text(
                 "Total BSU",
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11.5,
-                  color: _C.dark.withValues(alpha: 0.5),
-                ),
+                style: AppText.r(11.5, _C.dark.withValues(alpha: 0.5)),
               ),
             ],
           ),
@@ -254,7 +241,7 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFF013236).withValues(alpha: 0.08),
+          color: AppColors.dark.withValues(alpha: 0.08),
           width: 1,
         ),
       ),
@@ -262,24 +249,13 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
         children: [
           Text(
             value,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: color,
-              height: 1.0,
-            ),
+            style: AppText.p(22, weight: FontWeight.bold, color: color, height: 1.0),
           ),
           const SizedBox(height: 4),
           Text(
             label,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 10.5,
-              fontWeight: FontWeight.w500,
-              color: _C.dark.withValues(alpha: 0.45),
-            ),
+            style: AppText.w500(10.5, _C.dark.withValues(alpha: 0.45)),
           ),
         ],
       ),
@@ -318,42 +294,15 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
     );
   }
 
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline_rounded, size: 52, color: _C.dark.withValues(alpha: 0.2)),
-            const SizedBox(height: 16),
-            Text(
-              _error,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: _C.dark.withValues(alpha: 0.45),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _fetchBsu,
-              icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Coba Lagi', style: TextStyle(fontFamily: 'Poppins', fontSize: 13)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _C.midGreen,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-              ),
-            ),
-          ],
+  Widget _buildError() => StateMessage(
+        illustration: StateArt.error,
+        message: _error,
+        action: StateRetryButton.icon(
+          onPressed: _fetchBsu,
+          color: _C.midGreen,
+          radius: 30,
         ),
-      ),
-    );
-  }
+      );
 
   Widget _buildListBsu() {
     final list = _filtered;
@@ -367,11 +316,7 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
               const SizedBox(height: 12),
               Text(
                 "BSU tidak ditemukan",
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: _C.dark.withValues(alpha: 0.35),
-                ),
+                style: AppText.r(13, _C.dark.withValues(alpha: 0.35)),
               ),
             ],
           ),
@@ -390,7 +335,7 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
   }
 
   Widget _buildCardBsu(BsuUnitModel bsu) {
-    final Color dotColor = bsu.isActive ? const Color(0xFF4EA771) : _C.redSoft;
+    final Color dotColor = bsu.isActive ? AppColors.green : _C.redSoft;
 
     final initials = bsu.namaBank
         .trim()
@@ -415,7 +360,7 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             width: 1,
-            color: const Color(0xFF013236).withValues(alpha: 0.08),
+            color: AppColors.dark.withValues(alpha: 0.08),
           ),
         ),
         child: Row(
@@ -453,12 +398,7 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
                 children: [
                   Text(
                     bsu.namaBank,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: _C.dark,
-                    ),
+                    style: AppText.w600(13, _C.dark),
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
@@ -485,11 +425,7 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
         Expanded(
           child: Text(
             text,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 10,
-              color: _C.dark.withValues(alpha: 0.45),
-            ),
+            style: AppText.r(10, _C.dark.withValues(alpha: 0.45)),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -508,12 +444,7 @@ class _ListBsuScreenState extends State<ListBsuScreen> {
       alignment: Alignment.center,
       child: Text(
         initials,
-        style: const TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-          color: _C.midGreen,
-        ),
+        style: AppText.w700(16, _C.midGreen),
       ),
     );
   }

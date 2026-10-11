@@ -1,10 +1,14 @@
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/screens/splash_screen.dart';
+import 'package:enviroo/screens/verifikasi_otp_screen.dart';
+import 'package:enviroo/widgets/confirm_bottom_sheet.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/success_bottom_sheet.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class UbahPasswordScreen extends StatefulWidget {
   @override
@@ -21,6 +25,32 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
   bool _obscureKonfirmasi = true;
   bool _isLoading = false;
 
+  bool _isPassBaruInvalid = false;
+  bool _isKonfirmasiInvalid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordBaruController.addListener(_validatePasswordFields);
+    _konfirmasiPasswordController.addListener(_validatePasswordFields);
+  }
+
+  void _validatePasswordFields() {
+    final baru = _passwordBaruController.text.trim();
+    final konfirmasi = _konfirmasiPasswordController.text.trim();
+
+    setState(() {
+      _isPassBaruInvalid = baru.isNotEmpty && !_isPasswordStrong(baru);
+      _isKonfirmasiInvalid = konfirmasi.isNotEmpty && baru != konfirmasi;
+    });
+  }
+
+  bool _isPasswordStrong(String password) {
+    return password.length >= 8 &&
+        password.contains(RegExp(r'[A-Z]')) &&
+        password.contains(RegExp(r'[0-9]'));
+  }
+
   void _onSimpanPassword() async {
     final passwordLama = _passwordLamaController.text.trim();
     final passwordBaru = _passwordBaruController.text.trim();
@@ -31,8 +61,13 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
       return;
     }
 
+    if (!_isPasswordStrong(passwordBaru)) {
+      setState(() => _isPassBaruInvalid = true);
+      return;
+    }
+
     if (passwordBaru != konfirmasiPassword) {
-      showCustomSnackBar(context, 'Konfirmasi password baru tidak cocok');
+      setState(() => _isKonfirmasiInvalid = true);
       return;
     }
 
@@ -54,9 +89,6 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
     if (response['success']) {
       if (!mounted) return;
 
-      // Ganti password mematikan seluruh sesi di server — termasuk perangkat
-      // yang dipakai mengganti password ini. Jadi user wajib login ulang,
-      // bukan kembali ke profil.
       await showSuccessBottomSheet(
         context,
         title: 'Berhasil!',
@@ -81,6 +113,52 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
     }
   }
 
+  Future<void> _onLupaPasswordLama() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final email = auth.currentUser?.email ?? '';
+
+    if (email.isEmpty) {
+      showCustomSnackBar(
+          context, 'Email akun tidak ditemukan. Silakan login ulang.');
+      return;
+    }
+
+    final lanjut = await showConfirmBottomSheet(
+      context,
+      icon: Icons.mark_email_read_outlined,
+      title: 'Reset Lewat Email?',
+      message: 'Kode OTP akan dikirim ke $email. Setelah password diganti, '
+          'kamu perlu login kembali.',
+      confirmLabel: 'Kirim Kode',
+    );
+    if (!mounted || !lanjut) return;
+
+    setState(() => _isLoading = true);
+    final result = await auth.sendEmailForgetPassword(email);
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result['success'] != true) {
+      showCustomSnackBar(
+          context, result['message'] ?? 'Gagal mengirim kode OTP');
+      return;
+    }
+
+    await auth.savePendingReset(email, result['expired_at'] as String?);
+    if (!mounted) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VerifikasiOtpScreen(
+          email: email,
+          expiredAt: result['expired_at'] as String?,
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _passwordLamaController.dispose();
@@ -89,94 +167,107 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
     super.dispose();
   }
 
+  Widget _buildRequirement(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: [
+          Icon(Icons.circle,
+              size: 5, color: AppColors.dark.withValues(alpha: 0.5)),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: AppText.r(11, AppColors.dark.withValues(alpha: 0.5)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPasswordField({
     required TextEditingController controller,
     required String hintText,
     required bool obscureText,
     required VoidCallback toggleObscure,
+    bool isInvalid = false,
+    String errorText = '',
   }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      style: const TextStyle(
-        fontFamily: 'Poppins',
-        fontSize: 14,
-        color: Color(0xFF2D3748),
-        fontWeight: FontWeight.w600,
-      ),
-      decoration: InputDecoration(
-        contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
-        hintText: hintText,
-        hintStyle: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 14,
-          color: const Color(0xFF013236).withOpacity(0.35),
-        ),
-        prefixIcon: const Icon(
-          Icons.lock_rounded,
-          color: Color(0xFF013236),
-        ),
-        suffixIcon: IconButton(
-          icon: Icon(
-            obscureText ? Icons.visibility_off : Icons.visibility,
-            color: const Color(0xFF013236).withOpacity(0.5),
-          ),
-          onPressed: toggleObscure,
-        ),
-        filled: true,
-        fillColor: const Color(0xFF013236).withOpacity(0.1),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(
-            color: Color(0xFF013236),
-            width: 1.5,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: controller,
+          obscureText: obscureText,
+          style: AppText.w600(14, Color(0xFF2D3748)),
+          decoration: InputDecoration(
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+            hintText: hintText,
+            hintStyle: AppText.r(14, AppColors.dark.withValues(alpha: 0.35)),
+            suffixIcon: IconButton(
+              icon: Icon(
+                obscureText ? Icons.visibility_off : Icons.visibility,
+                color: isInvalid
+                    ? AppColors.dangerDeep
+                    : AppColors.dark.withValues(alpha: 0.5),
+              ),
+              onPressed: toggleObscure,
+            ),
+            filled: true,
+            fillColor: isInvalid
+                ? AppColors.dangerDeep.withValues(alpha: 0.1)
+                : AppColors.dark.withValues(alpha: 0.1),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: isInvalid
+                  ? const BorderSide(color: AppColors.dangerDeep, width: 1.5)
+                  : const BorderSide(color: AppColors.dark, width: 1.5),
+            ),
           ),
         ),
-      ),
+        if (isInvalid)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 8),
+            child: Text(
+              errorText,
+              style: AppText.w600(12, AppColors.dangerDeep),
+            ),
+          ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const TopBarBack(title: ""),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 30),
                 child: Text(
                   "Ubah Password",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF013236),
-                    fontSize: 20,
-                  ),
+                  style: AppText.w700(20, AppColors.dark),
                 ),
               ),
               const SizedBox(height: 15),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 30),
                 child: Text(
                   "Masukkan password lama dan password baru kamu untuk meningkatkan keamanan akun.",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    height: 1.5,
-                    color: Color(0xFF013236),
-                  ),
+                  style: AppText.p(13, color: AppColors.dark, height: 1.5),
                   textAlign: TextAlign.justify,
                 ),
               ),
@@ -196,6 +287,53 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
                         });
                       },
                     ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: GestureDetector(
+                        onTap: _isLoading ? null : _onLupaPasswordLama,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 10, right: 4),
+                          child: Text(
+                            "Lupa password lama?",
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.dark,
+                              decoration: TextDecoration.underline,
+                              decorationColor: AppColors.dark,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          width: 1,
+                          color: AppColors.dark.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Syarat password baru:",
+                            style: AppText.w600(
+                                11, AppColors.dark.withValues(alpha: 0.5)),
+                          ),
+                          const SizedBox(height: 4),
+                          _buildRequirement("Minimal 8 karakter"),
+                          _buildRequirement("Mengandung huruf kapital (A-Z)"),
+                          _buildRequirement("Mengandung angka (0-9)"),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 20),
                     _buildPasswordField(
                       controller: _passwordBaruController,
@@ -206,6 +344,9 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
                           _obscureBaru = !_obscureBaru;
                         });
                       },
+                      isInvalid: _isPassBaruInvalid,
+                      errorText:
+                          "Password minimal 8 karakter, huruf kapital & angka",
                     ),
                     const SizedBox(height: 20),
                     _buildPasswordField(
@@ -217,6 +358,8 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
                           _obscureKonfirmasi = !_obscureKonfirmasi;
                         });
                       },
+                      isInvalid: _isKonfirmasiInvalid,
+                      errorText: "Password tidak cocok",
                     ),
                   ],
                 ),
@@ -226,14 +369,14 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
         ),
       ),
       bottomNavigationBar: BottomAppBar(
-        color: const Color(0xFFFFFFFF),
+        color: Colors.white,
         child: Container(
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.15),
+                color: Colors.black.withValues(alpha: 0.15),
                 blurRadius: 12,
                 offset: const Offset(0, 6),
               ),
@@ -243,7 +386,7 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
             onPressed: _isLoading ? null : _onSimpanPassword,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: const Color(0xFF013236),
+              backgroundColor: AppColors.dark,
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),
@@ -258,14 +401,9 @@ class _UbahPasswordState extends State<UbahPasswordScreen> {
                       strokeWidth: 2,
                     ),
                   )
-                : const Text(
+                : Text(
                     "Simpan Password",
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFFFFFFF),
-                    ),
+                    style: AppText.w600(16, Colors.white),
                   ),
           ),
         ),

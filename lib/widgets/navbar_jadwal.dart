@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class NavbarJadwal extends StatelessWidget {
   final int selectedIndex;
@@ -20,10 +22,10 @@ class NavbarJadwal extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(50),
-          border: Border.all(color: const Color(0xFF013236).withAlpha(12)),
+          border: Border.all(color: AppColors.dark.withAlpha(12)),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF013236).withAlpha(12),
+              color: AppColors.dark.withAlpha(12),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -53,12 +55,12 @@ class NavbarJadwal extends StatelessWidget {
           curve: Curves.easeInOut,
           padding: const EdgeInsets.symmetric(vertical: 11),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF94DF0C) : Colors.transparent,
+            color: isSelected ? AppColors.neon : Colors.transparent,
             borderRadius: BorderRadius.circular(50),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF94DF0C).withAlpha(50),
+                      color: AppColors.neon.withAlpha(50),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -68,14 +70,9 @@ class NavbarJadwal extends StatelessWidget {
           child: Center(
             child: AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: isSelected
-                    ? const Color(0xFF013236)
-                    : const Color(0xFF013236),
-              ),
+              style: AppText.w600(13, isSelected
+                    ? AppColors.dark
+                    : AppColors.dark),
               child: Text(label),
             ),
           ),

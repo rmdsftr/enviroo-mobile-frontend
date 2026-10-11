@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import '../../core/format/app_date.dart';
+import '../../core/format/app_number.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/bagi_hasil_bank_model.dart';
@@ -8,12 +9,10 @@ import '../../providers/bagi_hasil_bank_provider.dart';
 import '../../widgets/topbar_back.dart';
 import '../bagi_hasil/detail_distribusi_sisa_screen.dart';
 import 'struk_bagi_hasil_nasabah.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-class _C {
-  static const dark = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
-  static const danger = Color(0xFFD94848);
-}
 
 class DetailBagiHasilScreen extends StatefulWidget {
   final String bagiHasilId;
@@ -53,7 +52,7 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
                   builder: (_, prov, __) {
                     if (prov.detailStatus == BhBankStatus.loading) {
                       return const Center(
-                          child: CircularProgressIndicator(color: _C.green));
+                          child: CircularProgressIndicator(color: AppColors.green));
                     }
                     if (prov.detailStatus == BhBankStatus.error ||
                         prov.detail == null) {
@@ -70,39 +69,10 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
     );
   }
 
-  Widget _buildError(String msg) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline_rounded,
-                  size: 40, color: _C.danger.withValues(alpha: 0.5)),
-              const SizedBox(height: 12),
-              Text(
-                msg,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: _C.dark.withValues(alpha: 0.5),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _load,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _C.dark,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Coba Lagi',
-                    style: TextStyle(fontFamily: 'Poppins')),
-              ),
-            ],
-          ),
-        ),
+  Widget _buildError(String msg) => StateMessage(
+        illustration: StateArt.error,
+        message: msg,
+        action: StateRetryButton(onPressed: _load),
       );
 
   Widget _buildContent(BagiHasilBankDetail d) {
@@ -118,7 +88,6 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
           const SizedBox(height: 16),
           _buildRingkasan(d),
           if (isBsm) ...[
-            // BSM: kumpulkan nasabah dari nasabahBsi ATAU dari penerima (flatten)
             Builder(builder: (_) {
               final List<BhNasabahPenerima> nasabah = [
                 if (d.nasabahBsi != null) ...d.nasabahBsi!,
@@ -145,13 +114,11 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
     );
   }
 
-  // ── Hero ────────────────────────────────────────────────────────────────────
-
   Widget _buildHero(BagiHasilBankDetail d) {
     final color = _rewardColor(d.rewardId);
     final icon = _rewardIcon(d.rewardId);
     final tanggal =
-        DateFormat('EEEE, dd MMMM yyyy · HH:mm', 'id_ID').format(d.tanggal);
+        AppDate.tanggalPenuhJam(d.tanggal);
 
     return Container(
       width: double.infinity,
@@ -173,38 +140,23 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
           const SizedBox(height: 12),
           Text(
             'Bagi Hasil Berhasil',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-              color: color,
-            ),
+            style: AppText.w700(16, color),
           ),
           const SizedBox(height: 3),
           Text(
             'ID : ${d.bagiHasilId}',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w500,
-              fontSize: 10,
-              color: _C.dark.withValues(alpha: 0.5),
-            ),
+            style: AppText.w500(10, AppColors.dark.withValues(alpha: 0.5)),
           ),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: _C.dark.withValues(alpha: 0.05),
+              color: AppColors.dark.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               tanggal,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: _C.dark.withValues(alpha: 0.6),
-              ),
+              style: AppText.w500(10, AppColors.dark.withValues(alpha: 0.6)),
             ),
           ),
         ],
@@ -212,11 +164,8 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
     );
   }
 
-  // ── Ringkasan ───────────────────────────────────────────────────────────────
-
   Widget _buildRingkasan(BagiHasilBankDetail d) {
-    // Tentukan satuan dari nasabah pertama yang ada
-    String satuan = 'rp'; // default
+    String satuan = 'rp';
     final firstNasabah = d.penerima.isNotEmpty
         ? d.penerima.first.nasabahPenerima.isNotEmpty
             ? d.penerima.first.nasabahPenerima.first
@@ -241,17 +190,12 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: _C.green.withValues(alpha: 0.1),
+                color: AppColors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text(
+              child: Text(
                 'Lihat Distribusi',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: _C.green,
-                ),
+                style: AppText.w600(10, AppColors.green),
               ),
             ),
           )
@@ -281,8 +225,6 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
       ),
     );
   }
-
-  // ── Penerima BSU ────────────────────────────────────────────────────────────
 
   Widget _buildPenerimaSection(BagiHasilBankDetail d) {
     return Container(
@@ -321,17 +263,12 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             margin: const EdgeInsets.only(bottom: 6),
             decoration: BoxDecoration(
-              color: _C.dark.withValues(alpha: 0.05),
+              color: AppColors.dark.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               bsu.namaBank,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: _C.dark.withValues(alpha: 0.6),
-              ),
+              style: AppText.w600(11, AppColors.dark.withValues(alpha: 0.6)),
             ),
           ),
           if (bsu.nasabahPenerima.isNotEmpty)
@@ -340,8 +277,6 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
       ),
     );
   }
-
-  // ── Nasabah BSI ─────────────────────────────────────────────────────────────
 
   Widget _buildNasabahBsiCard(BagiHasilBankDetail d) {
     return Container(
@@ -354,14 +289,12 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _cardHeader('Nasabah Langsung (${d.nasabahBsi!.length})'),
+          _cardHeader('Nasabah Penerima (${d.nasabahBsi!.length})'),
           ...d.nasabahBsi!.map((n) => _buildNasabahRow(n)),
         ],
       ),
     );
   }
-
-  // ── Penerima BSM (langsung nasabah, tanpa layer BSU) ────────────────────────
 
   Widget _buildPenerimaBsmSection(List<BhNasabahPenerima> nasabah) {
     return Container(
@@ -397,21 +330,16 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: _C.green.withValues(alpha: 0.08),
+                color: AppColors.green.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.person_rounded, size: 13, color: _C.green),
+              child: const Icon(Icons.person_rounded, size: 13, color: AppColors.green),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 n.namaNasabah,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                  color: _C.dark,
-                ),
+                style: AppText.w600(12, AppColors.dark),
               ),
             ),
             const SizedBox(width: 8),
@@ -419,16 +347,11 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
               children: [
                 Text(
                   _fmtBySatuan(n.totalDiterima, n.satuanDiterima),
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                    color: _C.green,
-                  ),
+                  style: AppText.w700(12, AppColors.green),
                 ),
                 const SizedBox(width: 4),
                 Icon(Icons.chevron_right_rounded,
-                    size: 14, color: _C.dark.withValues(alpha: 0.3)),
+                    size: 14, color: AppColors.dark.withValues(alpha: 0.3)),
               ],
             ),
           ],
@@ -438,12 +361,10 @@ class _DetailBagiHasilScreenState extends State<DetailBagiHasilScreen> {
   }
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
 Color _rewardColor(int rewardId) {
   if (rewardId == 2) return const Color(0xFFF2C94C);
   if (rewardId == 3) return const Color(0xFF9B51E0);
-  return _C.green;
+  return AppColors.green;
 }
 
 IconData _rewardIcon(int rewardId) {
@@ -452,24 +373,17 @@ IconData _rewardIcon(int rewardId) {
   return Icons.payments_rounded;
 }
 
-String _fmtBySatuan(double val, String satuan) {
-  final f = NumberFormat('#,##0.##', 'id_ID');
-  final s = satuan.toLowerCase();
-  if (s == 'rp' || s == 'rupiah') return 'Rp ${f.format(val)}';
-  if (s == 'poin') return '${f.format(val.round())} poin';
-  return '${f.format(val)} $satuan';
-}
+String _fmtBySatuan(double val, String satuan) =>
+    AppNumber.tampakRupiah(satuan)
+        ? AppNumber.rupiah(val,
+            maksDesimal: AppNumber.presisiSistem)
+        : AppNumber.denganSatuan(val, satuan);
 
 Widget _cardHeader(String title) => Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         title,
-        style: const TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w700,
-          fontSize: 13,
-          color: _C.dark,
-        ),
+        style: AppText.w700(13, AppColors.dark),
       ),
     );
 
@@ -483,10 +397,10 @@ Widget _infoRow(IconData icon, String label, String value,
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: _C.green.withValues(alpha: 0.08),
+              color: AppColors.green.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 15, color: _C.green),
+            child: Icon(icon, size: 15, color: AppColors.green),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -495,20 +409,11 @@ Widget _infoRow(IconData icon, String label, String value,
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    color: _C.dark.withValues(alpha: 0.45),
-                  ),
+                  style: AppText.r(10, AppColors.dark.withValues(alpha: 0.45)),
                 ),
                 Text(
                   value,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: small ? 10.5 : 12,
-                    color: _C.dark,
-                  ),
+                  style: AppText.w600(small ? 10.5 : 12, AppColors.dark),
                 ),
               ],
             ),
@@ -518,4 +423,4 @@ Widget _infoRow(IconData icon, String label, String value,
       ),
     );
 
-Widget _divider() => Divider(color: _C.dark.withValues(alpha: 0.06), height: 1);
+Widget _divider() => Divider(color: AppColors.dark.withValues(alpha: 0.06), height: 1);

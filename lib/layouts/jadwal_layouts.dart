@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notifikasi_provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class JadwalSetoranSection extends StatefulWidget {
   const JadwalSetoranSection({super.key});
@@ -20,8 +22,6 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
 
   late final AppLifecycleListener _lifecycleListener;
 
-  static const _darkTeal = Color(0xFF013236);
-  static const _greenAccent = Color(0xFF4EA771);
 
   @override
   void initState() {
@@ -78,17 +78,11 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 27),
             child: Text(
               "Info Bank Sampah",
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: _darkTeal,
-              ),
+              style: AppText.w600(15, AppColors.dark),
             ),
           ),
 
@@ -122,8 +116,6 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
     );
   }
 
-  // ── Card ──────────────────────────────────────────────────────────────────────
-
   Widget _buildBankCard(DetailBankModel bank) {
     final lokasi = [
       bank.alamat,
@@ -145,7 +137,6 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ─── Row 1: foto + nama_bank/bank_id + notif ────────────────────
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -154,7 +145,7 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
                   height: 46,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _greenAccent.withValues(alpha: 0.12),
+                    color: AppColors.green.withValues(alpha: 0.12),
                   ),
                   child: ClipOval(
                     child: bank.photoUrl.isNotEmpty
@@ -175,23 +166,14 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
                     children: [
                       Text(
                         bank.namaBank,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: _darkTeal,
-                        ),
+                        style: AppText.w700(13, AppColors.dark),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
                       Text(
                         bank.bankId,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 10,
-                          color: _darkTeal.withValues(alpha: 0.45),
-                        ),
+                        style: AppText.r(10, AppColors.dark.withValues(alpha: 0.45)),
                       ),
                     ],
                   ),
@@ -221,7 +203,7 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
                             height: 38,
                             decoration: const BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _darkTeal,
+                              color: AppColors.dark,
                             ),
                             child: const Icon(
                               Icons.chat_rounded,
@@ -236,7 +218,7 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF94DF0C),
+                                  color: AppColors.neon,
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(color: Colors.white, width: 1.5),
                                 ),
@@ -244,13 +226,7 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
                                 child: Text(
                                   unread > 9 ? '9+' : '$unread',
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 9,
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w700,
-                                    color: _darkTeal,
-                                    height: 1.2,
-                                  ),
+                                  style: AppText.p(9, weight: FontWeight.w700, color: AppColors.dark, height: 1.2),
                                 ),
                               ),
                             ),
@@ -262,31 +238,23 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
               ],
             ),
 
-            // ─── Row 2: deskripsi ────────────────────────────────────────────
             if (bank.deskripsi.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
                 bank.deskripsi,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11.5,
-                  color: _darkTeal.withValues(alpha: 0.65),
-                  height: 1.5,
-                ),
+                style: AppText.p(11.5, color: AppColors.dark.withValues(alpha: 0.65), height: 1.5),
               ),
             ],
 
-            // ─── Divider antara deskripsi & lokasi ──────────────────────────
             if (bank.deskripsi.isNotEmpty && lokasi.isNotEmpty) ...[
               const SizedBox(height: 12),
               Divider(
                 height: 1,
                 thickness: 1,
-                color: _darkTeal.withValues(alpha: 0.08),
+                color: AppColors.dark.withValues(alpha: 0.08),
               ),
             ],
 
-            // ─── Row 3: lokasi ───────────────────────────────────────────────
             if (lokasi.isNotEmpty) ...[
               const SizedBox(height: 12),
               Row(
@@ -295,18 +263,13 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
                   Icon(
                     Icons.location_on_outlined,
                     size: 14,
-                    color: _greenAccent.withValues(alpha: 0.75),
+                    color: AppColors.green.withValues(alpha: 0.75),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       lokasi,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: _greenAccent.withValues(alpha: 0.75),
-                        height: 1.4,
-                      ),
+                      style: AppText.p(11, color: AppColors.green.withValues(alpha: 0.75), height: 1.4),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -321,6 +284,6 @@ class JadwalSetoranSectionState extends State<JadwalSetoranSection> {
   }
 
   Widget _defaultAvatar() {
-    return Icon(Icons.account_balance_rounded, color: _greenAccent, size: 22);
+    return Icon(Icons.account_balance_rounded, color: AppColors.green, size: 22);
   }
 }

@@ -11,17 +11,16 @@ import 'package:provider/provider.dart';
 import 'package:enviroo/providers/nasabah_provider.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/models/nasabah_model.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-// ─── Palette ────────────────────────────────────────────────────────────────
 class _C {
-  static const bg        = Color(0xFFF2FAF0); // putih-hijau sangat terang
-  static const dark      = Color(0xFF0D3B3E); // teal gelap
-  static const midGreen  = Color(0xFF4B9E6B); // hijau tengah
-  static const softGreen = Color(0xFFD8F0D0); // hijau pucat
-  static const redSoft   = Color(0xFFFF5A36); // merah nonaktif
-  static const orangeSoft = Color(0xFFFFA726); // orange pending
+  static const dark      = AppColors.darkAlt;
+  static const midGreen  = Color(0xFF4B9E6B);
+  static const softGreen = Color(0xFFD8F0D0);
+  static const redSoft   = Color(0xFFFF5A36);
+  static const orangeSoft = Color(0xFFFFA726);
 }
-
 
 
 class KelolaNasabahScreen extends StatefulWidget {
@@ -34,7 +33,6 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
   String _searchQuery  = '';
   String _filterStatus = 'Semua';
 
-  // ── BSI-only dropdown state ───────────────────────────────────────────────
   bool _isBsi = false;
   String? _selectedBankId;
   List<BsuUnitModel> _bsuUnits = [];
@@ -87,7 +85,6 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // Background image
           Positioned.fill(
             child: Image.asset(
               'assets/images/bg_struk2.webp',
@@ -109,7 +106,6 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
                         if (_isBsi) _buildBankDropdown(),
                         _buildStatCards(),
                         const SizedBox(height: 18),
-                        // White panel: search, filter, list
                         ConstrainedBox(
                           constraints: BoxConstraints(
                             minHeight: MediaQuery.of(context).size.height,
@@ -145,12 +141,7 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
       padding: const EdgeInsets.fromLTRB(28, 6, 28, 0),
       child: Text(
         "Di sini kamu bisa lihat daftar nasabah yang tergabung di bank sampah beserta keaktifan mereka",
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 12.5,
-          height: 1.6,
-          color: _C.dark.withValues(alpha:0.75),
-        ),
+        style: AppText.p(12.5, color: _C.dark.withValues(alpha:0.75), height: 1.6),
       ),
     );
   }
@@ -164,14 +155,13 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: const Color(0xFF013236).withValues(alpha: 0.08),
+            color: AppColors.dark.withValues(alpha: 0.08),
             width: 1,
           ),
         ),
         child: IntrinsicHeight(
           child: Row(
             children: [
-              // Kolom 1 — Total
               Expanded(
                 flex: 5,
                 child: Column(
@@ -180,22 +170,12 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
                   children: [
                     Text(
                       "$_totalSemua",
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: _C.dark,
-                        height: 1.0,
-                      ),
+                      style: AppText.p(32, weight: FontWeight.bold, color: _C.dark, height: 1.0),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       "Total Nasabah",
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: _C.dark.withValues(alpha: 0.45),
-                      ),
+                      style: AppText.r(11, _C.dark.withValues(alpha: 0.45)),
                     ),
                   ],
                 ),
@@ -205,13 +185,12 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
                 thickness: 0.5,
                 color: _C.dark.withValues(alpha: 0.1),
               ),
-              // Kolom 2 — 3 baris
               Expanded(
                 flex: 6,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildMiniStat(value: "$_totalAktif",    label: "Aktif",    color: const Color(0xFF4EA771)),
+                    _buildMiniStat(value: "$_totalAktif",    label: "Aktif",    color: AppColors.green),
                     Divider(height: 10, thickness: 0.5, color: _C.dark.withValues(alpha: 0.08)),
                     _buildMiniStat(value: "$_totalPending",  label: "Pending",  color: _C.orangeSoft),
                     Divider(height: 10, thickness: 0.5, color: _C.dark.withValues(alpha: 0.08)),
@@ -236,23 +215,12 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
       children: [
         Text(
           value,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: color,
-            height: 1.0,
-          ),
+          style: AppText.p(18, weight: FontWeight.bold, color: color, height: 1.0),
         ),
         const SizedBox(width: 6),
         Text(
           label,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: _C.dark.withValues(alpha: 0.4),
-          ),
+          style: AppText.w500(11, _C.dark.withValues(alpha: 0.4)),
         ),
       ],
     );
@@ -344,7 +312,7 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
             Icon(Icons.person_search_rounded, size: 52, color: _C.dark.withValues(alpha:0.15)),
             const SizedBox(height: 12),
             Text("Nasabah tidak ditemukan",
-                style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: _C.dark.withValues(alpha:0.35))),
+                style: AppText.r(13, _C.dark.withValues(alpha:0.35))),
           ]),
         ),
       );
@@ -362,7 +330,7 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
   Widget _buildCardNasabah(NasabahModel nasabah) {
     final statusLower = nasabah.statusNasabah.toLowerCase();
     final Color dotColor = statusLower == 'aktif'
-        ? const Color(0xFF4EA771)
+        ? AppColors.green
         : statusLower == 'pending'
             ? _C.orangeSoft
             : _C.redSoft;
@@ -389,7 +357,7 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withValues(alpha: 0.08),
+          color: AppColors.dark.withValues(alpha: 0.08),
         ),
       ),
       child: Row(
@@ -427,12 +395,7 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
               children: [
                 Text(
                   nasabah.user.nama,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: _C.dark,
-                  ),
+                  style: AppText.w600(13, _C.dark),
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
@@ -456,11 +419,7 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
         Expanded(
           child: Text(
             text,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 10,
-              color: _C.dark.withValues(alpha: 0.45),
-            ),
+            style: AppText.r(10, _C.dark.withValues(alpha: 0.45)),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -479,12 +438,7 @@ class _KelolaNasabahScreenState extends State<KelolaNasabahScreen> {
       alignment: Alignment.center,
       child: Text(
         initials,
-        style: const TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-          color: _C.midGreen,
-        ),
+        style: AppText.w700(16, _C.midGreen),
       ),
     );
   }

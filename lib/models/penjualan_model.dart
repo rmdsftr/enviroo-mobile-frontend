@@ -1,6 +1,5 @@
-import 'package:intl/intl.dart';
+import '../core/format/app_date.dart';
 
-// ─── Reward (Master Data) ───────────────────────────────────────────────────
 class RewardModel {
   final int rewardId;
   final String namaReward;
@@ -17,7 +16,6 @@ class RewardModel {
   factory RewardModel.fromJson(Map<String, dynamic> json) {
     return RewardModel(
       rewardId: json['RewardID'] ?? json['reward_id'] ?? 0,
-      // .toString() menjaga dari nilai non-string yang dikirim backend.
       namaReward: (json['NamaReward'] ?? json['nama_reward'] ?? '').toString(),
       satuan: (json['Satuan'] ?? json['satuan'] ?? '').toString(),
       deskripsi: (json['Deskripsi'] ?? json['deskripsi'])?.toString(),
@@ -27,7 +25,6 @@ class RewardModel {
   bool get isBarang => namaReward.toLowerCase() == 'barang';
 }
 
-// ─── Riwayat Penjualan (List Item) ──────────────────────────────────────────
 class RiwayatPenjualanModel {
   final String penjualanId;
   final String namaMitra;
@@ -71,10 +68,9 @@ class RiwayatPenjualanModel {
   }
 
   String get tanggalFormatted =>
-      DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(createdAt);
+      AppDate.tanggalSingkatJam(createdAt);
 }
 
-// ─── Detail Penjualan ───────────────────────────────────────────────────────
 class DetailSampahPenjualanModel {
   final String sampahId;
   final String namaSampah;
@@ -158,13 +154,13 @@ class DetailPenjualanModel {
   }
 
   String get tanggalFormatted =>
-      DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID').format(createdAt);
+      AppDate.tanggalPenuhJam(createdAt);
 }
 
-// ─── Preview Penjualan ───────────────────────────────────────────────────────
 class DetailKalkulasiItem {
   final String sampahId;
   final String namaSampah;
+  final String satuan;
   final double qty;
   final double hargaJual;
   final double subtotal;
@@ -173,6 +169,7 @@ class DetailKalkulasiItem {
   DetailKalkulasiItem({
     required this.sampahId,
     required this.namaSampah,
+    required this.satuan,
     required this.qty,
     required this.hargaJual,
     required this.subtotal,
@@ -183,6 +180,7 @@ class DetailKalkulasiItem {
     return DetailKalkulasiItem(
       sampahId: json['SampahID'] ?? json['sampah_id'] ?? '',
       namaSampah: json['NamaSampah'] ?? json['nama_sampah'] ?? '',
+      satuan: json['Satuan'] ?? json['satuan'] ?? '',
       qty: (json['Qty'] ?? json['qty'] ?? 0).toDouble(),
       hargaJual: (json['HargaJual'] ?? json['harga_jual'] ?? 0).toDouble(),
       subtotal: (json['Subtotal'] ?? json['subtotal'] ?? 0).toDouble(),
@@ -216,7 +214,6 @@ class PreviewPenjualanModel {
   }
 }
 
-// ─── Mitra (Master Data) ─────────────────────────────────────────────────────
 class MitraModel {
   final String mitraId;
   final String namaMitra;
@@ -245,14 +242,13 @@ class MitraModel {
   }
 }
 
-// ─── Item Pilihan (state lokal saat input) ──────────────────────────────────
 class ItemSampahPilihan {
   final String sampahId;
   final String namaSampah;
   final String satuan;
   final double stokTersedia;
   double qty;
-  double hargaJual; // diinput manual oleh admin per transaksi
+  double hargaJual;
 
   ItemSampahPilihan({
     required this.sampahId,

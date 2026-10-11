@@ -5,6 +5,8 @@ import 'package:enviroo/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class AktivasiAkunScreen extends StatefulWidget {
   const AktivasiAkunScreen({super.key});
@@ -14,18 +16,15 @@ class AktivasiAkunScreen extends StatefulWidget {
 }
 
 class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
-  // Step 1
   final _nikController  = TextEditingController();
   final _otpController  = TextEditingController();
 
-  // Step 2
   final _passwordController  = TextEditingController();
   final _konfirmasiController = TextEditingController();
 
   int  _step = 1;
   bool _isLoading = false;
 
-  // Validation flags
   bool _isNikInvalid   = false;
   bool _isOtpInvalid   = false;
   bool _isPassInvalid  = false;
@@ -33,8 +32,6 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
   bool _obscurePass    = true;
   bool _obscureKonf    = true;
 
-  static const _teal  = Color(0xFF013236);
-  static const _red   = Color(0xFFB61E20);
 
   @override
   void initState() {
@@ -45,11 +42,17 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
     _otpController.addListener(() {
       if (_isOtpInvalid) setState(() => _isOtpInvalid = false);
     });
-    _passwordController.addListener(() {
-      if (_isPassInvalid) setState(() => _isPassInvalid = false);
-    });
-    _konfirmasiController.addListener(() {
-      if (_isKonfInvalid) setState(() => _isKonfInvalid = false);
+    _passwordController.addListener(_validatePasswordFields);
+    _konfirmasiController.addListener(_validatePasswordFields);
+  }
+
+  void _validatePasswordFields() {
+    final password = _passwordController.text.trim();
+    final konfirmasi = _konfirmasiController.text.trim();
+
+    setState(() {
+      _isPassInvalid = password.isNotEmpty && !_isPasswordStrong(password);
+      _isKonfInvalid = konfirmasi.isNotEmpty && password != konfirmasi;
     });
   }
 
@@ -62,8 +65,6 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
     super.dispose();
   }
 
-  // ─── Step 1: verifikasi NIK + OTP ───────────────────────────────────────────
-
   Future<void> _onStep1() async {
     final nik = _nikController.text.trim();
     final otp = _otpController.text.trim();
@@ -73,7 +74,7 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
       _isNikInvalid = true;
       valid = false;
     }
-    if (otp.length != 6 || !RegExp(r'^[a-zA-Z0-9]{6}$').hasMatch(otp)) {
+    if (!RegExp(r'^[0-9]{6}$').hasMatch(otp)) {
       _isOtpInvalid = true;
       valid = false;
     }
@@ -82,7 +83,6 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
 
     setState(() => _isLoading = true);
 
-    // Kirim tanpa password — backend akan kasih tahu apakah password perlu diisi
     final result =
         await context.read<AuthProvider>().aktivasiAkun(nik, otp, '');
 
@@ -90,13 +90,14 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      // Password sudah ada sebelumnya — aktivasi langsung selesai
       await _showSuccess(result['message']);
     } else {
       final msg = result['message'] ?? '';
-      if (msg.toLowerCase().contains('password wajib') ||
-          msg.toLowerCase().contains('password')) {
-        // Password belum pernah di-set — lanjut ke step 2
+
+      final perluPassword = result['code'] == 'PASSWORD_REQUIRED' ||
+          msg.toLowerCase().contains('password');
+
+      if (perluPassword) {
         setState(() => _step = 2);
       } else {
         showCustomSnackBar(context, msg.isNotEmpty ? msg : 'Aktivasi gagal');
@@ -104,14 +105,18 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
     }
   }
 
-  // ─── Step 2: buat password ──────────────────────────────────────────────────
+  bool _isPasswordStrong(String password) {
+    return password.length >= 8 &&
+        password.contains(RegExp(r'[A-Z]')) &&
+        password.contains(RegExp(r'[0-9]'));
+  }
 
   Future<void> _onStep2() async {
-    final password  = _passwordController.text;
-    final konfirmasi = _konfirmasiController.text;
+    final password  = _passwordController.text.trim();
+    final konfirmasi = _konfirmasiController.text.trim();
 
     bool valid = true;
-    if (password.length < 8) {
+    if (!_isPasswordStrong(password)) {
       _isPassInvalid = true;
       valid = false;
     }
@@ -150,8 +155,6 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
     );
   }
 
-  // ─── Build ──────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -179,24 +182,14 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
                 children: [
                   Text(
                     _step == 1 ? 'Aktivasi Akun' : 'Buat Password',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w700,
-                      color: _teal,
-                      fontSize: 20,
-                    ),
+                    style: AppText.w700(20, AppColors.dark),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     _step == 1
                         ? 'Masukkan ID Pengguna dan kode aktivasi dari Admin untuk memverifikasi akunmu.'
                         : 'Akun ini belum memiliki password. Buat password baru untuk mulai login.',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      height: 1.5,
-                      color: _teal.withValues(alpha: 0.65),
-                    ),
+                    style: AppText.p(13, color: AppColors.dark.withValues(alpha: 0.65), height: 1.5),
                   ),
                 ],
               ),
@@ -215,8 +208,6 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
     );
   }
 
-  // ─── Step 1 fields ──────────────────────────────────────────────────────────
-
   Widget _buildStep1() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,31 +224,53 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
         const SizedBox(height: 15),
         _field(
           controller: _otpController,
-          hint: 'Kode OTP (6 karakter)',
+          hint: 'Kode OTP (6 digit)',
           icon: Icons.vpn_key_rounded,
           isInvalid: _isOtpInvalid,
-          errorText: 'Kode aktivasi harus 6 karakter alfanumerik',
+          errorText: 'Kode aktivasi harus 6 digit angka',
           maxLength: 6,
-          textCapitalization: TextCapitalization.characters,
-          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]'))],
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         ),
         const SizedBox(height: 10),
       ],
     );
   }
 
-  // ─── Step 2 fields ──────────────────────────────────────────────────────────
-
   Widget _buildStep2() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              width: 1,
+              color: AppColors.dark.withValues(alpha: 0.25),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Syarat password:",
+                style: AppText.w600(11, AppColors.dark.withValues(alpha: 0.5)),
+              ),
+              const SizedBox(height: 4),
+              _buildRequirement("Minimal 8 karakter"),
+              _buildRequirement("Mengandung huruf kapital (A-Z)"),
+              _buildRequirement("Mengandung angka (0-9)"),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
         _field(
           controller: _passwordController,
           hint: 'Password baru',
-          icon: Icons.lock_rounded,
           isInvalid: _isPassInvalid,
-          errorText: 'Password minimal 8 karakter',
+          errorText: 'Password minimal 8 karakter, huruf kapital & angka',
           obscure: _obscurePass,
           onToggleObscure: () => setState(() => _obscurePass = !_obscurePass),
         ),
@@ -265,7 +278,6 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
         _field(
           controller: _konfirmasiController,
           hint: 'Konfirmasi password baru',
-          icon: Icons.lock_outline_rounded,
           isInvalid: _isKonfInvalid,
           errorText: 'Password tidak cocok',
           obscure: _obscureKonf,
@@ -276,12 +288,27 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
     );
   }
 
-  // ─── Field helper ───────────────────────────────────────────────────────────
+  Widget _buildRequirement(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: [
+          Icon(Icons.circle,
+              size: 5, color: AppColors.dark.withValues(alpha: 0.5)),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: AppText.r(11, AppColors.dark.withValues(alpha: 0.5)),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _field({
     required TextEditingController controller,
     required String hint,
-    required IconData icon,
+    IconData? icon,
     required bool isInvalid,
     required String errorText,
     bool obscure = false,
@@ -291,10 +318,10 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
     TextCapitalization textCapitalization = TextCapitalization.none,
     int? maxLength,
   }) {
-    final borderColor = isInvalid ? _red : _teal;
+    final borderColor = isInvalid ? AppColors.dangerDeep : AppColors.dark;
     final fillColor = isInvalid
-        ? _red.withValues(alpha: 0.08)
-        : _teal.withValues(alpha: 0.08);
+        ? AppColors.dangerDeep.withValues(alpha: 0.08)
+        : AppColors.dark.withValues(alpha: 0.08);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,27 +333,19 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
           inputFormatters: inputFormatters,
           textCapitalization: textCapitalization,
           maxLength: maxLength,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 14,
-            color: Color(0xFF2D3748),
-            fontWeight: FontWeight.w600,
-          ),
+          style: AppText.w600(14, Color(0xFF2D3748)),
           decoration: InputDecoration(
             counterText: '',
             contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
             hintText: hint,
-            hintStyle: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 14,
-              color: _teal.withValues(alpha: 0.35),
-            ),
-            prefixIcon: Icon(icon, size: 20, color: borderColor),
+            hintStyle: AppText.r(14, AppColors.dark.withValues(alpha: 0.35)),
+            prefixIcon:
+                icon == null ? null : Icon(icon, size: 20, color: borderColor),
             suffixIcon: onToggleObscure != null
                 ? IconButton(
                     icon: Icon(
                       obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                      color: _teal.withValues(alpha: 0.5),
+                      color: AppColors.dark.withValues(alpha: 0.5),
                       size: 20,
                     ),
                     onPressed: onToggleObscure,
@@ -353,19 +372,12 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
             padding: const EdgeInsets.only(top: 6, left: 8),
             child: Text(
               errorText,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: _red,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppText.w600(12, AppColors.dangerDeep),
             ),
           ),
       ],
     );
   }
-
-  // ─── Bottom bar ─────────────────────────────────────────────────────────────
 
   Widget _buildBottomBar() {
     return Container(
@@ -378,8 +390,8 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
           child: ElevatedButton(
             onPressed: _isLoading ? null : (_step == 1 ? _onStep1 : _onStep2),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _teal,
-              disabledBackgroundColor: _teal.withValues(alpha: 0.5),
+              backgroundColor: AppColors.dark,
+              disabledBackgroundColor: AppColors.dark.withValues(alpha: 0.5),
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
             ),
@@ -393,12 +405,7 @@ class _AktivasiAkunScreenState extends State<AktivasiAkunScreen> {
                   )
                 : Text(
                     _step == 1 ? 'Verifikasi' : 'Aktivasi Akun',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
+                    style: AppText.w600(14, Colors.white),
                   ),
           ),
         ),

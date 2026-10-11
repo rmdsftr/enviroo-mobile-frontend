@@ -1,25 +1,13 @@
 import 'package:enviroo/screens/lihat_foto_screen.dart';
 import 'package:flutter/material.dart';
 
-/// Thumbnail foto persegi yang bisa diketuk untuk membukanya penuh lewat
-/// [LihatFotoScreen].
-///
-/// Dipakai header `DetailSampahSheet` dan `DetailBarangSheet`. Ditaruh di satu
-/// tempat supaya perilakunya — termasuk kapan boleh diketuk — tidak diam-diam
-/// berbeda di antara kedua sheet itu.
 class FotoThumbnail extends StatelessWidget {
-  /// Url foto. Kosong berarti tidak ada foto: yang tampil [fallbackIcon], dan
-  /// thumbnail-nya tidak bisa diketuk — percuma membuka layar foto kosong.
   final String photoUrl;
 
-  /// Judul yang tampil di layar foto penuh.
   final String nama;
 
-  /// Ikon pengganti saat foto tidak ada atau gagal dimuat.
   final IconData fallbackIcon;
 
-  /// Warna ikon pengganti. Diminta eksplisit karena tiap sheet punya palet
-  /// `_C` sendiri.
   final Color accent;
 
   final double size;
@@ -75,9 +63,6 @@ class FotoThumbnail extends StatelessWidget {
                   : fallback,
             ),
 
-            // Penanda kecil bahwa gambarnya bisa dibuka penuh. Tanpa ini
-            // thumbnail 44px tidak memberi isyarat apa pun bahwa ia bisa
-            // diketuk, jadi fiturnya ada tapi tidak pernah ketemu.
             if (_adaFoto)
               Positioned(
                 right: 0,

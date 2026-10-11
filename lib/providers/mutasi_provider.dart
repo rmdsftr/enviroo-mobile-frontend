@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:intl/intl.dart';
 
+import '../core/format/app_date.dart';
 import '../models/mutasi_model.dart';
 import '../services/mutasi_service.dart';
 import 'auth_provider.dart';
@@ -12,7 +12,7 @@ class MutasiProvider extends ChangeNotifier {
   String? error;
   MutasiResponse? data;
 
-  int _rewardId = 1; // 1=Uang, 2=Barang
+  int _rewardId = 1;
   late DateTime _filterStart;
   late DateTime _filterEnd;
 
@@ -36,15 +36,8 @@ class MutasiProvider extends ChangeNotifier {
   String? get _nasabahId => _auth?.identityId;
   bool get _ok => _nasabahId?.isNotEmpty ?? false;
 
-  String _fmt(DateTime dt) => DateFormat('yyyy-MM-dd').format(dt);
-
-  String get _startStr =>
-      _fmt(DateTime(_filterStart.year, _filterStart.month, 1));
-
-  String get _endStr {
-    final last = DateTime(_filterEnd.year, _filterEnd.month + 1, 0);
-    return _fmt(last);
-  }
+  String get _startStr => AppDate.apiAwalBulan(_filterStart);
+  String get _endStr => AppDate.apiAkhirBulan(_filterEnd);
 
   Future<void> load() async {
     if (!_ok) return;

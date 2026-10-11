@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class CustomSearchBar extends StatelessWidget {
   final TextEditingController controller;
@@ -34,21 +36,13 @@ class CustomSearchBar extends StatelessWidget {
         child: TextField(
           controller: controller,
           onChanged: onChanged,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 13,
-            color: Color(0xFF013236),
-          ),
+          style: AppText.r(13, AppColors.dark),
           decoration: InputDecoration(
             hintText: hintText,
-            hintStyle: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              color: const Color(0xFF013236).withOpacity(0.3),
-            ),
+            hintStyle: AppText.r(13, AppColors.dark.withValues(alpha: 0.3)),
             prefixIcon: const Padding(
               padding: EdgeInsets.only(left: 16, right: 10),
-              child: Icon(Icons.search_rounded, color: Color(0xFF4EA771), size: 20),
+              child: Icon(Icons.search_rounded, color: AppColors.green, size: 20),
             ),
             prefixIconConstraints: const BoxConstraints(minWidth: 0),
             suffixIcon: searchQuery.isNotEmpty
@@ -56,7 +50,7 @@ class CustomSearchBar extends StatelessWidget {
                     onTap: onClear,
                     child: const Padding(
                       padding: EdgeInsets.only(right: 14),
-                      child: Icon(Icons.cancel_rounded, size: 17, color: Color(0xFF4EA771)),
+                      child: Icon(Icons.cancel_rounded, size: 17, color: AppColors.green),
                     ),
                   )
                 : null,
@@ -68,14 +62,14 @@ class CustomSearchBar extends StatelessWidget {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(borderRadius == 50.0 ? 22 : borderRadius),
               borderSide: BorderSide(
-                color: const Color(0xFF013236).withOpacity(0.1),
+                color: AppColors.dark.withValues(alpha: 0.1),
                 width: 1,
               ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(borderRadius),
               borderSide: const BorderSide(
-                color: Color(0xFF4EA771),
+                color: AppColors.green,
                 width: 1,
               ),
             ),

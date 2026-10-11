@@ -1,8 +1,8 @@
+import 'package:enviroo/core/format/app_date.dart';
 import 'package:enviroo/models/penimbangan_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:enviroo/widgets/filter_month_year.dart';
@@ -11,8 +11,9 @@ import 'package:enviroo/screens/penimbangan/penimbangan_aktif_screen.dart';
 import 'package:enviroo/providers/penimbangan_provider.dart';
 import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
 import 'package:enviroo/providers/auth_provider.dart';
-
-// ─── Screen ─────────────────────────────────────────────────────────────────
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class PenimbanganScreen extends StatefulWidget {
   @override
@@ -22,7 +23,6 @@ class PenimbanganScreen extends StatefulWidget {
 class _PenimbanganScreenState extends State<PenimbanganScreen> {
   bool _listLoading = true;
 
-  // ── Status header card (dari /penimbangan/check-active/:bank_id) ──
   bool _headerLoading = true;
   bool _isActiveSesi = false;
   int _pendingSessions = 0;
@@ -48,12 +48,10 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _init());
   }
 
-  // ── Init: load history + cek sesi aktif ─────────────────────────────────
   Future<void> _init() async {
     await Future.wait([_loadHistory(), _checkActive()]);
   }
 
-  // ── Cek sesi aktif hari ini (untuk header card) ──────────────────────────
   Future<void> _checkActive() async {
     setState(() => _headerLoading = true);
 
@@ -84,7 +82,6 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
     }
   }
 
-  // ── 1. Load history ──────────────────────────────────────────────────────
   Future<void> _loadHistory() async {
     setState(() => _listLoading = true);
 
@@ -103,7 +100,6 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
 
     if (!mounted) return;
     if (prov.riwayatStatus == FetchStatus.success) {
-      // Riwayat cuma nampilin sesi yang udah kelar (selesai/dibatalkan).
       setState(() {
         _riwayat = prov.riwayat
             .where((s) => s.status == 'selesai' || s.status == 'dibatalkan')
@@ -116,8 +112,6 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
     }
   }
 
-  // ── 2. Cek jadwal hari ini ───────────────────────────────────────────────
-  // ── Bottom sheet "Kelola Sesi Penimbangan" ───────────────────────────────
   void _showKelolaSesiSheet() {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final bankId = auth.bankId ?? '';
@@ -149,7 +143,6 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
     ).then((_) => _init());
   }
 
-  // ── Bottom sheet: konfirmasi mulai sesi (dari card pending) ──────────────
   Future<void> _showMulaiSesiSheet(String penimbanganId) async {
     final confirm = await showModalBottomSheet<bool>(
       context: context,
@@ -176,31 +169,21 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFF4EA771).withValues(alpha: 0.1),
+                color: AppColors.green.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.scale_rounded,
-                  color: Color(0xFF4EA771), size: 26),
+                  color: AppColors.green, size: 26),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Mulai Sesi Penimbangan?',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-                color: Color(0xFF013236),
-              ),
+              style: AppText.w700(15, AppColors.dark),
             ),
             const SizedBox(height: 8),
             Text(
               'Apakah Anda yakin ingin memulai sesi penimbangan ini? Aksi Anda akan mewakili petugas dan adminnya.',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12.5,
-                color: const Color(0xFF013236).withValues(alpha: 0.5),
-                height: 1.5,
-              ),
+              style: AppText.p(12.5, color: AppColors.dark.withValues(alpha: 0.5), height: 1.5),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -210,20 +193,16 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF013236),
+                      foregroundColor: AppColors.dark,
                       side: BorderSide(
-                          color: const Color(0xFF013236).withValues(alpha: 0.3)),
+                          color: AppColors.dark.withValues(alpha: 0.3)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(50)),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Kembali',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppText.w600(13),
                     ),
                   ),
                 ),
@@ -232,20 +211,16 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context, true),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4EA771),
+                      backgroundColor: AppColors.green,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(50)),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Buka Sesi',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppText.w600(13),
                     ),
                   ),
                 ),
@@ -276,7 +251,6 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
     }
   }
 
-  // ── Bottom sheet: konfirmasi + alasan pembatalan sesi ────────────────────
   Future<void> _showBatalkanSesiSheet(String penimbanganId) async {
     final alasanController = TextEditingController();
 
@@ -314,38 +288,29 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                        color: AppColors.danger.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.cancel_outlined,
-                          color: Color(0xFFEF4444), size: 32),
+                          color: AppColors.danger, size: 32),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const SizedBox(
+                  SizedBox(
                     width: double.infinity,
                     child: Text(
                       'Batalkan sesi penimbangan?',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF013236),
-                      ),
+                      style: AppText.w700(17, AppColors.dark),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const SizedBox(
+                  SizedBox(
                     width: double.infinity,
                     child: Text(
                       'Isi alasan sesi penimbangan tidak jadi dilaksanakan agar nasabah mendapatkan notifikasi',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        color: Colors.black54,
-                      ),
+                      style: AppText.r(13, Colors.black54),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -357,15 +322,10 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                     textInputAction: TextInputAction.done,
                     inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\n'))],
                     onChanged: (_) => setSheetState(() {}),
-                    style: const TextStyle(
-                        fontFamily: 'Poppins', fontSize: 13, color: Color(0xFF013236)),
+                    style: AppText.r(13, AppColors.dark),
                     decoration: InputDecoration(
                       hintText: 'Alasan pembatalan sesi penimbangan',
-                      hintStyle: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        color: const Color(0xFF013236).withValues(alpha: 0.35),
-                      ),
+                      hintStyle: AppText.r(13, AppColors.dark.withValues(alpha: 0.35)),
                       filled: true,
                       fillColor: const Color(0xFFF5F7FA),
                       border: OutlineInputBorder(
@@ -374,7 +334,7 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1),
+                        borderSide: const BorderSide(color: AppColors.danger, width: 1),
                       ),
                       contentPadding: const EdgeInsets.all(14),
                     ),
@@ -401,7 +361,7 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                       Expanded(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFEF4444),
+                            backgroundColor: AppColors.danger,
                             foregroundColor: Colors.white,
                             disabledBackgroundColor: Colors.grey.shade300,
                             padding: const EdgeInsets.symmetric(vertical: 10),
@@ -455,13 +415,10 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
   }
 
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  BUILD
-  // ═══════════════════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9F8),
+      backgroundColor: AppColors.surfaceCool,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -476,15 +433,14 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: _init,
-                  color: const Color(0xFF4EA771),
+                  color: AppColors.green,
                   child: _listLoading
                       ? const Center(
                       child: CircularProgressIndicator(
-                          color: Color(0xFF4EA771)))
+                          color: AppColors.green))
                       : CustomScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     slivers: [
-                      // Header card + summary stats — scroll away normally
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -499,7 +455,6 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                           ),
                         ),
                       ),
-                      // Sticky: "Riwayat Penimbangan" + filter bulan, pin di bawah TopBarBack
                       SliverPersistentHeader(
                         pinned: true,
                         delegate: _StickyHeaderDelegate(
@@ -512,14 +467,9 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                               children: [
                                 Padding(
                                   padding: const EdgeInsets.fromLTRB(24, 20, 20, 8),
-                                  child: const Text(
+                                  child: Text(
                                     'Riwayat Penimbangan',
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF013236),
-                                    ),
+                                    style: AppText.w600(14, AppColors.dark),
                                   ),
                                 ),
                                 Padding(
@@ -541,20 +491,23 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                           ),
                         ),
                       ),
-                      // List — cuma ini yang scroll di bawah sticky header
-                      SliverToBoxAdapter(
-                        child: Container(
-                          width: double.infinity,
-                          constraints: BoxConstraints(
-                            minHeight: MediaQuery.of(context).size.height,
-                          ),
-                          padding: const EdgeInsets.fromLTRB(0, 8, 0, 40),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: _buildRiwayatList(),
+                      SliverLayoutBuilder(
+                        builder: (context, sc) => SliverToBoxAdapter(
+                          child: Container(
+                            width: double.infinity,
+                            constraints: BoxConstraints(
+                              minHeight: (sc.viewportMainAxisExtent -
+                                      sc.precedingScrollExtent)
+                                  .clamp(0.0, double.infinity),
+                            ),
+                            padding: const EdgeInsets.fromLTRB(0, 8, 0, 40),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: _buildRiwayatList(),
+                            ),
                           ),
                         ),
                       ),
@@ -569,18 +522,16 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
     );
   }
 
-  // ── HEADER CARD (gabungan jadwal + aksi) ──────────────────────────────────
   Widget _buildHeaderCard() {
     final now = DateTime.now();
-    final todayStr = DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(now);
+    final todayStr = AppDate.tanggalPenuh(now);
 
-    // ── Masih mengecek status sesi ──
     if (_headerLoading) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF013236),
+          color: AppColors.dark,
           borderRadius: BorderRadius.circular(22),
         ),
         child: Row(
@@ -594,18 +545,13 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
             const SizedBox(width: 12),
             Text(
               'Mengecek sesi penimbangan...',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12.5,
-                color: Colors.white.withValues(alpha: 0.7),
-              ),
+              style: AppText.r(12.5, Colors.white.withValues(alpha: 0.7)),
             ),
           ],
         ),
       );
     }
 
-    // ── 1 & 2. Sesi sedang berlangsung ──
     if (_isActiveSesi) {
       final detail = _detailAktif;
       final namaJadwal = (detail?.namaJadwalSpesial != null && detail!.namaJadwalSpesial!.isNotEmpty)
@@ -619,13 +565,12 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: const Color(0xFF013236),
+          color: AppColors.dark,
           borderRadius: BorderRadius.circular(22),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Dot badge + link sesi mendatang (satu baris, gak nambah tinggi)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -635,18 +580,14 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                       width: 8,
                       height: 8,
                       decoration: const BoxDecoration(
-                        color: Color(0xFF94DF0C),
+                        color: AppColors.neon,
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Text(
+                    Text(
                       'Sesi sedang berlangsung',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: Colors.white60,
-                      ),
+                      style: AppText.r(11, Colors.white60),
                     ),
                   ],
                 ),
@@ -664,12 +605,7 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                         children: [
                           Text(
                             '$_pendingSessions sesi lainnya',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white.withValues(alpha: 0.85),
-                            ),
+                            style: AppText.w600(10, Colors.white.withValues(alpha: 0.85)),
                           ),
                           const SizedBox(width: 3),
                           Icon(Icons.arrow_forward_rounded,
@@ -700,12 +636,7 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                         Expanded(
                           child: Text(
                             namaJadwal,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
+                            style: AppText.w700(13, Colors.white),
                           ),
                         ),
                       ],
@@ -718,12 +649,7 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                         const SizedBox(width: 8),
                         Text(
                           detail.tanggalFmt,
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
+                          style: AppText.w500(11.5, Colors.white),
                         ),
                       ],
                     ),
@@ -735,12 +661,7 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                         const SizedBox(width: 8),
                         Text(
                           jamRange,
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
+                          style: AppText.w500(11.5, Colors.white),
                         ),
                       ],
                     ),
@@ -749,7 +670,6 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
               ),
             ],
             const SizedBox(height: 12),
-            // Button
             GestureDetector(
               onTap: () => Navigator.push(
                 context,
@@ -763,23 +683,18 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 11),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF94DF0C),
+                  color: AppColors.neon,
                   borderRadius: BorderRadius.circular(50),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.open_in_new_rounded,
-                        color: Color(0xFF013236), size: 15),
+                        color: AppColors.dark, size: 15),
                     SizedBox(width: 7),
                     Text(
                       'Buka Sesi Aktif',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF013236),
-                      ),
+                      style: AppText.w700(13, AppColors.dark),
                     ),
                   ],
                 ),
@@ -790,13 +705,12 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
       );
     }
 
-    // ── 3. Belum ada sesi aktif, tapi ada jadwal hari ini ──
     if (_pendingSessions > 0) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF013236),
+          color: AppColors.dark,
           borderRadius: BorderRadius.circular(22),
         ),
         child: Column(
@@ -804,21 +718,12 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
           children: [
             Text(
               'Hari ini, $todayStr',
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                color: Colors.white60,
-              ),
+              style: AppText.r(11, Colors.white60),
             ),
             const SizedBox(height: 4),
             Text(
               'Hari ini ada $_pendingSessions jadwal penimbangan',
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+              style: AppText.w600(13, Colors.white),
             ),
             const SizedBox(height: 14),
             GestureDetector(
@@ -830,23 +735,18 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(50),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
                       Icons.tune_rounded,
-                      color: Color(0xFF013236),
+                      color: AppColors.dark,
                       size: 16,
                     ),
                     SizedBox(width: 8),
                     Text(
                       'Kelola Sesi Penimbangan',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF013236),
-                      ),
+                      style: AppText.w600(13, AppColors.dark),
                     ),
                   ],
                 ),
@@ -857,12 +757,11 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
       );
     }
 
-    // ── 4. Tidak ada jadwal sama sekali ──
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF013236),
+        color: AppColors.dark,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
@@ -870,21 +769,12 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
         children: [
           Text(
             'Hari ini, $todayStr',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 11,
-              color: Colors.white60,
-            ),
+            style: AppText.r(11, Colors.white60),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Tidak ada jadwal penimbangan',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
+            style: AppText.w600(13, Colors.white),
           ),
           const SizedBox(height: 14),
           Container(
@@ -898,17 +788,12 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
             child: Row(
               children: [
                 const Icon(Icons.info_outline_rounded,
-                    color: Color(0xFF94DF0C), size: 16),
+                    color: AppColors.neon, size: 16),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Penimbangan rutin ataupun penimbangan khusus tidak bisa dilakukan',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: Colors.white,
-                      height: 1.5,
-                    ),
+                    style: AppText.p(11, color: Colors.white, height: 1.5),
                   ),
                 ),
               ],
@@ -919,7 +804,6 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
     );
   }
 
-  // ── SUMMARY STATS ──────────────────────────────────────────────────
   Widget _buildSummaryStats() {
     final totalSesi = _riwayat.length;
     final totalSelesai = _riwayat.where((s) => s.status == 'selesai').length;
@@ -928,13 +812,13 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
     return Row(
       children: [
         Expanded(child: _statCard(
-          iconColor: const Color(0xFF013236),
+          iconColor: AppColors.dark,
           label: 'Sesi Total',
           value: totalSesi.toString(),
         )),
         const SizedBox(width: 10),
         Expanded(child: _statCard(
-          iconColor: const Color(0xFF4EA771),
+          iconColor: AppColors.green,
           label: 'Selesai',
           value: totalSelesai.toString(),
         )),
@@ -959,7 +843,7 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF013236).withOpacity(0.08),
+          color: AppColors.dark.withValues(alpha: 0.08),
           width: 1,
         ),
       ),
@@ -968,22 +852,12 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
         children: [
           Text(
             value,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: iconColor,
-              height: 1.1,
-            ),
+            style: AppText.p(20, weight: FontWeight.w700, color: iconColor, height: 1.1),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 10,
-              color: const Color(0xFF013236).withOpacity(0.5),
-            ),
+            style: AppText.r(10, AppColors.dark.withValues(alpha: 0.5)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -991,50 +865,20 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
     );
   }
 
-  // ── Riwayat ─────────────────────────────────────────────────────────────
   Widget _buildRiwayatList() {
     if (_riwayat.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 36),
-          child: Column(
-            children: [
-              Icon(Icons.history_toggle_off_rounded,
-                  size: 44, color: Colors.grey[300]),
-              const SizedBox(height: 10),
-              Text(
-                'Belum ada riwayat penimbangan',
-                style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    color: Colors.grey[400]),
-              ),
-            ],
-          ),
-        ),
+      return StateMessage(
+        illustration: StateArt.empty,
+        message: 'Belum ada riwayat penimbangan',
+        subtitle: 'Riwayat penimbangan bakal muncul kalau udah ada sesi penimbangan',
       );
     }
 
     final filtered = _filteredRiwayat;
     if (filtered.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 36),
-          child: Column(
-            children: [
-              Icon(Icons.search_off_rounded,
-                  size: 44, color: Colors.grey[300]),
-              const SizedBox(height: 10),
-              Text(
-                'Tidak ada riwayat di rentang waktu ini',
-                style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    color: Colors.grey[400]),
-              ),
-            ],
-          ),
-        ),
+      return StateMessage(
+        illustration: StateArt.empty,
+        message: 'Tidak ada riwayat di rentang waktu ini',
       );
     }
 
@@ -1050,9 +894,9 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
   Widget _buildRiwayatTile(SessionData s) {
     final isSelesai = s.status == 'selesai';
     final statusColor =
-    isSelesai ? const Color(0xFF4EA771) : Colors.red.shade400;
+    isSelesai ? AppColors.green : Colors.red.shade400;
     final bgColor = isSelesai
-        ? const Color(0xFFE8F5E9)
+        ? AppColors.mintPale
         : Colors.red.withValues(alpha: 0.07);
 
     return GestureDetector(
@@ -1068,23 +912,22 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.5),
+          color: Colors.white.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             width: 1,
-            color: const Color(0xFF013236).withOpacity(0.1),
+            color: AppColors.dark.withValues(alpha: 0.1),
           ),
         ),
         child: Row(
           children: [
-            // Ikon status
             Container(
               padding: const EdgeInsets.all(9),
               decoration:
-              BoxDecoration(color: Color(0xFF013236).withValues(alpha: 0.1), shape: BoxShape.circle),
+              BoxDecoration(color: AppColors.dark.withValues(alpha: 0.1), shape: BoxShape.circle),
               child: Icon(
                 Icons.line_weight,
-                color: Color(0xFF013236),
+                color: AppColors.dark,
                 size: 18,
               ),
             ),
@@ -1095,26 +938,16 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
                 children: [
                   Text(
                     s.tanggal,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF013236),
-                    ),
+                    style: AppText.w600(13, AppColors.dark),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     s.waktu,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11.5,
-                      color: Colors.grey[500],
-                    ),
+                    style: AppText.r(11.5, Colors.grey[500]),
                   ),
                 ],
               ),
             ),
-            // Badge status
             Container(
               padding:
               const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1124,12 +957,7 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
               ),
               child: Text(
                 isSelesai ? 'Selesai' : 'Dibatalkan',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  color: statusColor,
-                ),
+                style: AppText.w600(10.5, statusColor),
               ),
             ),
           ],
@@ -1139,7 +967,6 @@ class _PenimbanganScreenState extends State<PenimbanganScreen> {
   }
 }
 
-// ─── Bottom Sheet: Kelola Sesi Penimbangan ────────────────────────────────
 class _KelolaSesiSheet extends StatefulWidget {
   final String bankId;
   final void Function(String penimbanganId) onOpenSesiAktif;
@@ -1202,9 +1029,9 @@ class _KelolaSesiSheetState extends State<_KelolaSesiSheet> {
   Map<String, dynamic> _statusMeta(String status) {
     switch (status) {
       case 'aktif':
-        return {'label': 'Aktif', 'color': const Color(0xFF4EA771), 'bg': const Color(0xFFE8F5E9)};
+        return {'label': 'Aktif', 'color': AppColors.green, 'bg': AppColors.mintPale};
       case 'selesai':
-        return {'label': 'Selesai', 'color': const Color(0xFF4EA771), 'bg': const Color(0xFFE8F5E9)};
+        return {'label': 'Selesai', 'color': AppColors.green, 'bg': AppColors.mintPale};
       case 'dibatalkan':
         return {'label': 'Dibatalkan', 'color': Colors.red.shade400, 'bg': Colors.red.withValues(alpha: 0.07)};
       case 'pending':
@@ -1216,8 +1043,6 @@ class _KelolaSesiSheetState extends State<_KelolaSesiSheet> {
   @override
   Widget build(BuildContext context) {
     final hasAktif = _sesi.any((s) => s.statusPenimbangan == 'aktif');
-    // Backend sudah sorting berdasarkan jam mulai paling awal — jadi pending
-    // pertama yang ketemu di list ini yang paling awal jamnya.
     String? firstPendingId;
     for (final s in _sesi) {
       if (s.statusPenimbangan == 'pending') {
@@ -1248,23 +1073,14 @@ class _KelolaSesiSheetState extends State<_KelolaSesiSheet> {
               ),
             ),
           ),
-          const Text(
+          Text(
             'Kelola Sesi Penimbangan',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-              color: Color(0xFF013236),
-            ),
+            style: AppText.w700(15, AppColors.dark),
           ),
           const SizedBox(height: 4),
           Text(
             'Daftar sesi penimbangan hari ini',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 11.5,
-              color: const Color(0xFF013236).withValues(alpha: 0.5),
-            ),
+            style: AppText.r(11.5, AppColors.dark.withValues(alpha: 0.5)),
           ),
           const SizedBox(height: 16),
           Flexible(
@@ -1272,7 +1088,7 @@ class _KelolaSesiSheetState extends State<_KelolaSesiSheet> {
                 ? const Padding(
                     padding: EdgeInsets.symmetric(vertical: 40),
                     child: Center(
-                      child: CircularProgressIndicator(color: Color(0xFF4EA771)),
+                      child: CircularProgressIndicator(color: AppColors.green),
                     ),
                   )
                 : _error != null
@@ -1299,8 +1115,6 @@ class _KelolaSesiSheetState extends State<_KelolaSesiSheet> {
         ? !isAktifItem
         : (item.statusPenimbangan == 'selesai' || item.statusPenimbangan == 'dibatalkan');
     final showAktifButton = isAktifItem;
-    // Cuma sesi pending paling awal (backend sudah sorting) yang boleh dibuka/dibatalkan —
-    // sesi pending lainnya tetap terlihat normal (tidak disabled), tapi tombolnya disembunyikan.
     final showPendingButtons = !hasAktif && isPending && item.penimbanganId == firstPendingId;
     final meta = _statusMeta(item.statusPenimbangan);
     final namaJadwal = (item.namaJadwalSpesial != null && item.namaJadwalSpesial!.isNotEmpty)
@@ -1313,9 +1127,9 @@ class _KelolaSesiSheetState extends State<_KelolaSesiSheet> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF7F9F8),
+          color: AppColors.surfaceCool,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFF013236).withValues(alpha: 0.08)),
+          border: Border.all(color: AppColors.dark.withValues(alpha: 0.08)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1329,26 +1143,17 @@ class _KelolaSesiSheetState extends State<_KelolaSesiSheet> {
                     children: [
                       Text(
                         namaJadwal,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: Color(0xFF013236),
-                        ),
+                        style: AppText.w700(13, AppColors.dark),
                       ),
                       const SizedBox(height: 6),
                       Row(
                         children: [
                           Icon(Icons.calendar_today_rounded,
-                              size: 11, color: const Color(0xFF013236).withValues(alpha: 0.4)),
+                              size: 11, color: AppColors.dark.withValues(alpha: 0.4)),
                           const SizedBox(width: 6),
                           Text(
                             item.tanggalFmt,
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 11,
-                              color: const Color(0xFF013236).withValues(alpha: 0.5),
-                            ),
+                            style: AppText.r(11, AppColors.dark.withValues(alpha: 0.5)),
                           ),
                         ],
                       ),
@@ -1356,15 +1161,11 @@ class _KelolaSesiSheetState extends State<_KelolaSesiSheet> {
                       Row(
                         children: [
                           Icon(Icons.access_time_rounded,
-                              size: 11, color: const Color(0xFF013236).withValues(alpha: 0.4)),
+                              size: 11, color: AppColors.dark.withValues(alpha: 0.4)),
                           const SizedBox(width: 6),
                           Text(
                             jamRange,
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 11,
-                              color: const Color(0xFF013236).withValues(alpha: 0.5),
-                            ),
+                            style: AppText.r(11, AppColors.dark.withValues(alpha: 0.5)),
                           ),
                         ],
                       ),
@@ -1380,12 +1181,7 @@ class _KelolaSesiSheetState extends State<_KelolaSesiSheet> {
                   ),
                   child: Text(
                     meta['label'] as String,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: meta['color'] as Color,
-                    ),
+                    style: AppText.w600(10, meta['color'] as Color),
                   ),
                 ),
               ],
@@ -1399,22 +1195,17 @@ class _KelolaSesiSheetState extends State<_KelolaSesiSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 11),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF94DF0C),
+                      color: AppColors.neon,
                       borderRadius: BorderRadius.circular(50),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.open_in_new_rounded, color: Color(0xFF013236), size: 15),
+                        Icon(Icons.open_in_new_rounded, color: AppColors.dark, size: 15),
                         SizedBox(width: 8),
                         Text(
                           'Buka Sesi Aktif',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF013236),
-                          ),
+                          style: AppText.w700(12.5, AppColors.dark),
                         ),
                       ],
                     ),
@@ -1434,9 +1225,9 @@ class _KelolaSesiSheetState extends State<_KelolaSesiSheet> {
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Batalkan Sesi',
-                        style: TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600),
+                        style: AppText.w600(12),
                       ),
                     ),
                   ),
@@ -1445,15 +1236,15 @@ class _KelolaSesiSheetState extends State<_KelolaSesiSheet> {
                     child: ElevatedButton(
                       onPressed: () => widget.onMulaiSesi(item.penimbanganId),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4EA771),
+                        backgroundColor: AppColors.green,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Mulai Sesi',
-                        style: TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600),
+                        style: AppText.w600(12),
                       ),
                     ),
                   ),
@@ -1466,57 +1257,27 @@ class _KelolaSesiSheetState extends State<_KelolaSesiSheet> {
     );
   }
 
-  Widget _buildSheetEmpty() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 36),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.event_busy_rounded, size: 40, color: Colors.grey[300]),
-          const SizedBox(height: 10),
-          Text(
-            'Tidak ada sesi penimbangan hari ini',
-            style: TextStyle(fontFamily: 'Poppins', fontSize: 12.5, color: Colors.grey[500]),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildSheetEmpty() => StateMessage(
+        illustration: StateArt.empty,
+        illustrationWidth: 80,
+        message: 'Tidak ada sesi penimbangan hari ini',
+      );
 
-  Widget _buildSheetError() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 36),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.error_outline_rounded, size: 36, color: Colors.red.withValues(alpha: 0.5)),
-          const SizedBox(height: 10),
-          Text(
-            _error ?? 'Terjadi kesalahan',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12.5,
-              color: const Color(0xFF013236).withValues(alpha: 0.5),
-            ),
+  Widget _buildSheetError() => StateMessage(
+        illustration: StateArt.error,
+        illustrationWidth: 80,
+        message: _error ?? 'Terjadi kesalahan',
+        action: TextButton(
+          onPressed: _fetch,
+          child: const Text(
+            'Coba Lagi',
+            style:
+                TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 12),
-          TextButton(
-            onPressed: _fetch,
-            child: const Text(
-              'Coba Lagi',
-              style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      );
 }
 
-// ── Sticky header delegate ───────────────────────────────────────────────────
-// Bikin "Riwayat Penimbangan" + filter bulan nempel (pinned) di bawah TopBarBack
-// saat di-scroll, sementara cuma list riwayat yang ikut bergerak.
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   final double height;

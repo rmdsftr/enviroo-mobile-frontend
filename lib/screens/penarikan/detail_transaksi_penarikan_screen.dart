@@ -2,9 +2,10 @@ import 'dart:convert';
 import 'package:enviroo/widgets/success_bottom_sheet.dart';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format/app_date.dart';
+import '../../core/format/app_number.dart';
 import '../../models/penarikan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/penarikan_petugas_provider.dart';
@@ -13,6 +14,9 @@ import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'deadline_penarikan_screen.dart';
 import 'scanner_penarikan_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class DetailTransaksiPenarikanScreen extends StatefulWidget {
   final String penarikanId;
@@ -25,8 +29,8 @@ class DetailTransaksiPenarikanScreen extends StatefulWidget {
 
 class _DetailTransaksiPenarikanScreenState
     extends State<DetailTransaksiPenarikanScreen> {
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
 
   @override
   void initState() {
@@ -38,35 +42,14 @@ class _DetailTransaksiPenarikanScreenState
     });
   }
 
-  // ── Formatters ────────────────────────────────────────────────────────────
-
-  String _fmtNominal(double v, String satuan, {bool isUang = false}) {
-    final f = NumberFormat.decimalPattern('id_ID');
-    f.maximumFractionDigits = 4;
-    f.minimumFractionDigits = 0;
-    if (isUang) return 'Rp ${f.format(v)}';
-    return '${f.format(v)} ${satuan.isEmpty ? 'poin' : satuan}';
-  }
-
   String _fmtDeadline(DateTime? dt) {
     if (dt == null) return '-';
-    // Bulan disingkat ('Sep', bukan 'September'). Versi panjangnya membuat
-    // nilainya melipat ke baris kedua di kartu Estimasi Konfirmasi, sehingga
-    // barisnya terlihat sesak.
-    final dateStr = DateFormat('d MMM yyyy', 'id_ID').format(dt);
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '$dateStr, $h.$m WIB';
+    return '${AppDate.tanggalSingkat(dt)}, ${AppDate.jamWib(dt)}';
   }
 
   String _capitalize(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}';
 
-  // ── Konfirmasi ────────────────────────────────────────────────────────────
-
-  /// Buka scanner QR nasabah — begitu QR cocok, penarikan langsung
-  /// diselesaikan di dalam scanner (atau lewat konfirmasi manual di sana).
-  /// Di sini tinggal refresh & kasih feedback sukses.
   Future<void> _handleKonfirmasiFlow(String penarikanId, String nasabahId) async {
     final completed = await Navigator.push<bool>(
       context,
@@ -122,12 +105,10 @@ class _DetailTransaksiPenarikanScreenState
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -208,8 +189,6 @@ class _DetailTransaksiPenarikanScreenState
     );
   }
 
-  // ── Bar tombol aksi: full-bleed, rounded di atas, mentok ke bawah layar ──
-
   Widget _buildActionBar(PenarikanDetail d, PenarikanPetugasProvider prov) {
     return Container(
       width: double.infinity,
@@ -219,7 +198,7 @@ class _DetailTransaksiPenarikanScreenState
         border: Border(
           top: BorderSide(
             width: 1,
-            color: const Color(0xFF013236).withValues(alpha: 0.1),
+            color: AppColors.dark.withValues(alpha: 0.1),
           ),
         ),
       ),
@@ -228,8 +207,6 @@ class _DetailTransaksiPenarikanScreenState
     );
   }
 
-  // ── Tombol aksi (tergantung status terkini) ──────────────────────────────
-
   Widget _buildActionButtons(PenarikanDetail d, PenarikanPetugasProvider prov) {
     if (d.status == StatusPenarikan.pending) {
       return Row(
@@ -237,20 +214,17 @@ class _DetailTransaksiPenarikanScreenState
           Expanded(
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFEF4444),
-                backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.06),
-                side: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
+                foregroundColor: AppColors.danger,
+                backgroundColor: AppColors.danger.withValues(alpha: 0.06),
+                side: const BorderSide(color: AppColors.danger, width: 1.2),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(50)),
               ),
               onPressed: () => _openTolak(d.penarikanId),
-              child: const Text(
+              child: Text(
                 'Tolak Pengajuan',
-                style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13),
+                style: AppText.w600(13),
               ),
             ),
           ),
@@ -266,12 +240,9 @@ class _DetailTransaksiPenarikanScreenState
                     borderRadius: BorderRadius.circular(50)),
               ),
               onPressed: () => _openSetujui(d.penarikanId),
-              child: const Text(
+              child: Text(
                 'Setujui Pengajuan',
-                style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13),
+                style: AppText.w600(13),
               ),
             ),
           ),
@@ -279,11 +250,8 @@ class _DetailTransaksiPenarikanScreenState
       );
     }
 
-    // status == approved
     return _buildKonfirmasiButton(d, prov);
   }
-
-  // ── Informasi Nasabah ────────────────────────────────────────────────────
 
   Widget _buildNasabahCard(PenarikanDetail d) {
     return SectionCard(
@@ -302,8 +270,6 @@ class _DetailTransaksiPenarikanScreenState
     );
   }
 
-  // ── Informasi Penarikan ──────────────────────────────────────────────────
-
   Widget _buildInfoSection(PenarikanDetail d) {
     return SectionCard(
       icon: Icons.receipt_long_rounded,
@@ -313,15 +279,13 @@ class _DetailTransaksiPenarikanScreenState
         PenarikanInfoRow(label: 'ID Transaksi', value: d.penarikanId),
         PenarikanInfoRow(
           label: 'Nominal',
-          value: _fmtNominal(d.nominalPenarikan, d.satuanPenarikan,
-              isUang: d.isUang),
+          value: AppNumber.nominal(d.nominalPenarikan,
+              satuan: d.satuanPenarikan, isUang: d.isUang),
         ),
         PenarikanInfoRow(label: 'Status', value: d.status.label),
       ],
     );
   }
-
-  // ── Detail Barang (barang) ──────────────────────────────────────────────
 
   Widget _buildBarangCard(PenarikanDetail d) {
     final items = d.detailBarang;
@@ -330,14 +294,12 @@ class _DetailTransaksiPenarikanScreenState
       title: 'Detail Barang',
       children: [
         for (int i = 0; i < items.length; i++) ...[
-          if (i > 0) const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          if (i > 0) const Divider(height: 1, color: AppColors.divider),
           DetailBarangRow(item: items[i]),
         ],
       ],
     );
   }
-
-  // ── Estimasi Konfirmasi ──────────────────────────────────────────────────
 
   Widget _buildEstimasiCard(PenarikanDetail d) {
     return SectionCard(
@@ -355,8 +317,6 @@ class _DetailTransaksiPenarikanScreenState
       ],
     );
   }
-
-  // ── Bukti Penyerahan Insentif ────────────────────────────────────────────
 
   Widget _buildBuktiFotoCard(String buktiFoto) {
     Widget imgWidget;
@@ -410,7 +370,7 @@ class _DetailTransaksiPenarikanScreenState
             ? null
             : () => _handleKonfirmasiFlow(d.penarikanId, d.nasabahId ?? ''),
         child: prov.submitting
-            ? const Row(
+            ? Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
@@ -422,56 +382,28 @@ class _DetailTransaksiPenarikanScreenState
                   SizedBox(width: 8),
                   Text(
                     'Memproses...',
-                    style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13),
+                    style: AppText.w600(13),
                   ),
                 ],
               )
-            : const Text(
+            : Text(
                 'Konfirmasi Penyerahan Insentif',
-                style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13),
+                style: AppText.w600(13),
               ),
       ),
     );
   }
 
-  Widget _buildError(String? message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline_rounded,
-                color: Colors.redAccent, size: 48),
-            const SizedBox(height: 12),
-            Text(
-              message ?? 'Detail tidak tersedia',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontFamily: 'Poppins', fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50)),
-              ),
-              onPressed: () => context
-                  .read<PenarikanPetugasProvider>()
-                  .loadDetail(widget.penarikanId),
-              child: const Text('Coba lagi',
-                  style: TextStyle(fontFamily: 'Poppins')),
-            ),
-          ],
+  Widget _buildError(String? message) => StateMessage(
+        illustration: StateArt.error,
+        message: message ?? 'Detail tidak tersedia',
+        action: StateRetryButton(
+          onPressed: () => context
+              .read<PenarikanPetugasProvider>()
+              .loadDetail(widget.penarikanId),
+          label: 'Coba lagi',
+          color: primary,
+          radius: 50,
         ),
-      ),
-    );
-  }
+      );
 }

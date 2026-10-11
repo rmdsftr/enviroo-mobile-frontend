@@ -7,28 +7,7 @@ import '../models/detail_petugas_model.dart';
 import 'package:enviroo/core/network/api_client.dart';
 import 'package:enviroo/core/network/api_failure.dart';
 
-/// Semua yang berkaitan dengan data profil & akun user.
-///
-/// ⚠️ Ada **lima nama yang mirip** di sini. Bedanya siapa yang memanggil, bukan
-/// bentuk datanya:
-///
-/// ```
-/// getProfilNasabah  -> /profil/nasabah          AUTHPROVIDER (profil sesi sendiri)
-/// getProfilPetugas  -> /users/active-petugas    AUTHPROVIDER (profil sesi sendiri)
-/// getDetailNasabah  -> /profil/detail-nasabah   LAYAR (lihat profil orang)
-/// getDetailPetugas  -> /profil/detail-petugas   LAYAR (lihat profil orang)
-/// getActiveUser     -> /users/active-user       PROFILECORNER (foto avatar)
-/// ```
-///
-/// Service ini sengaja melayani dua prefix sekaligus (`/profil` dan `/users`) —
-/// alasannya dicatat di blok konstanta `/users` pada `ApiConfig`.
 class ProfilService {
-  // ── Profil sesi sendiri ────────────────────────────────────────────────────
-  // Dipanggil AuthProvider saat bootstrap sesi (login / restore / switch role)
-  // untuk mengisi _nasabahProfile dan _petugasProfile. BUKAN untuk melihat
-  // profil orang lain — itu tugas getDetailNasabah / getDetailPetugas di bawah.
-
-  /// Profil nasabah yang sedang login. Endpoint `/profil/nasabah`.
   static Future<Map<String, dynamic>> getProfilNasabah(String nasabahId) async {
     try {
       final response = await ApiClient.get(
@@ -41,9 +20,6 @@ class ProfilService {
     }
   }
 
-  /// Profil petugas yang sedang login. Endpoint `/users/active-petugas` —
-  /// prefix-nya `/users`, tapi ditaruh di sini supaya sekelompok dengan
-  /// [getDetailPetugas]. Pembenahan prefix `/users` adalah pekerjaan terpisah.
   static Future<Map<String, dynamic>> getProfilPetugas(String adminId) async {
     try {
       final response = await ApiClient.get(
@@ -55,8 +31,6 @@ class ProfilService {
       return {'success': false, 'message': ApiFailure.from(e).pesan};
     }
   }
-
-  // ── Lihat profil (dipanggil layar) ─────────────────────────────────────────
 
   static Future<Map<String, dynamic>?> getDetailNasabah(String nasabahId) async {
     try {
@@ -95,14 +69,6 @@ class ProfilService {
     }
   }
 
-  /// Data user aktif — dipakai `ProfileCorner` untuk `photo_url` di avatar
-  /// pojok. Endpoint `/users/active-user`; alasan ia tinggal di sini bersama
-  /// tetangga `/users` lainnya ada di komentar blok `/users` pada ApiConfig.
-  ///
-  /// Dulu tinggal di `user_service.dart` (18 baris untuk 1 method) dengan
-  /// `catch (e) { return null; }` yang menelan semuanya — termasuk melewatkan
-  /// [ApiFailure.from], sehingga kehilangan jaringan di jalur ini tidak pernah
-  /// terlapor ke `NetworkStatus`.
   static Future<Map<String, dynamic>> getActiveUser(String userId) async {
     try {
       final response = await ApiClient.get(Uri.parse('${ApiConfig.activeUserUrl}/$userId'));

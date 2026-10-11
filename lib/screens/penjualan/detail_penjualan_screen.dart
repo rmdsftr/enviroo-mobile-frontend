@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format/app_number.dart';
 import '../../models/penjualan_model.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/bagi_hasil_provider.dart' hide FetchStatus;
+import '../../providers/bagi_hasil_provider.dart';
 import '../../providers/penjualan_provider.dart';
 import '../../services/bukti_penjualan_pdf_service.dart';
 import '../../widgets/custom_snackbar.dart';
@@ -13,16 +13,9 @@ import '../../widgets/topbar_back.dart';
 import '../lihat_foto_screen.dart';
 import '../bagi_hasil/preview_bagi_hasil_screen.dart';
 import '../bagi_hasil/struk_detail_bagi_hasil_screen.dart';
-
-// ── Color Palette ─────────────────────────────────────────────────────────────
-class _C {
-  static const dark = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
-  static const cardBg = Color(0xFFF7FBF5);
-  static const muted = Color(0xFF8A9A92);
-  static const danger = Color(0xFFD94848);
-  static const border = Color(0xFFE6EDE9);
-}
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class DetailPenjualanScreen extends StatefulWidget {
   final String penjualanId;
@@ -46,9 +39,6 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
     await context.read<PenjualanProvider>().fetchDetail(widget.penjualanId);
   }
 
-  // ── Unduh bukti penjualan jadi PDF ──────────────────────────────────────────
-  // PDF-nya dirender dari template di pdf_bukti_penjualan.dart, terus user
-  // milih sendiri mau disimpan di folder mana lewat dialog bawaan HP.
   Future<void> _unduhBukti(DetailPenjualanModel d) async {
     if (_unduhLoading) return;
     setState(() => _unduhLoading = true);
@@ -57,10 +47,6 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
       final bytes = await BuktiPenjualanPdfService.generate(d, context: context);
       if (!mounted) return;
 
-      // Pakai flutter_file_dialog, bukan file_picker — file_picker (versi 8.x
-      // maupun 12.x) sama-sama gak bisa nge-set MIME "application/pdf" yang
-      // bener buat dialog save-nya, jadi hasilnya kesimpen tapi gak dikenali
-      // sistem sebagai PDF (nongol pilihan "buka sebagai audio/video/dokumen").
       final tujuan = await FlutterFileDialog.saveFile(
         params: SaveFileDialogParams(
           data: bytes,
@@ -70,7 +56,6 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
       );
       if (!mounted) return;
 
-      // tujuan == null artinya user batal milih folder — gak usah diapa-apain.
       if (tujuan != null) {
         _snack('Bukti penjualan berhasil disimpan', sukses: true);
       }
@@ -90,7 +75,7 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -107,7 +92,7 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
                   builder: (_, prov, __) {
                     if (prov.detailStatus == FetchStatus.loading) {
                       return const Center(
-                        child: CircularProgressIndicator(color: _C.green),
+                        child: CircularProgressIndicator(color: AppColors.green),
                       );
                     }
                     if (prov.detailStatus == FetchStatus.error ||
@@ -126,52 +111,17 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
     );
   }
 
-  // ── Error State ─────────────────────────────────────────────────────────────
-  Widget _buildError(String msg) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline_rounded,
-                  size: 40, color: _C.danger.withOpacity(0.5)),
-              const SizedBox(height: 12),
-              Text(
-                msg,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: _C.dark.withOpacity(0.5),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _load,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _C.dark,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child:
-                    const Text('Coba Lagi', style: TextStyle(fontFamily: 'Poppins')),
-              ),
-            ],
-          ),
-        ),
+  Widget _buildError(String msg) => StateMessage(
+        illustration: StateArt.error,
+        message: msg,
+        action: StateRetryButton(onPressed: _load),
       );
 
-  // ── Main Content ────────────────────────────────────────────────────────────
   Widget _buildStruk(DetailPenjualanModel d) {
-    final fmtPoin = NumberFormat('#,##0.##########', 'id_ID');
-    final fmtQty = NumberFormat('#,##0.##########', 'id_ID');
-    final fmtRp = NumberFormat('#,##0', 'id_ID');
     final isBarang = d.namaReward.toLowerCase() == 'barang';
 
-    String fmtHarga(double val) => isBarang
-        ? '${fmtPoin.format(val)} ${d.satuanReward}'
-        : 'Rp ${fmtRp.format(val)}';
+    String fmtHarga(double val) =>
+        AppNumber.nominalSatuan(val, d.satuanReward, isUang: !isBarang);
 
     final statusBh = d.statusBagiHasil.toLowerCase();
     final Color statusColor;
@@ -179,11 +129,11 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
     final String statusLabel;
 
     if (statusBh == 'berhasil') {
-      statusColor = _C.green;
+      statusColor = AppColors.green;
       statusIcon = Icons.check_circle_rounded;
       statusLabel = 'Terdistribusi';
     } else if (statusBh == 'gagal') {
-      statusColor = _C.danger;
+      statusColor = AppColors.dangerSoft;
       statusIcon = Icons.cancel_rounded;
       statusLabel = 'Gagal';
     } else {
@@ -197,7 +147,6 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
       child: Column(
         children: [
-          // ── Hero Header ──────────────────────────────────────────────────
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 24),
@@ -210,47 +159,34 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: _C.green.withOpacity(0.12),
+                    color: AppColors.green.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.receipt_long_rounded,
-                      color: _C.green, size: 36),
+                      color: AppColors.green, size: 36),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'Penjualan Selesai',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 17,
-                    color: Color(0xFF4EA771),
-                  ),
+                  style: AppText.w700(17, AppColors.green),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'ID: ${d.penjualanId}',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    color: _C.dark.withOpacity(0.45),
-                  ),
+                  style: AppText.r(11, AppColors.dark.withValues(alpha: 0.45)),
                 ),
                 const SizedBox(height: 7),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
+                    color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(50),
                   ),
                   child: Text(
                     d.tanggalFormatted,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      color: _C.dark.withOpacity(0.4),
-                    ),
+                    style: AppText.r(10, AppColors.dark.withValues(alpha: 0.4)),
                   ),
                 ),
               ],
@@ -259,39 +195,32 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
 
           const SizedBox(height: 16),
 
-          // ── Info Card ───────────────────────────────────────────────────
-          _buildInfoCard(d, statusBh, statusLabel),
+          _buildInfoCard(d, statusIcon, statusLabel),
           const SizedBox(height: 16),
 
-          // ── Total Card ──────────────────────────────────────────────────
           _buildTotalCard(d, fmtHarga),
           const SizedBox(height: 16),
 
-          // ── Items Card ──────────────────────────────────────────────────
-          _buildItemsCard(d, fmtQty, fmtHarga),
+          _buildItemsCard(d, fmtHarga),
           const SizedBox(height: 16),
 
-          // ── Harga Nasabah Card ──────────────────────────────────────────
           _buildHargaNasabahCard(d, fmtHarga),
           const SizedBox(height: 16),
 
-          // ── Bukti Foto ──────────────────────────────────────────────────
           _buildFotoCard(d),
           const SizedBox(height: 24),
 
-          // ── CTA Button ──────────────────────────────────────────────────
           _buildCta(d),
           const SizedBox(height: 12),
 
-          // ── Unduh Bukti Penjualan ───────────────────────────────────────
           _buildUnduhButton(d),
         ],
       ),
     );
   }
 
-  // ── Info Card ───────────────────────────────────────────────────────────────
-  Widget _buildInfoCard(DetailPenjualanModel d, String statusBh, String statusLabel) {
+  Widget _buildInfoCard(
+      DetailPenjualanModel d, IconData statusIcon, String statusLabel) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -311,13 +240,7 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
           _infoRow(Icons.inventory_2_rounded, 'Jumlah Item',
               '${d.itemsSampah.length} item sampah'),
           _divider(),
-          _infoRow(
-            statusBh == 'berhasil'
-                ? Icons.check_circle_rounded
-                : Icons.hourglass_top_rounded,
-            'Status Bagi Hasil',
-            statusLabel,
-          ),
+          _infoRow(statusIcon, 'Status Bagi Hasil', statusLabel),
         ],
       ),
     );
@@ -331,10 +254,10 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: _C.green.withOpacity(0.08),
+              color: AppColors.green.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 15, color: _C.green),
+            child: Icon(icon, size: 15, color: AppColors.green),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -343,20 +266,11 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    color: _C.dark.withOpacity(0.45),
-                  ),
+                  style: AppText.r(10, AppColors.dark.withValues(alpha: 0.45)),
                 ),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    color: _C.dark,
-                  ),
+                  style: AppText.w600(12, AppColors.dark),
                 ),
               ],
             ),
@@ -367,12 +281,10 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
   }
 
   Widget _divider() =>
-      Divider(color: _C.dark.withOpacity(0.06), height: 1);
+      Divider(color: AppColors.dark.withValues(alpha: 0.06), height: 1);
 
-  // ── Items Card ──────────────────────────────────────────────────────────────
   Widget _buildItemsCard(
     DetailPenjualanModel d,
-    NumberFormat fmtQty,
     String Function(double) fmtHarga,
   ) {
     return Container(
@@ -385,19 +297,13 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section title
           Row(
-            children: const [
-              Icon(Icons.list_alt_rounded, color: _C.green, size: 18),
+            children: [
+              Icon(Icons.list_alt_rounded, color: AppColors.green, size: 18),
               SizedBox(width: 8),
               Text(
                 'Item Sampah Dijual',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: _C.dark,
-                ),
+                style: AppText.w700(13, AppColors.dark),
               ),
             ],
           ),
@@ -408,34 +314,24 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Text(
                 'Tidak ada item sampah.',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  color: _C.dark.withOpacity(0.4),
-                  fontSize: 12,
-                ),
+                style: AppText.r(12, AppColors.dark.withValues(alpha: 0.4)),
               ),
             )
           else ...[
-            // Table header
             Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: _C.dark.withOpacity(0.04),
+                color: AppColors.dark.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
-                children: const [
+                children: [
                   Expanded(
                     flex: 4,
                     child: Text(
                       'Nama Sampah',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: _C.dark,
-                      ),
+                      style: AppText.w600(10, AppColors.dark),
                     ),
                   ),
                   SizedBox(
@@ -443,12 +339,7 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
                     child: Text(
                       'Qty × Harga',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: _C.dark,
-                      ),
+                      style: AppText.w600(10, AppColors.dark),
                     ),
                   ),
                   SizedBox(
@@ -456,12 +347,7 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
                     child: Text(
                       'Subtotal',
                       textAlign: TextAlign.right,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: _C.dark,
-                      ),
+                      style: AppText.w600(10, AppColors.dark),
                     ),
                   ),
                 ],
@@ -469,7 +355,6 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
             ),
             const SizedBox(height: 4),
 
-            // Table rows
             ...d.itemsSampah.asMap().entries.map((entry) {
               final i = entry.key;
               final s = entry.value;
@@ -480,7 +365,7 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
                 decoration: BoxDecoration(
                   color: isEven
                       ? Colors.transparent
-                      : _C.dark.withOpacity(0.02),
+                      : AppColors.dark.withValues(alpha: 0.02),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -489,24 +374,15 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
                       flex: 4,
                       child: Text(
                         s.namaSampah,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: _C.dark,
-                        ),
+                        style: AppText.w500(11, AppColors.dark),
                       ),
                     ),
                     SizedBox(
                       width: 80,
                       child: Text(
-                        '${fmtQty.format(s.qty)} × ${fmtHarga(s.hargaJual)}',
+                        '${AppNumber.desimal(s.qty)} ${s.satuan} × ${fmtHarga(s.hargaJual)}',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 9.5,
-                          color: _C.dark.withOpacity(0.6),
-                        ),
+                        style: AppText.r(9.5, AppColors.dark.withValues(alpha: 0.6)),
                       ),
                     ),
                     SizedBox(
@@ -514,12 +390,7 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
                       child: Text(
                         fmtHarga(s.subtotalPenjualan),
                         textAlign: TextAlign.right,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _C.green,
-                        ),
+                        style: AppText.w600(11, AppColors.green),
                       ),
                     ),
                   ],
@@ -532,7 +403,6 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
     );
   }
 
-  // ── Harga Nasabah Card ──────────────────────────────────────────────────────
   Widget _buildHargaNasabahCard(
     DetailPenjualanModel d,
     String Function(double) fmtHarga,
@@ -552,17 +422,12 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
                 setState(() => _hargaNasabahExpanded = !_hargaNasabahExpanded),
             child: Row(
               children: [
-                const Icon(Icons.person_pin_rounded, color: _C.green, size: 18),
+                const Icon(Icons.person_pin_rounded, color: AppColors.green, size: 18),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Harga Sampah Nasabah',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: _C.dark,
-                    ),
+                    style: AppText.w700(13, AppColors.dark),
                   ),
                 ),
                 AnimatedRotation(
@@ -570,7 +435,7 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
                   duration: const Duration(milliseconds: 200),
                   child: Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    color: _C.dark.withValues(alpha: 0.5),
+                    color: AppColors.dark.withValues(alpha: 0.5),
                     size: 22,
                   ),
                 ),
@@ -592,11 +457,7 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
                   if (d.itemsSampah.isEmpty)
                     Text(
                       'Tidak ada data.',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        color: _C.dark.withValues(alpha: 0.4),
-                      ),
+                      style: AppText.r(12, AppColors.dark.withValues(alpha: 0.4)),
                     )
                   else
                     ...d.itemsSampah.asMap().entries.map((entry) {
@@ -613,27 +474,17 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
                                 Expanded(
                                   child: Text(
                                     s.namaSampah,
-                                    style: const TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                      color: _C.dark,
-                                    ),
+                                    style: AppText.w500(12, AppColors.dark),
                                   ),
                                 ),
                                 Text(
                                   fmtHarga(s.hargaNasabahSnapshot),
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: _C.green,
-                                  ),
+                                  style: AppText.w600(12, AppColors.green),
                                 ),
                               ],
                             ),
                           ),
-                          if (!isLast) Divider(color: _C.dark.withValues(alpha: 0.06), height: 1),
+                          if (!isLast) Divider(color: AppColors.dark.withValues(alpha: 0.06), height: 1),
                         ],
                       );
                     }),
@@ -646,7 +497,6 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
     );
   }
 
-  // ── Total Card ──────────────────────────────────────────────────────────────
   Widget _buildTotalCard(
       DetailPenjualanModel d, String Function(double) fmtHarga) {
     return Container(
@@ -664,39 +514,28 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: _C.green.withOpacity(0.10),
+                  color: AppColors.green.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.payments_rounded,
-                    color: _C.green, size: 18),
+                    color: AppColors.green, size: 18),
               ),
               const SizedBox(width: 12),
-              const Text(
+              Text(
                 'Total Penjualan',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: _C.dark,
-                ),
+                style: AppText.w600(13, AppColors.dark),
               ),
             ],
           ),
           Text(
             fmtHarga(d.totalPenjualan),
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: _C.green,
-            ),
+            style: AppText.w800(16, AppColors.green),
           ),
         ],
       ),
     );
   }
 
-  // ── Foto Card ───────────────────────────────────────────────────────────────
   Widget _buildFotoCard(DetailPenjualanModel d) {
     return Container(
       width: double.infinity,
@@ -709,17 +548,12 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
-              Icon(Icons.photo_camera_rounded, color: _C.green, size: 18),
+            children: [
+              Icon(Icons.photo_camera_rounded, color: AppColors.green, size: 18),
               SizedBox(width: 8),
               Text(
                 'Bukti Serah Terima',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: _C.dark,
-                ),
+                style: AppText.w700(13, AppColors.dark),
               ),
             ],
           ),
@@ -740,21 +574,17 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
                 aspectRatio: 4 / 3,
                 child: d.buktiFoto.isEmpty
                   ? Container(
-                      color: _C.cardBg,
+                      color: AppColors.surfaceMint,
                       child: Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.image_not_supported_rounded,
-                                color: _C.dark.withOpacity(0.2), size: 40),
+                                color: AppColors.dark.withValues(alpha: 0.2), size: 40),
                             const SizedBox(height: 8),
                             Text(
                               'Tidak ada foto',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 12,
-                                color: _C.dark.withOpacity(0.3),
-                              ),
+                              style: AppText.r(12, AppColors.dark.withValues(alpha: 0.3)),
                             ),
                           ],
                         ),
@@ -767,24 +597,20 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
                           ? child
                           : const Center(
                               child: CircularProgressIndicator(
-                                  color: _C.green, strokeWidth: 2),
+                                  color: AppColors.green, strokeWidth: 2),
                             ),
                       errorBuilder: (_, __, ___) => Container(
-                        color: _C.cardBg,
+                        color: AppColors.surfaceMint,
                         child: Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.broken_image_rounded,
-                                  color: _C.dark.withOpacity(0.2), size: 40),
+                                  color: AppColors.dark.withValues(alpha: 0.2), size: 40),
                               const SizedBox(height: 8),
                               Text(
                                 'Foto tidak dapat dimuat',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 12,
-                                  color: _C.dark.withOpacity(0.3),
-                                ),
+                                style: AppText.r(12, AppColors.dark.withValues(alpha: 0.3)),
                               ),
                             ],
                           ),
@@ -799,7 +625,6 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
     );
   }
 
-  // ── CTA Buttons ─────────────────────────────────────────────────────────────
   Widget _buildCta(DetailPenjualanModel d) {
     final statusBh = d.statusBagiHasil.toLowerCase();
 
@@ -821,16 +646,12 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
             ).then((_) => _load());
           },
           icon: const Icon(Icons.calculate_rounded, size: 18),
-          label: const Text(
+          label: Text(
             'Hitung Bagi Hasil',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
+            style: AppText.w600(13),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: _C.dark,
+            backgroundColor: AppColors.dark,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(
@@ -879,16 +700,12 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
                   : const Icon(Icons.receipt_long_rounded, size: 18),
               label: Text(
                 loading ? 'Memuat...' : 'Lihat Detail Bagi Hasil',
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
+                style: AppText.w600(13),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _C.green,
+                backgroundColor: AppColors.green,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: _C.green.withValues(alpha: 0.5),
+                disabledBackgroundColor: AppColors.green.withValues(alpha: 0.5),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(50),
@@ -904,7 +721,6 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
     return const SizedBox.shrink();
   }
 
-  // ── Unduh Bukti Penjualan ─────────────────────────────────────────────────
   Widget _buildUnduhButton(DetailPenjualanModel d) {
     return SizedBox(
       width: double.infinity,
@@ -914,20 +730,16 @@ class _DetailPenjualanScreenState extends State<DetailPenjualanScreen> {
             ? const SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: _C.dark),
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.dark),
               )
             : const Icon(Icons.download_rounded, size: 18),
         label: Text(
           _unduhLoading ? 'Menyiapkan PDF...' : 'Unduh Bukti Penjualan',
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
+          style: AppText.w600(13),
         ),
         style: OutlinedButton.styleFrom(
-          foregroundColor: _C.dark,
-          side: BorderSide(color: _C.dark.withOpacity(0.25)),
+          foregroundColor: AppColors.dark,
+          side: BorderSide(color: AppColors.dark.withValues(alpha: 0.25)),
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(50),

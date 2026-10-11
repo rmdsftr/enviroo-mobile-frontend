@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/katalog_model.dart';
@@ -12,28 +11,10 @@ import '../../widgets/search.dart';
 import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import 'deadline_penarikan_screen.dart';
-
-// ── Thousands formatter for Rupiah ─────────────────────────────────────────────
-
-class _ThousandsFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digitsOnly = newValue.text.replaceAll('.', '');
-    if (digitsOnly.isEmpty) return newValue.copyWith(text: '');
-
-    final number = int.tryParse(digitsOnly);
-    if (number == null) return oldValue;
-
-    final formatted = NumberFormat('#,###', 'id_ID').format(number);
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
-    );
-  }
-}
+import 'package:enviroo/core/format/app_number.dart';
+import 'package:enviroo/core/format/thousands_input_formatter.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class RequestPenarikanScreen extends StatefulWidget {
   const RequestPenarikanScreen({super.key});
@@ -44,10 +25,9 @@ class RequestPenarikanScreen extends StatefulWidget {
 }
 
 class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
 
-  // 0=Uang, 1=Barang
   int _tabIndex = 0;
 
   final TextEditingController _nominalController = TextEditingController();
@@ -64,10 +44,9 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
     _nominalController.addListener(_onNominalChanged);
     _nominalFocus.addListener(() => setState(() {}));
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = context.read<AuthProvider>();
       final prov = context.read<PenarikanNasabahProvider>();
-      prov.bind(auth);
-      prov.loadFormData(context.read<RewardProvider>());
+      prov.bind(context.read<AuthProvider>());
+      _muatData();
     });
   }
 
@@ -81,7 +60,6 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
   }
 
   void _onNominalChanged() {
-    // Hanya validasi saldo melebihi (bukan "lebih dari 0") saat mengetik
     setState(() {
       final prov = context.read<PenarikanNasabahProvider>();
       final saldo = _currentSaldo(prov);
@@ -94,7 +72,32 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
     });
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  bool _refreshing = false;
+
+Future<void> _muatData() async {
+  final prov = context.read<PenarikanNasabahProvider>();
+  final reward = context.read<RewardProvider>();
+  await Future.wait([
+    prov.loadSaldo(),
+    prov.loadBarang(),
+    if (prov.nilaiRewards.isEmpty) prov.loadRewards(reward),
+  ]);
+  if (mounted) _sinkronkanQty(_barangTersedia(prov));
+}
+
+void _sinkronkanQty(List<KatalogBarangModel> items) {
+  final stokById = {for (final i in items) i.produkId: i.stok};
+  setState(() {
+    _barangQty.removeWhere((id, _) => !stokById.containsKey(id));
+    _barangQty.updateAll((id, qty) => qty > stokById[id]! ? stokById[id]! : qty);
+  });
+}
+
+Future<void> _refresh() async {
+  setState(() => _refreshing = true);
+  await _muatData();
+  if (mounted) setState(() => _refreshing = false);
+}
 
   NilaiRewardBank? _currentReward(PenarikanNasabahProvider prov) =>
       _tabIndex == 0 ? prov.rewardUang : prov.rewardBarang;
@@ -105,6 +108,9 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
   double _parseNominal() {
     return double.tryParse(_nominalController.text.replaceAll('.', '')) ?? 0;
   }
+
+  List<KatalogBarangModel> _barangTersedia(PenarikanNasabahProvider prov) =>
+    prov.barangList.where((b) => b.stok > 0).toList();
 
   double _totalPoinBarang(List<KatalogBarangModel> items) {
     double total = 0;
@@ -140,15 +146,12 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
 
   String _fmtSaldo(SaldoReward? s) {
     if (s == null) return '--';
-    final f = NumberFormat.decimalPattern('id_ID');
-    f.maximumFractionDigits = 4;
-    f.minimumFractionDigits = 0;
-    final lower = s.satuan.toLowerCase();
-    if (lower.contains('rupiah') || s.isUang) return 'Rp ${f.format(s.nominal)}';
-    return '${f.format(s.nominal)} ${s.satuan.isEmpty ? 'poin' : s.satuan}';
+    return AppNumber.nominal(
+      s.nominal,
+      satuan: s.satuan,
+      isUang: s.isUang || AppNumber.tampakRupiah(s.satuan),
+    );
   }
-
-  // ── Submit ────────────────────────────────────────────────────────────────
 
   Future<void> _lanjutkan() async {
     final prov = context.read<PenarikanNasabahProvider>();
@@ -163,7 +166,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
     List<Map<String, dynamic>> itemBarang = [];
 
     if (_tabIndex == 1) {
-      final err = _validateBarang(prov.barangList);
+      final err = _validateBarang(_barangTersedia(prov));
       if (err != null) {
         setState(() => _inlineError = err);
         return;
@@ -206,8 +209,6 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
         type: error ? SnackBarType.error : SnackBarType.success);
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -215,9 +216,10 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
       body: SafeArea(
         child: Consumer<PenarikanNasabahProvider>(
           builder: (_, prov, __) {
-            final loading = prov.loadingSaldo ||
+            final loading = (prov.loadingSaldo ||
                 prov.loadingRewards ||
-                prov.loadingBarang;
+                prov.loadingBarang) &&
+            !_refreshing;
             return Stack(
               children: [
                 Column(
@@ -229,13 +231,16 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
                           ? const Center(
                               child: CircularProgressIndicator(
                                   color: primary))
-                          : SingleChildScrollView(
-                              padding: const EdgeInsets.fromLTRB(
-                                  20, 16, 20, 24),
+                          : RefreshIndicator(
+                            color: primary,
+                            onRefresh: _refresh,
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                               child: _buildContent(prov),
                             ),
+                          ),
                     ),
-                    // ── Bottom bar button ────────────────────────────────
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -266,8 +271,6 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
       ),
     );
   }
-
-  // ── Tab bar ───────────────────────────────────────────────────────────────
 
   Widget _buildTabs(PenarikanNasabahProvider prov) {
     final tabs = ['Uang', 'Barang'];
@@ -305,23 +308,18 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
                     color: selected
-                        ? const Color(0xFF94DF0C)
+                        ? AppColors.neon
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(50),
                   ),
                   child: Center(
                     child: Text(
                       tabs[i],
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        fontWeight: selected
+                      style: AppText.p(13, weight: selected
                             ? FontWeight.w700
-                            : FontWeight.w500,
-                        color: selected
+                            : FontWeight.w500, color: selected
                             ? dark
-                            : dark.withValues(alpha: 0.45),
-                      ),
+                            : dark.withValues(alpha: 0.45)),
                     ),
                   ),
                 ),
@@ -332,8 +330,6 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
       ),
     );
   }
-
-  // ── Content ───────────────────────────────────────────────────────────────
 
   Widget _buildContent(PenarikanNasabahProvider prov) {
     return Column(
@@ -352,10 +348,6 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
   Widget _buildSaldoCard(PenarikanNasabahProvider prov) {
     final saldo = _currentSaldo(prov);
     final saldoText = _fmtSaldo(saldo);
-    // Jenis SALDO, bukan jenis penarikan — kartu ini bicara soal saldo, dan
-    // field `satuan` dari backend memang memakai istilah rupiah/poin (lihat
-    // _fmtSaldo). Label tab di _buildTabs tetap 'Uang'/'Barang' karena di sana
-    // yang dipilih memang jenis penarikannya.
     final tabLabels = ['Rupiah', 'Poin'];
 
     double? estimasiSisa;
@@ -364,7 +356,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
         final nominal = _parseNominal();
         estimasiSisa = saldo.nominal - nominal;
       } else {
-        final total = _totalPoinBarang(prov.barangList);
+        final total = _totalPoinBarang(_barangTersedia(prov));
         estimasiSisa = saldo.nominal - total;
       }
     }
@@ -372,10 +364,9 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(25),
       child: Container(
-        color: const Color(0xFF013236),
+        color: AppColors.dark,
         child: Stack(
           children: [
-            // ── Decorative bubbles ────────────────────────────────────────────
             Positioned(
               right: -30,
               top: -30,
@@ -386,7 +377,6 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
               bottom: -35,
               child: _Bubble(size: 80, opacity: 0.05),
             ),
-            // ── Content ───────────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -399,24 +389,14 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
                       const SizedBox(width: 8),
                       Text(
                         'Saldo ${tabLabels[_tabIndex]} Tersedia',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: Colors.white54,
-                        ),
+                        style: AppText.r(11, Colors.white54),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
                     saldoText,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
-                    ),
+                    style: AppText.p(22, weight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
                   ),
                   if (estimasiSisa != null) ...[
                     const SizedBox(height: 10),
@@ -434,12 +414,8 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
                               size: 14, color: Colors.white60),
                           const SizedBox(width: 6),
                           Text(
-                            'Estimasi sisa: ${_fmtSaldoVal(estimasiSisa, saldo!.satuan, isUang: saldo.isUang)}',
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 11,
-                              color: Colors.white70,
-                            ),
+                            'Estimasi sisa: ${AppNumber.nominal(estimasiSisa, satuan: saldo!.satuan, isUang: saldo.isUang)}',
+                            style: AppText.r(11, Colors.white70),
                           ),
                         ],
                       ),
@@ -454,16 +430,6 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
     );
   }
 
-
-  String _fmtSaldoVal(double val, String satuan, {bool isUang = false}) {
-    final f = NumberFormat.decimalPattern('id_ID');
-    f.maximumFractionDigits = 4;
-    f.minimumFractionDigits = 0;
-    if (isUang) return 'Rp ${f.format(val)}';
-    return '${f.format(val)} ${satuan.isEmpty ? 'poin' : satuan}';
-  }
-
-  // ── Nominal form ──────────────────────────────────────────────────────────
 
   Widget _buildNominalForm(PenarikanNasabahProvider prov) {
     return Column(
@@ -487,14 +453,9 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 18),
           child: Row(
             children: [
-              const Text(
+              Text(
                 'Rp',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  color: primary,
-                  fontSize: 14,
-                ),
+                style: AppText.w600(14, primary),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -502,12 +463,8 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
                   controller: _nominalController,
                   focusNode: _nominalFocus,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [_ThousandsFormatter()],
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  inputFormatters: const [ThousandsInputFormatter()],
+                  style: AppText.w600(17),
                   decoration: const InputDecoration(
                     hintText: '0',
                     border: InputBorder.none,
@@ -524,11 +481,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
             padding: const EdgeInsets.only(left: 16),
             child: Text(
               _inlineError!,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                color: Colors.red,
-              ),
+              style: AppText.r(11, Colors.red),
             ),
           ),
         ] else ...[
@@ -537,11 +490,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
             padding: const EdgeInsets.only(left: 16),
             child: Text(
               'Masukkan nominal dalam Rupiah',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                color: Colors.black.withValues(alpha: 0.4),
-              ),
+              style: AppText.r(11, Colors.black.withValues(alpha: 0.4)),
             ),
           ),
         ],
@@ -551,24 +500,14 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
     );
   }
 
-  // ── Pilihan nominal cepat ───────────────────────────────────────────────
-  //
-  // Pakai Wrap, bukan baris ber-scroll seperti FilterChipRow: cuma empat item,
-  // dan menyembunyikannya di balik scroll justru bikin tidak ketahuan. Di layar
-  // sempit chip-nya turun ke baris kedua, bukan terpotong.
-
   static const _presetNominal = <double>[10000, 25000, 50000, 100000];
 
   void _pilihPreset(double nominal) {
-    // Formatter hanya berlaku untuk ketikan user, tidak untuk set programatik —
-    // jadi angkanya diformat manual dengan pola yang sama.
-    final teks = NumberFormat('#,###', 'id_ID').format(nominal);
+    final teks = ThousandsInputFormatter.formatRibuan(nominal);
     _nominalController.value = TextEditingValue(
       text: teks,
       selection: TextSelection.collapsed(offset: teks.length),
     );
-    // Listener _onNominalChanged ikut jalan, jadi validasi saldo dan rebuild
-    // chip terpilih terjadi sendiri tanpa setState tambahan di sini.
   }
 
   Widget _buildPresetNominal(PenarikanNasabahProvider prov) {
@@ -579,11 +518,9 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
       spacing: 8,
       runSpacing: 8,
       children: _presetNominal.map((v) {
-        // Nonaktif kalau melebihi saldo — lebih baik terlihat mentok daripada
-        // bisa ditekan lalu langsung dibalas pesan error.
         final terjangkau = saldo != null && v <= saldo.nominal;
         return _NominalChip(
-          label: 'Rp${NumberFormat('#,###', 'id_ID').format(v)}',
+          label: AppNumber.rupiah(v),
           terpilih: nominalKini == v,
           aktif: terjangkau,
           onTap: () => _pilihPreset(v),
@@ -592,10 +529,8 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
     );
   }
 
-  // ── Barang form ─────────────────────────────────────────────────────────
-
   Widget _buildBarangForm(PenarikanNasabahProvider prov) {
-    final allItems = prov.barangList;
+    final allItems = _barangTersedia(prov);
     final total = _totalPoinBarang(allItems);
     final saldo = prov.saldo?.saldoBarang;
     final exceeded = saldo != null && total > saldo.nominal;
@@ -622,13 +557,8 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
                 borderRadius: BorderRadius.circular(50),
               ),
               child: Text(
-                'Total ${NumberFormat.decimalPattern('id_ID').format(total)} poin',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: exceeded ? Colors.red : primary,
-                ),
+                'Total ${AppNumber.desimal(total)} poin',
+                style: AppText.w600(11, exceeded ? Colors.red : primary),
               ),
             ),
           ],
@@ -656,11 +586,7 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               _inlineError!,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                color: Colors.red,
-              ),
+              style: AppText.r(11, Colors.red),
             ),
           ),
         if (items.isEmpty)
@@ -671,11 +597,11 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
               color: const Color(0xFFFFFBF1),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                  color: const Color(0xFFFAA324).withValues(alpha: 0.3)),
+                  color: AppColors.warningAlt.withValues(alpha: 0.3)),
             ),
-            child: const Text(
+            child: Text(
               'Belum ada barang tersedia.',
-              style: TextStyle(fontFamily: 'Poppins', fontSize: 12),
+              style: AppText.r(12),
             ),
           )
         else
@@ -696,8 +622,6 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
       ],
     );
   }
-
-  // ── CTA Button ────────────────────────────────────────────────────────────
 
   Widget _buildCTA(PenarikanNasabahProvider prov) {
     final loading = prov.loadingSaldo ||
@@ -725,14 +649,9 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2.5),
                     )
-                  : const Text(
+                  : Text(
                       'Lanjutkan',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppText.w600(14, Colors.white),
                     ),
             ),
           ),
@@ -741,8 +660,6 @@ class _RequestPenarikanScreenState extends State<RequestPenarikanScreen> {
     );
   }
 }
-
-// ── Bubble Decorative Widget ──────────────────────────────────────────────
 
 class _Bubble extends StatelessWidget {
   final double size;
@@ -757,13 +674,11 @@ class _Bubble extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white.withOpacity(opacity),
+        color: Colors.white.withValues(alpha: opacity),
       ),
     );
   }
 }
-
-// ── Expandable Barang List ───────────────────────────────────────────────────
 
 class _BarangExpandableList extends StatefulWidget {
   final List<KatalogBarangModel> items;
@@ -820,10 +735,10 @@ class _BarangTile extends StatelessWidget {
     required this.onQtyChanged,
   });
 
-  static const Color primary = Color(0xFF4EA771);
-  static const Color dark = Color(0xFF013236);
+  static const Color primary = AppColors.green;
+  static const Color dark = AppColors.dark;
 
-  String _fmt(num n) => NumberFormat.decimalPattern('id_ID').format(n);
+  String _fmt(num n) => AppNumber.desimal(n);
 
   @override
   Widget build(BuildContext context) {
@@ -846,7 +761,6 @@ class _BarangTile extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Header row (always visible)
           InkWell(
             onTap: onTap,
             borderRadius: isExpanded
@@ -890,20 +804,11 @@ class _BarangTile extends StatelessWidget {
                       children: [
                         Text(
                           item.namaBarang,
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: dark,
-                          ),
+                          style: AppText.w600(13, dark),
                         ),
                         Text(
                           '${_fmt(poin)} poin',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 11,
-                            color: Colors.black.withValues(alpha: 0.5),
-                          ),
+                          style: AppText.r(11, Colors.black.withValues(alpha: 0.5)),
                         ),
                       ],
                     ),
@@ -919,12 +824,7 @@ class _BarangTile extends StatelessWidget {
                       ),
                       child: Text(
                         'x${qty.toInt()}',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: primary,
-                        ),
+                        style: AppText.w700(11, primary),
                       ),
                     ),
                   const SizedBox(width: 6),
@@ -939,7 +839,6 @@ class _BarangTile extends StatelessWidget {
               ),
             ),
           ),
-          // Expanded qty selector
           AnimatedSize(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeInOut,
@@ -955,11 +854,7 @@ class _BarangTile extends StatelessWidget {
                           children: [
                             Text(
                               'Subtotal: ${_fmt(poin * qty)} poin',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 12,
-                                color: Colors.black.withValues(alpha: 0.5),
-                              ),
+                              style: AppText.r(12, Colors.black.withValues(alpha: 0.5)),
                             ),
                             const Spacer(),
                             _QtyButton(
@@ -976,12 +871,7 @@ class _BarangTile extends StatelessWidget {
                               child: Center(
                                 child: Text(
                                   '${qty.toInt()}',
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
-                                    color: dark,
-                                  ),
+                                  style: AppText.w700(15, dark),
                                 ),
                               ),
                             ),
@@ -1002,11 +892,7 @@ class _BarangTile extends StatelessWidget {
                             padding: const EdgeInsets.only(top: 6),
                             child: Text(
                               'Stok maksimum tercapai',
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 10,
-                                color: Colors.orange,
-                              ),
+                              style: AppText.r(10, Colors.orange),
                             ),
                           ),
                       ],
@@ -1033,7 +919,7 @@ class _QtyButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF4EA771);
+    const primary = AppColors.green;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1068,17 +954,7 @@ class _QtyButton extends StatelessWidget {
   }
 }
 
-// ── Section label ─────────────────────────────────────────────────────────────
-
-/// Chip nominal cepat di form penarikan uang.
-///
-/// Gaya visualnya sengaja mengikuti `FilterChipRow` (radius 50, aksen hijau,
-/// ikon centang saat terpilih) supaya seragam dengan chip lain di aplikasi.
-/// Tidak memakai widget itu langsung karena butuh **keadaan nonaktif** — chip
-/// yang melebihi saldo harus terlihat mentok, bukan bisa ditekan lalu ditolak.
 class _NominalChip extends StatelessWidget {
-  static const _dark = Color(0xFF013236);
-  static const _primary = Color(0xFF4EA771);
 
   final String label;
   final bool terpilih;
@@ -1099,15 +975,15 @@ class _NominalChip extends StatelessWidget {
     final Color warnaLatar;
 
     if (!aktif) {
-      warnaTeks = _dark.withValues(alpha: 0.25);
+      warnaTeks = AppColors.dark.withValues(alpha: 0.25);
       warnaBorder = const Color(0xFFEEEEEE);
       warnaLatar = const Color(0xFFF7F7F7);
     } else if (terpilih) {
-      warnaTeks = _primary;
-      warnaBorder = _primary;
-      warnaLatar = _primary.withValues(alpha: 0.075);
+      warnaTeks = AppColors.green;
+      warnaBorder = AppColors.green;
+      warnaLatar = AppColors.green.withValues(alpha: 0.075);
     } else {
-      warnaTeks = _dark.withValues(alpha: 0.5);
+      warnaTeks = AppColors.dark.withValues(alpha: 0.5);
       warnaBorder = const Color(0xFFE5E5E5);
       warnaLatar = Colors.white;
     }
@@ -1131,18 +1007,12 @@ class _NominalChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (terpilih && aktif) ...[
-              const Icon(Icons.check, size: 14, color: _primary),
+              const Icon(Icons.check, size: 14, color: AppColors.green),
               const SizedBox(width: 4),
             ],
             Text(
               label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: warnaTeks,
-                letterSpacing: -0.2,
-              ),
+              style: AppText.p(12, weight: FontWeight.w600, color: warnaTeks, letterSpacing: -0.2),
             ),
           ],
         ),
@@ -1159,12 +1029,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: TextStyle(
-        fontFamily: 'Poppins',
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        color: Colors.black.withValues(alpha: 0.7),
-      ),
+      style: AppText.w600(12, Colors.black.withValues(alpha: 0.7)),
     );
   }
 }

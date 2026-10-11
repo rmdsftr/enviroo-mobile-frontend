@@ -7,7 +7,6 @@ import 'package:enviroo/services/profil_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Key-key yang digunakan untuk menyimpan sesi di SharedPreferences
 class _K {
   static const userId = 'auth_user_id';
   static const email = 'auth_email';
@@ -18,6 +17,16 @@ class _K {
   static const accessToken = 'auth_access_token';
   static const refreshToken = 'auth_refresh_token';
   static const availableRoles = 'auth_available_roles';
+
+  static const resetEmail = 'reset_pw_email';
+  static const resetExpiredAt = 'reset_pw_expired_at';
+}
+
+class PendingResetSession {
+  final String email;
+  final DateTime expiredAt;
+
+  const PendingResetSession({required this.email, required this.expiredAt});
 }
 
 class AuthProvider extends ChangeNotifier {
@@ -30,16 +39,11 @@ class AuthProvider extends ChangeNotifier {
   String? _errorMessage;
   List<String> _availableRoles = [];
 
-  // Kegagalan mengambil profil sesi. Dipisah dari _errorMessage yang dipakai
-  // alur login — kalau digabung, pesan login bisa tertimpa pesan profil.
   String? _profileError;
 
-  // Alasan sesi berakhir dari server (mis. SESSION_REVOKED saat akun dipakai
-  // login di perangkat lain) — dipakai untuk pesan di layar login.
   String? _sessionEndedCode;
   String? _sessionEndedMessage;
 
-  // Deduplicate concurrent refresh calls — only one in-flight at a time.
   Future<bool>? _refreshFuture;
 
   int _profilePhotoVersion = 0;
@@ -49,8 +53,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Dipanggil setelah logout paksa akibat akun dinonaktifkan (403 ACCOUNT_INACTIVE).
-  // Di-set dari _EnvirooAppState.initState agar bisa pakai _navigatorKey.
   void Function()? _onForceLogout;
 
   void setForceLogoutCallback(void Function() cb) {
@@ -68,7 +70,6 @@ class AuthProvider extends ChangeNotifier {
   String? get sessionEndedCode => _sessionEndedCode;
   String? get sessionEndedMessage => _sessionEndedMessage;
 
-  // Convenience getters
   String get role => _currentUser?.role ?? '';
   String get nama => _petugasProfile?.nama ?? _nasabahProfile?.nama ?? _currentUser?.nama ?? 'Tamu';
   String get userId => _currentUser?.userId ?? '';
@@ -78,9 +79,6 @@ class AuthProvider extends ChangeNotifier {
   String? get identityId => _currentUser?.identityId;
   String get nomorRekening => _nasabahProfile?.nomorRekening ?? '-';
 
-  // ─── Persistensi sesi ──────────────────────────────────────────────────────
-
-  /// Simpan sesi login ke SharedPreferences
   Future<void> _saveSession(UserModel user) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_K.userId, user.userId);
@@ -93,7 +91,6 @@ class AuthProvider extends ChangeNotifier {
     await prefs.setString(_K.refreshToken, user.refreshToken);
   }
 
-  /// Simpan available roles ke SharedPreferences
   Future<void> setAvailableRoles(List<String> roles) async {
     _availableRoles = roles;
     final prefs = await SharedPreferences.getInstance();
@@ -101,7 +98,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Hapus sesi dari SharedPreferences (saat logout)
   Future<void> _clearSession() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_K.userId);
@@ -115,7 +111,6 @@ class AuthProvider extends ChangeNotifier {
     await prefs.remove(_K.availableRoles);
   }
 
-  /// Muat sesi dari SharedPreferences (dipanggil saat app baru dibuka / restart)
   Future<bool> tryRestoreSession() async {
     final prefs = await SharedPreferences.getInstance();
     final accessToken = prefs.getString(_K.accessToken);
@@ -138,19 +133,11 @@ class AuthProvider extends ChangeNotifier {
     _availableRoles = prefs.getStringList(_K.availableRoles) ?? [];
     _initApiClient();
 
-    // Token yang tersimpan di disk bukan bukti sesi masih sah — server bisa
-    // sudah mematikannya (login dari perangkat lain / ganti password). Validasi
-    // dulu lewat refresh; kalau gagal, _doRefreshToken sudah membersihkan sesi
-    // dan SplashScreen akan mengarahkan ke login.
     _isRestoringSession = true;
     await refreshToken();
     _isRestoringSession = false;
-    // Kalau server menolak, _doRefreshToken sudah menghapus sesi → ke login.
-    // Kalau gagalnya karena jaringan, sesi dipertahankan dan app tetap masuk;
-    // request berikutnya yang akan mencoba lagi.
     if (_currentUser == null) return false;
 
-    // Ambil profil tambahan berdasarkan role
     if (_currentUser!.role == 'nasabah' && _currentUser!.identityId != null) {
       await fetchNasabahProfile();
     }
@@ -165,9 +152,6 @@ class AuthProvider extends ChangeNotifier {
     return true;
   }
 
-  // ─── Auth flow ─────────────────────────────────────────────────────────────
-
-  /// Step 1: Cek apakah user valid dan role apa saja yang dimiliki di mobile.
   Future<Map<String, dynamic>> cekUserMobile(String email, String password) async {
     _isLoading = true;
     _errorMessage = null;
@@ -183,7 +167,6 @@ class AuthProvider extends ChangeNotifier {
     return result;
   }
 
-  /// Step 2: Login dengan role yang sudah dipilih.
   Future<bool> login(String email, String password, String role) async {
     _isLoading = true;
     _errorMessage = null;
@@ -197,11 +180,9 @@ class AuthProvider extends ChangeNotifier {
       _currentUser = UserModel.fromJson(result['data']);
       _isLoading = false;
 
-      // Simpan sesi ke disk agar tahan terhadap restart Activity
       await _saveSession(_currentUser!);
       _initApiClient();
 
-      // Ambil profil tambahan
       if (_currentUser?.role == 'nasabah' && _currentUser?.identityId != null) {
         await fetchNasabahProfile();
       }
@@ -223,14 +204,12 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Switch ke role lain menggunakan token aktif (tanpa re-login).
   Future<bool> switchRole(String targetRole) async {
     _isSwitchingRole = true;
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    // Refresh proaktif sebelum hit endpoint agar token dijamin fresh
     await refreshToken();
 
     final result = await AuthService.switchRole(targetRole);
@@ -267,22 +246,9 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Ambil profil sesi nasabah.
-  ///
-  /// Mengembalikan `false` kalau gagal, dan mengisi [profileError]. Pemanggil
-  /// bootstrap (`tryRestoreSession`, `login`, `switchRole`) sengaja TIDAK
-  /// memblokir atas kegagalan ini — jaringan goyang tidak boleh menahan user
-  /// masuk app, dan getter berjenjang ([bankId], [nama]) masih punya fallback
-  /// dari `_currentUser`. Yang penting: kegagalannya tercatat, bukan hilang.
-  ///
-  /// Hanya dipanggil dari dalam provider ini. Layar TIDAK perlu memanggilnya —
-  /// setiap jalan menuju beranda sudah melewati salah satu pemanggil di atas.
   Future<bool> fetchNasabahProfile() async {
-    // Belum ada sesi — bukan kegagalan, memang tidak ada yang bisa diambil.
     if (_currentUser == null || _currentUser!.identityId == null) return false;
 
-    // Memanggil ProfilService langsung (bukan ProfilProvider) karena ini
-    // bootstrap sesi — AuthProvider tidak punya akses ke provider lain.
     final result =
         await ProfilService.getProfilNasabah(_currentUser!.identityId!);
 
@@ -299,9 +265,6 @@ class AuthProvider extends ChangeNotifier {
     return false;
   }
 
-  /// Ambil profil sesi petugas. Kontraknya sama persis dengan
-  /// [fetchNasabahProfile] — disamakan supaya tidak lahir asimetri perilaku
-  /// antara kedua peran.
   Future<bool> fetchPetugasProfile() async {
     if (_currentUser == null || _currentUser!.identityId == null) return false;
 
@@ -332,13 +295,10 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
-  /// Logout dari aplikasi dan bersihkan data session
   Future<void> logout() async {
     _isLoading = true;
     notifyListeners();
 
-    // Token dikirim agar server ikut mengosongkan slot sesi user, bukan cuma
-    // dibersihkan di sisi aplikasi.
     final accessToken = _currentUser?.accessToken ?? '';
     if (accessToken.isNotEmpty) {
       await AuthService.logout(accessToken, _currentUser?.refreshToken ?? '');
@@ -355,10 +315,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Memperbarui Access Token menggunakan Refresh Token.
-  /// Concurrent calls share a single in-flight request so the refresh token
-  /// is only consumed once, preventing a race condition that would invalidate
-  /// a still-valid session.
   Future<bool> refreshToken() {
     _refreshFuture ??= _doRefreshToken().whenComplete(() {
       _refreshFuture = null;
@@ -378,8 +334,6 @@ class AuthProvider extends ChangeNotifier {
       final newAccessToken = result['access_token'] as String?;
       final newRefreshToken = result['refresh_token'] as String?;
 
-      // Refresh token tidak selalu dirotasi — pertahankan yang lama jika backend
-      // tidak mengirim yang baru.
       if (newAccessToken != null && newAccessToken.isNotEmpty) {
         _currentUser = UserModel(
           userId: _currentUser!.userId,
@@ -399,19 +353,12 @@ class AuthProvider extends ChangeNotifier {
       }
     }
 
-    // Gagal karena jaringan, bukan karena server menolak — sesi belum tentu
-    // mati (mis. app dibuka saat offline), jadi jangan dipaksa logout.
     if (result['network_error'] == true) return false;
 
-    // Refresh gagal → sesi sudah tidak sah di server (expired, atau
-    // SESSION_REVOKED karena akun dipakai login di perangkat lain).
-    // Saat switch role, kegagalan ditangani oleh switchRole() sendiri.
     if (!_isSwitchingRole) {
       _sessionEndedCode = result['code'] as String?;
       _sessionEndedMessage = result['message'] as String?;
       await logout();
-      // Saat restore sesi, SplashScreen yang mengarahkan ke login — tidak perlu
-      // (dan tidak boleh) push route baru dari sini.
       if (!_isRestoringSession) _onForceLogout?.call();
     }
     return false;
@@ -422,29 +369,10 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Dipanggil setelah alasan sesi berakhir ditampilkan ke user, agar
-  /// pesannya tidak muncul lagi di kunjungan berikutnya ke layar login.
   void clearSessionEnded() {
     _sessionEndedCode = null;
     _sessionEndedMessage = null;
   }
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // Alur sekali-jalan: aktivasi, lupa password, ganti password
-  //
-  // Sengaja meneruskan hasil service apa adanya — TIDAK menyentuh _isLoading
-  // maupun _errorMessage. Tiga alasannya:
-  //
-  // 1. [_isLoading] menggerakkan UI login. Memakainya di sini membuat tombol
-  //    login ikut berubah keadaan saat user sedang mengaktivasi akun.
-  // 2. VerifikasiOtpScreen punya dua flag terpisah (verifikasi vs kirim ulang);
-  //    satu flag di provider tidak bisa melayani keduanya.
-  // 3. AktivasiAkunScreen mencocokkan TEKS pesan error untuk memutuskan maju ke
-  //    step 2. Pesan mentah harus sampai ke layar utuh — kalau ditelan jadi
-  //    _errorMessage, alur dua-langkahnya rusak tanpa gejala.
-  //
-  // Jangan diubah jadi stateful tanpa membaca ketiga poin itu dulu.
-  // ───────────────────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> aktivasiAkun(
           String nik, String otp, String password) =>
@@ -466,7 +394,34 @@ class AuthProvider extends ChangeNotifier {
       AuthService.resetPassword(
           email, otp, passwordBaru, konfirmasiPasswordBaru);
 
-  /// Token diambil dari sesi yang sedang aktif — layar tidak perlu mengurusnya.
+  Future<void> savePendingReset(String email, String? expiredAt) async {
+    final prefs = await SharedPreferences.getInstance();
+    final kadaluarsa = expiredAt ??
+        DateTime.now().add(const Duration(minutes: 10)).toIso8601String();
+    await prefs.setString(_K.resetEmail, email);
+    await prefs.setString(_K.resetExpiredAt, kadaluarsa);
+  }
+
+  Future<PendingResetSession?> loadPendingReset() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString(_K.resetEmail);
+    final raw = prefs.getString(_K.resetExpiredAt);
+    if (email == null || email.isEmpty || raw == null) return null;
+
+    final expiredAt = DateTime.tryParse(raw);
+    if (expiredAt == null || !expiredAt.isAfter(DateTime.now())) {
+      await clearPendingReset();
+      return null;
+    }
+    return PendingResetSession(email: email, expiredAt: expiredAt);
+  }
+
+  Future<void> clearPendingReset() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_K.resetEmail);
+    await prefs.remove(_K.resetExpiredAt);
+  }
+
   Future<Map<String, dynamic>> changePassword(
     String passwordLama,
     String passwordBaru,

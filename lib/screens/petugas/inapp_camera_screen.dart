@@ -3,11 +3,9 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:flutter/services.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-/// Layar kamera in-app yang berjalan sepenuhnya di dalam Flutter.
-/// Tidak membuka Activity Android baru, sehingga stack navigasi tetap utuh.
-///
-/// Mengembalikan [File] foto yang sudah diambil, atau null jika dibatalkan.
 class InAppCameraScreen extends StatefulWidget {
   final String? hint;
 
@@ -62,7 +60,6 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
         return;
       }
 
-      // Pakai kamera belakang
       final backCamera = _cameras!.firstWhere(
         (c) => c.lensDirection == CameraLensDirection.back,
         orElse: () => _cameras!.first,
@@ -98,7 +95,6 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
       final File fotoFile = File(xFile.path);
 
       if (!mounted) return;
-      // Kembalikan file ke pemanggil (InputSetoranScreen)
       Navigator.pop(context, fotoFile);
     } catch (e) {
       if (!mounted) return;
@@ -114,22 +110,19 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // ── Preview kamera / error / loading ────────────────────────────────
           if (_errorMsg != null)
             _buildError()
           else if (!_isInitialized)
             const Center(
-              child: CircularProgressIndicator(color: Color(0xFF4EA771)),
+              child: CircularProgressIndicator(color: AppColors.green),
             )
           else
             _buildCameraPreview(),
 
-          // ── UI overlay ──────────────────────────────────────────────────────
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Tombol kembali
                 Padding(
                   padding: const EdgeInsets.all(12),
                   child: Align(
@@ -167,17 +160,12 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
                         child: Text(
                           widget.hint!,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 12,
-                            color: Colors.white,
-                          ),
+                          style: AppText.r(12, Colors.white),
                         ),
                       ),
                     ),
                   ),
 
-                // Tombol capture
                 Padding(
                   padding: const EdgeInsets.only(bottom: 40),
                   child: Center(
@@ -189,16 +177,16 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
                         height: _isCapturing ? 64 : 72,
                         decoration: BoxDecoration(
                           color: _isCapturing
-                              ? const Color(0xFF4EA771).withValues(alpha:0.6)
+                              ? AppColors.green.withValues(alpha:0.6)
                               : Colors.white,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: const Color(0xFF4EA771),
+                            color: AppColors.green,
                             width: 3.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF4EA771).withValues(alpha:0.35),
+                              color: AppColors.green.withValues(alpha:0.35),
                               blurRadius: 20,
                               spreadRadius: 4,
                             )
@@ -214,7 +202,7 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
                               )
                             : const Icon(
                                 Icons.camera_alt_rounded,
-                                color: Color(0xFF013236),
+                                color: AppColors.dark,
                                 size: 28,
                               ),
                       ),
@@ -233,8 +221,6 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
     final previewSize = _controller!.value.previewSize;
     if (previewSize == null) return const SizedBox.shrink();
 
-    // Sensor kamera Android berorientasi landscape (width > height).
-    // Swap width↔height agar FittedBox bisa scale dengan benar di portrait.
     return SizedBox.expand(
       child: FittedBox(
         fit: BoxFit.cover,
@@ -260,11 +246,7 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
             Text(
               _errorMsg!,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                color: Colors.white70,
-                fontSize: 13,
-              ),
+              style: AppText.r(13, Colors.white70),
             ),
             const SizedBox(height: 20),
             TextButton(
@@ -272,7 +254,7 @@ class _InAppCameraScreenState extends State<InAppCameraScreen>
               child: const Text(
                 'Kembali',
                 style: TextStyle(
-                  color: Color(0xFF4EA771),
+                  color: AppColors.green,
                   fontFamily: 'Poppins',
                   fontWeight: FontWeight.w600,
                 ),

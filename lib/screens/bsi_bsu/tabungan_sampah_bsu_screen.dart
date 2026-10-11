@@ -1,3 +1,5 @@
+import 'package:enviroo/core/format/app_date.dart';
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:enviroo/models/tabungan_sampah_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
@@ -6,8 +8,10 @@ import 'package:enviroo/widgets/filter_month_year.dart';
 import 'package:enviroo/widgets/navbar.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class TabunganSampahBsuScreen extends StatefulWidget {
   const TabunganSampahBsuScreen({super.key});
@@ -18,21 +22,15 @@ class TabunganSampahBsuScreen extends StatefulWidget {
 }
 
 class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
-  static const _teal = Color(0xFF013236);
-  static const _accent = Color(0xFF4EA771);
 
   List<PengangkutanGroup> _pengangkutan = [];
   bool _isLoading = true;
   String? _error;
-  int _selectedTab = 0; // 0 = Cair, 1 = Belum Cair
+  int _selectedTab = 0;
   final Set<String> _expandedCards = {};
 
   late DateTime _filterStart;
   late DateTime _filterEnd;
-
-  final _rupiahFmt =
-      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-  final _dateFmt = DateFormat('dd MMM yyyy, HH:mm', 'id_ID');
 
   @override
   void initState() {
@@ -74,8 +72,6 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
     }
   }
 
-  // ── Filter ────────────────────────────────────────────────────────────────
-
   List<PengangkutanGroup> get _filtered {
     final rangeStart = DateTime(_filterStart.year, _filterStart.month);
     final rangeEnd = DateTime(_filterEnd.year, _filterEnd.month + 1);
@@ -98,22 +94,19 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
         })
         .where((group) {
           if (group.items.isEmpty) return false;
-          if (_selectedTab == 1) return true; // Belum Cair: tampilkan semua
-          // Cair tab: filter by date range jika tanggal tersedia
+          if (_selectedTab == 1) return true;
           final t = group.tanggalSetoran;
-          if (t == null) return true; // parse gagal → tetap tampilkan
+          if (t == null) return true;
           return !t.isBefore(rangeStart) && t.isBefore(rangeEnd);
         })
         .toList();
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final filtered = _filtered;
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -127,7 +120,7 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
               const TopBarBack(title: 'Buku Tabungan BSU'),
               Expanded(
                 child: RefreshIndicator(
-                  color: _accent,
+                  color: AppColors.green,
                   onRefresh: _fetch,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -143,7 +136,7 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
                           tabs: const ['Cair', 'Belum Cair'],
                           backgroundColor: Colors.white.withValues(alpha: 0.6),
                           border: Border.all(
-                            color: const Color(0xFF013236).withValues(alpha: 0.1),
+                            color: AppColors.dark.withValues(alpha: 0.1),
                             width: 1,
                           ),
                         ),
@@ -162,12 +155,7 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
                                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
                                 child: Text(
                                   'Monitoring tabungan sampah',
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: _teal,
-                                  ),
+                                  style: AppText.w600(14, AppColors.dark),
                                 ),
                               ),
                               Padding(
@@ -187,7 +175,7 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
                               const SizedBox(height: 20),
                               if (_isLoading)
                                 const Center(
-                                  child: CircularProgressIndicator(color: _accent),
+                                  child: CircularProgressIndicator(color: AppColors.green),
                                 )
                               else if (_error != null)
                                 _buildError()
@@ -215,11 +203,7 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
       padding: const EdgeInsets.fromLTRB(30, 12, 30, 0),
       child: Text(
         'Lihat status tabungan sampah BSU, mulai dari belum cair hingga sudah dicairkan melalui bagi hasil pengangkutan',
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 12,
-          color: _teal.withValues(alpha: 0.6),
-        ),
+        style: AppText.r(12, AppColors.dark.withValues(alpha: 0.6)),
       ),
     );
   }
@@ -237,7 +221,7 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
 
   Widget _buildGroupCard(PengangkutanGroup group) {
     final tanggal = group.tanggalSetoran != null
-        ? _dateFmt.format(group.tanggalSetoran!)
+        ? AppDate.tanggalSingkatJam(group.tanggalSetoran!)
         : 'Menunggu Selesai';
 
     final allCair = group.items.every((e) => e.status == 'Cair');
@@ -270,11 +254,11 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: _accent.withValues(alpha: 0.12),
+                    color: AppColors.green.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.local_shipping_rounded,
-                      size: 18, color: _accent),
+                      size: 18, color: AppColors.green),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -283,20 +267,11 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
                     children: [
                       Text(
                         'Pengangkutan $tanggal',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _teal,
-                        ),
+                        style: AppText.w600(13, AppColors.dark),
                       ),
                       Text(
                         '${group.items.length} item',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: _teal.withValues(alpha: 0.55),
-                        ),
+                        style: AppText.r(11, AppColors.dark.withValues(alpha: 0.55)),
                       ),
                     ],
                   ),
@@ -307,7 +282,7 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
           ),
 
           if (isExpanded) ...[
-            const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
+            const Divider(height: 1, thickness: 1, color: AppColors.divider),
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -318,13 +293,13 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
                 thickness: 1,
                 indent: 16,
                 endIndent: 16,
-                color: Color(0xFFF0F0F0),
+                color: AppColors.divider,
               ),
               itemBuilder: (_, i) => _buildItemRow(group.items[i]),
             ),
           ],
 
-          const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
+          const Divider(height: 1, thickness: 1, color: AppColors.divider),
           GestureDetector(
             onTap: () => setState(() {
               if (isExpanded) {
@@ -340,12 +315,7 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
                 children: [
                   Text(
                     isExpanded ? 'Tutup' : 'Lihat detail',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _accent,
-                    ),
+                    style: AppText.w600(12, AppColors.green),
                   ),
                   const SizedBox(width: 4),
                   Icon(
@@ -353,7 +323,7 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
                         ? Icons.keyboard_arrow_up_rounded
                         : Icons.keyboard_arrow_down_rounded,
                     size: 16,
-                    color: _accent,
+                    color: AppColors.green,
                   ),
                 ],
               ),
@@ -376,45 +346,27 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
               children: [
                 Text(
                   item.namaSampah,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: _teal,
-                  ),
+                  style: AppText.w600(12, AppColors.dark),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${_fmtQty(item.qtySetoran)} ${item.satuan}'
                   '${item.sisaQty < item.qtySetoran ? '  •  Sisa ${_fmtQty(item.sisaQty)} ${item.satuan}' : ''}',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    color: _teal.withValues(alpha: 0.55),
-                  ),
+                  style: AppText.r(11, AppColors.dark.withValues(alpha: 0.55)),
                 ),
                 if (item.hargaItem != null) ...[
                   const SizedBox(height: 2),
                   Text(
-                    item.namaReward.toLowerCase() == 'barang'
-                        ? '${_fmtQty(item.hargaItem!)} poin / ${item.satuan}'
-                        : '${_rupiahFmt.format(item.hargaItem!)} / ${item.satuan}',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: _teal.withValues(alpha: 0.55),
-                    ),
+                    '${_fmtNilai(item.hargaItem!, item.namaReward)}'
+                    ' / ${item.satuan}',
+                    style: AppText.r(11, AppColors.dark.withValues(alpha: 0.55)),
                   ),
                 ],
                 if (item.namaReward.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
                     item.namaReward,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      color: _accent.withValues(alpha: 0.8),
-                    ),
+                    style: AppText.r(10, AppColors.green.withValues(alpha: 0.8)),
                   ),
                 ],
               ],
@@ -426,15 +378,8 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
             children: [
               if (item.nilaiTotal != null)
                 Text(
-                  item.namaReward.toLowerCase() == 'barang'
-                      ? '${_fmtQty(item.nilaiTotal!)} poin'
-                      : _rupiahFmt.format(item.nilaiTotal!),
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: _teal,
-                  ),
+                  _fmtNilai(item.nilaiTotal!, item.namaReward),
+                  style: AppText.w700(12, AppColors.dark),
                 ),
               const SizedBox(height: 4),
               _buildStatusBadge(item.status, small: true),
@@ -472,90 +417,27 @@ class _TabunganSampahBsuScreenState extends State<TabunganSampahBsuScreen> {
       ),
       child: Text(
         status,
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: small ? 10 : 11,
-          fontWeight: FontWeight.w600,
-          color: fg,
-        ),
+        style: AppText.w600(small ? 10 : 11, fg),
       ),
     );
   }
 
-  Widget _buildEmpty() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 48),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.savings_outlined,
-                size: 64, color: _teal.withValues(alpha: 0.2)),
-            const SizedBox(height: 16),
-            Text(
-              'Belum ada tabungan sampah',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: _teal.withValues(alpha: 0.4),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Data tabungan akan muncul setelah\npengangkutan sampah berhasil dilakukan.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                color: _teal.withValues(alpha: 0.35),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildEmpty() => const StateMessage(
+        illustration: StateArt.emptyMoney,
+        message: 'Belum ada tabungan sampah',
+        subtitle: 'Data tabungan akan muncul setelah '
+            'pengangkutan sampah berhasil dilakukan.',
+      );
 
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline_rounded,
-                size: 56, color: _teal.withValues(alpha: 0.25)),
-            const SizedBox(height: 16),
-            Text(
-              _error!,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: _teal.withValues(alpha: 0.6),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _fetch,
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Coba Lagi',
-                  style: TextStyle(fontFamily: 'Poppins')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _accent,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildError() => StateMessage(
+        illustration: StateArt.error,
+        message: _error!,
+        action: StateRetryButton.icon(onPressed: _fetch),
+      );
 
-  String _fmtQty(double v) =>
-      v == v.truncateToDouble() ? v.toInt().toString() : v.toString();
+  String _fmtQty(double v) => AppNumber.desimal(v);
+
+  String _fmtNilai(double v, String namaReward) => AppNumber.nominalSatuan(
+      v, 'poin',
+      isUang: namaReward.toLowerCase() != 'barang');
 }

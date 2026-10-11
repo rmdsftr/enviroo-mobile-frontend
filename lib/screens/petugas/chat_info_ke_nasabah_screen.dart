@@ -1,18 +1,10 @@
+import 'package:enviroo/core/format/app_date.dart';
 import 'package:enviroo/models/notifikasi_model.dart';
 import 'package:enviroo/services/notifikasi_service.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-// ── Screen ───────────────────────────────────────────────────────────────────
-// Chat room notifikasi jadwal/penimbangan yang dikirim ke nasabah — dilihat
-// dari POV petugas_bsm sebagai pengirim, jadi bubble-nya rata kanan.
-// Sumber datanya sama persis kayak ChatInfoBankSampahScreen (notifikasi
-// role_target=nasabah, ref_type 'penimbangan' / 'jadwal_penimbangan'),
-// cuma di sini kita fetch langsung lewat service (bukan NotifikasiProvider
-// yang shared) biar gak numpuk/nabrak sama notifikasi role_target=admin
-// milik petugas sendiri yang udah ke-load di provider itu. Dan gak ada
-// mark-as-read di sini — status baca itu milik nasabah, bukan petugas yang
-// cuma nonton log kiriman.
 class ChatInfoKeNasabahScreen extends StatefulWidget {
   const ChatInfoKeNasabahScreen({super.key});
 
@@ -22,8 +14,6 @@ class ChatInfoKeNasabahScreen extends StatefulWidget {
 }
 
 class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
-  static const _dark = Color(0xFF013236);
-  static const _accent = Color(0xFF4EA771);
 
   bool _isLoading = true;
   String? _error;
@@ -43,8 +33,6 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
     super.dispose();
   }
 
-  // Chat room = defaultnya harus langsung nampilin notifikasi paling baru
-  // (paling bawah), bukan mulai dari atas.
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
@@ -65,7 +53,6 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
       final list = (result['data'] as List<NotifikasiModel>? ?? [])
           .where((n) => n.isChatInfoBank)
           .toList();
-      // Kayak chat room: paling bawah = notifikasi paling baru.
       list.sort((a, b) {
         final ta = DateTime.tryParse(a.createdAt) ?? DateTime(0);
         final tb = DateTime.tryParse(b.createdAt) ?? DateTime(0);
@@ -93,7 +80,7 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -108,7 +95,7 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
               Expanded(
                 child: _isLoading
                     ? const Center(
-                        child: CircularProgressIndicator(color: _accent),
+                        child: CircularProgressIndicator(color: AppColors.green),
                       )
                     : _error != null
                         ? Center(
@@ -117,23 +104,15 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
                               child: Text(
                                 _error!,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 13,
-                                  color: Colors.red,
-                                ),
+                                style: AppText.r(13, Colors.red),
                               ),
                             ),
                           )
                         : _notifs.isEmpty
-                            ? const Center(
+                            ? Center(
                                 child: Text(
                                   'Belum ada notifikasi yang dikirim',
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 13,
-                                    color: Color(0x66013236),
-                                  ),
+                                  style: AppText.r(13, Color(0x66013236)),
                                 ),
                               )
                             : _buildChatList(),
@@ -145,7 +124,6 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
     );
   }
 
-  // ── Header: back + judul ─────────────────────────────────────────────────
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -158,19 +136,14 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
             icon: const Icon(
               Icons.arrow_back_ios_new_rounded,
               size: 17,
-              color: _dark,
+              color: AppColors.dark,
             ),
           ),
           const SizedBox(width: 5),
-          const Expanded(
+          Expanded(
             child: Text(
               'Notifikasi Jadwal',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: _dark,
-              ),
+              style: AppText.w600(15, AppColors.dark),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -180,7 +153,6 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
     );
   }
 
-  // ── Chat list: bubble "outgoing" doang, petugas sebagai pengirim ────────────
   Widget _buildChatList() {
     return ListView.builder(
       controller: _scrollController,
@@ -203,33 +175,18 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
     );
   }
 
-  String _dateSeparatorLabel(DateTime time) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final target = DateTime(time.year, time.month, time.day);
-    final diff = today.difference(target).inDays;
-    if (diff == 0) return 'Hari ini';
-    if (diff == 1) return 'Kemarin';
-    return DateFormat('d MMMM yyyy', 'id_ID').format(time);
-  }
-
   Widget _buildDateSeparator(DateTime time) {
     return Center(
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 14),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
-          color: _dark.withValues(alpha: 0.06),
+          color: AppColors.dark.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(50),
         ),
         child: Text(
-          _dateSeparatorLabel(time),
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 10.5,
-            fontWeight: FontWeight.w600,
-            color: _dark.withValues(alpha: 0.55),
-          ),
+          AppDate.labelRelatif(time),
+          style: AppText.w600(10.5, AppColors.dark.withValues(alpha: 0.55)),
         ),
       ),
     );
@@ -252,7 +209,7 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: _accent.withValues(alpha: 0.14),
+                    color: AppColors.green.withValues(alpha: 0.14),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(25),
                       topRight: Radius.circular(4),
@@ -261,7 +218,7 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: _dark.withValues(alpha: 0.06),
+                        color: AppColors.dark.withValues(alpha: 0.06),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -273,30 +230,19 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
                     children: [
                       Text(
                         notif.judul,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          height: 1.5,
-                          color: _dark.withValues(alpha: 0.85),
-                        ),
+                        style: AppText.p(12.5, weight: FontWeight.w600, color: AppColors.dark.withValues(alpha: 0.85), height: 1.5),
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Divider(
                           height: 1,
                           thickness: 1,
-                          color: _dark.withValues(alpha: 0.15),
+                          color: AppColors.dark.withValues(alpha: 0.15),
                         ),
                       ),
                       Text(
                         notif.pesan,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12.5,
-                          height: 1.5,
-                          color: _dark.withValues(alpha: 0.85),
-                        ),
+                        style: AppText.p(12.5, color: AppColors.dark.withValues(alpha: 0.85), height: 1.5),
                       ),
                     ],
                   ),
@@ -304,12 +250,8 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
                 Padding(
                   padding: const EdgeInsets.only(right: 4, top: 4),
                   child: Text(
-                    DateFormat('HH:mm', 'id_ID').format(time),
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 9.5,
-                      color: _dark.withValues(alpha: 0.35),
-                    ),
+                    AppDate.jam(time),
+                    style: AppText.r(9.5, AppColors.dark.withValues(alpha: 0.35)),
                   ),
                 ),
               ],

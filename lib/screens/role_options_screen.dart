@@ -7,6 +7,8 @@ import 'package:enviroo/screens/petugas/home_bsm_screen.dart';
 import 'package:enviroo/widgets/custom_snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class RoleOptionsScreen extends StatefulWidget {
   final String email;
@@ -99,7 +101,6 @@ class _RoleOptionsScreenState extends State<RoleOptionsScreen>
     setState(() => _isLoading = false);
 
     if (success) {
-      // Simpan available roles agar fitur switch akun bisa bekerja
       authProvider.setAvailableRoles(widget.roles);
       final actualRole = authProvider.role;
       Widget destination;
@@ -116,7 +117,6 @@ class _RoleOptionsScreenState extends State<RoleOptionsScreen>
         destination = const HomeBsuScreen();
       }
 
-      // Fetch notifikasi + request permission + daftarkan FCM token ke backend.
       Provider.of<FcmMessaging>(context, listen: false)
           .onLogin(tag: 'RoleOptions');
 
@@ -133,7 +133,7 @@ class _RoleOptionsScreenState extends State<RoleOptionsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF013236),
+      backgroundColor: AppColors.dark,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
@@ -143,48 +143,35 @@ class _RoleOptionsScreenState extends State<RoleOptionsScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 20),
-                // Back Button
                 GestureDetector(
                   onTap: _isLoading ? null : () => Navigator.pop(context),
                   child: Container(
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFFFFF).withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Icon(
                       Icons.arrow_back_rounded,
-                      color: Color(0xFFFFFFFF),
+                      color: Colors.white,
                       size: 22,
                     ),
                   ),
                 ),
                 const SizedBox(height: 35),
 
-                // Header
-                const Text(
+                Text(
                   "Pilih Role",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF94DF0C),
-                  ),
+                  style: AppText.w700(20, AppColors.neon),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   "Akun kamu memiliki lebih dari satu role.\nPilih role yang ingin digunakan sekarang.",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    height: 1.6,
-                    color: const Color(0xFFFFFFFF).withOpacity(0.65),
-                  ),
+                  style: AppText.p(13, color: Colors.white.withValues(alpha: 0.65), height: 1.6),
                 ),
                 const SizedBox(height: 40),
 
-                // Role Cards
                 Expanded(
                   child: ListView.separated(
                     itemCount: widget.roles.length,
@@ -201,19 +188,19 @@ class _RoleOptionsScreenState extends State<RoleOptionsScreen>
                           curve: Curves.easeOutCubic,
                           padding: const EdgeInsets.all(22),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFFFFF),
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(22),
                             border: Border.all(
                               color: isSelected
-                                  ? const Color(0xFF94DF0C)
+                                  ? AppColors.neon
                                   : Colors.transparent,
                               width: 2,
                             ),
                             boxShadow: [
                               BoxShadow(
                                 color: isSelected
-                                    ? const Color(0xFF94DF0C).withOpacity(0.25)
-                                    : Colors.black.withOpacity(0.08),
+                                    ? AppColors.neon.withValues(alpha: 0.25)
+                                    : Colors.black.withValues(alpha: 0.08),
                                 blurRadius: isSelected ? 20 : 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -221,60 +208,47 @@ class _RoleOptionsScreenState extends State<RoleOptionsScreen>
                           ),
                           child: Row(
                             children: [
-                              // Icon Circle
                               Container(
                                 width: 56,
                                 height: 56,
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? const Color(0xFF94DF0C)
-                                      : const Color(0xFF013236).withOpacity(0.08),
+                                      ? AppColors.neon
+                                      : AppColors.dark.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Icon(
                                   _getRoleIcon(role),
                                   size: 28,
                                   color: isSelected
-                                      ? const Color(0xFF013236)
-                                      : const Color(0xFF013236),
+                                      ? AppColors.dark
+                                      : AppColors.dark,
                                 ),
                               ),
                               const SizedBox(width: 18),
 
-                              // Label & Description
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       _getRoleLabel(role),
-                                      style: TextStyle(
-                                        fontFamily: 'Poppins',
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w700,
-                                        color: isSelected
-                                            ? const Color(0xFF013236)
-                                            : const Color(0xFF013236),
-                                      ),
+                                      style: AppText.w700(17, isSelected
+                                            ? AppColors.dark
+                                            : AppColors.dark),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       _getRoleDescription(role),
-                                      style: TextStyle(
-                                        fontFamily: 'Poppins',
-                                        fontSize: 11,
-                                        height: 1.4,
-                                        color: isSelected
-                                            ? const Color(0xFF013236).withOpacity(0.8)
-                                            : const Color(0xFF013236).withOpacity(0.5),
-                                      ),
+                                      style: AppText.p(11, color: isSelected
+                                            ? AppColors.dark.withValues(alpha: 0.8)
+                                            : AppColors.dark.withValues(alpha: 0.5), height: 1.4),
                                     ),
                                   ],
                                 ),
                               ),
                               const SizedBox(width: 12),
 
-                              // Arrow / Loading
                               if (isCurrentLoading)
                                 const SizedBox(
                                   width: 24,
@@ -282,7 +256,7 @@ class _RoleOptionsScreenState extends State<RoleOptionsScreen>
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2.5,
                                     valueColor: AlwaysStoppedAnimation<Color>(
-                                      Color(0xFF94DF0C),
+                                      AppColors.neon,
                                     ),
                                   ),
                                 )
@@ -292,16 +266,16 @@ class _RoleOptionsScreenState extends State<RoleOptionsScreen>
                                   height: 36,
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? const Color(0xFF94DF0C)
-                                        : const Color(0xFF013236).withOpacity(0.08),
+                                        ? AppColors.neon
+                                        : AppColors.dark.withValues(alpha: 0.08),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Icon(
                                     Icons.arrow_forward_rounded,
                                     size: 20,
                                     color: isSelected
-                                        ? const Color(0xFF013236)
-                                        : const Color(0xFF013236).withOpacity(0.6),
+                                        ? AppColors.dark
+                                        : AppColors.dark.withValues(alpha: 0.6),
                                   ),
                                 ),
                             ],

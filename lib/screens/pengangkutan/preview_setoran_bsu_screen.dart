@@ -1,24 +1,12 @@
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:enviroo/models/pengangkutan_bsi_model.dart';
 import 'package:enviroo/screens/pengangkutan/scan_petugas_bsu_screen.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-// ─── Color palette ────────────────────────────────────────────────────────────
-
-class _C {
-  static const dark    = Color(0xFF013236);
-  static const green   = Color(0xFF4EA771);
-  static const cyan    = Color(0xFF06C0C9);
-  static const accent  = Color(0xFF94DF0C);
-  static const cardBg  = Color(0xFFF7FBF5);
-  static const muted   = Color(0xFF8A9A92);
-  static const danger  = Color(0xFFD94848);
-  static const border  = Color(0xFFE6EDE9);
-  static const warning = Color(0xFFF59E0B);
-}
-
-// ─── Screen ──────────────────────────────────────────────────────────────────
 
 class PreviewSetoranBsuScreen extends StatelessWidget {
   final PreviewPengangkutanData data;
@@ -32,9 +20,7 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
     this.adminBsuIdAwal = '',
   });
 
-  String _fmt(double v) => v == v.truncateToDouble()
-      ? v.toInt().toString()
-      : v.toStringAsFixed(2).replaceAll('.', ',');
+  String _fmt(double v) => AppNumber.desimal(v);
 
   String _satuanFor(String sampahId) {
     for (final item in items) {
@@ -66,7 +52,7 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          color: Color(0xFFF5F7F5),
+          color: AppColors.surface,
           image: DecorationImage(
             image: AssetImage('assets/images/bg_struk.webp'),
             fit: BoxFit.cover,
@@ -102,45 +88,32 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
     );
   }
 
-  // ── Hero card (dark, mirip preview_setoran_screen) ────────────────────────
-
   Widget _buildHeroCard() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
+        color: Colors.white.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           width: 1,
-          color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+          color: AppColors.dark.withValues(alpha: 0.1),
         ),
       ),
       child: Column(
         children: [
-          // Label atas
           Icon(Icons.local_shipping_rounded,
-              color: _C.dark.withOpacity(0.3), size: 26),
+              color: AppColors.dark.withValues(alpha: 0.3), size: 26),
           const SizedBox(height: 6),
           Text(
             'PREVIEW PENGANGKUTAN SAMPAH',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: _C.dark.withOpacity(0.4),
-            ),
+            style: AppText.w700(12, AppColors.dark.withValues(alpha: 0.4)),
           ),
           const SizedBox(height: 3),
           Text(
             data.pengangkutanId,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 10,
-              color: _C.muted,
-            ),
+            style: AppText.r(10, AppColors.muted),
           ),
-          // DARI → KE
           const SizedBox(height: 20),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,11 +132,11 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: _C.dark.withOpacity(0.08),
+                    color: AppColors.dark.withValues(alpha: 0.08),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.east_rounded,
-                      size: 14, color: _C.dark),
+                      size: 14, color: AppColors.dark),
                 ),
               ),
               Expanded(
@@ -192,22 +165,12 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 8,
-            color: _C.muted,
-            letterSpacing: 1.4,
-          ),
+          style: AppText.p(8, color: AppColors.muted, letterSpacing: 1.4),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: _C.dark,
-          ),
+          style: AppText.w700(13, AppColors.dark),
           textAlign: textAlign,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
@@ -216,37 +179,30 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
     );
   }
 
-  // ── Warning banner ────────────────────────────────────────────────────────
-
   Widget _buildWarningBanner() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: _C.warning.withOpacity(0.1),
+        color: AppColors.warning.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _C.warning.withOpacity(0.3)),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: _C.warning.withOpacity(0.15),
+              color: AppColors.warning.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(Icons.warning_amber_rounded,
-                size: 14, color: _C.warning),
+                size: 14, color: AppColors.warning),
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Text(
               'Ada stok BSU yang tidak mencukupi untuk dikirim',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
-                color: _C.warning,
-              ),
+              style: AppText.w500(11.5, AppColors.warning),
             ),
           ),
         ],
@@ -254,26 +210,21 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
     );
   }
 
-  // ── Struk card (putih, gaya receipt) ─────────────────────────────────────
-
   Widget _buildStrukCard() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _C.border),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
-          // ── Card header
           _buildCardHeader(),
-          // ── Column headers
           _buildColHeaders(),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Divider(height: 1, color: Color(0xFFF0F0F0)),
+            child: Divider(height: 1, color: AppColors.divider),
           ),
-          // ── Item rows
           ...data.items.asMap().entries.expand((e) => [
                 _buildItemRow(e.key + 1, e.value),
                 if (e.key < data.items.length - 1)
@@ -282,9 +233,7 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
                     child: Divider(height: 1, color: Color(0xFFF5F5F5)),
                   ),
               ]),
-          // ── Perforated separator
           _buildPerforated(),
-          // ── Footer
           _buildFooter(),
         ],
       ),
@@ -297,7 +246,7 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: _C.dark.withOpacity(0.05),
+            color: AppColors.dark.withValues(alpha: 0.05),
             width: 1,
           ),
         ),
@@ -307,38 +256,28 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: _C.dark.withOpacity(0.06),
+              color: AppColors.dark.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.receipt_long_rounded,
-                color: _C.dark, size: 16),
+                color: AppColors.dark, size: 16),
           ),
           const SizedBox(width: 12),
-          const Text(
+          Text(
             'Rincian Setoran',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: _C.dark,
-            ),
+            style: AppText.w600(14, AppColors.dark),
           ),
           const Spacer(),
           Container(
             padding:
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: _C.green.withOpacity(0.12),
+              color: AppColors.green.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               '${data.totalItem} jenis',
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: _C.green,
-              ),
+              style: AppText.w700(10, AppColors.green),
             ),
           ),
         ],
@@ -354,27 +293,15 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
           SizedBox(
             width: 22,
             child: Text('#',
-                style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: _C.muted)),
+                style: AppText.w600(10, AppColors.muted)),
           ),
           const SizedBox(width: 6),
           Expanded(
             child: Text('Nama Sampah',
-                style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: _C.muted)),
+                style: AppText.w600(10, AppColors.muted)),
           ),
           Text('Qty',
-              style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: _C.muted)),
+              style: AppText.w600(10, AppColors.muted)),
         ],
       ),
     );
@@ -389,7 +316,6 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Baris 1: nomor + nama + qty
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -399,10 +325,7 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 2),
                   child: Text(
                     '$no.',
-                    style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: _C.muted),
+                    style: AppText.r(11, AppColors.muted),
                   ),
                 ),
               ),
@@ -413,11 +336,7 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
                   children: [
                     Text(
                       item.namaSampah,
-                      style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _C.dark),
+                      style: AppText.w600(13, AppColors.dark),
                     ),
                     if (item.namaReward.isNotEmpty) ...[
                       const SizedBox(height: 4),
@@ -425,16 +344,12 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _C.green.withOpacity(0.1),
+                          color: AppColors.green.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           item.namaReward,
-                          style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                              color: _C.green),
+                          style: AppText.w600(9, AppColors.green),
                         ),
                       ),
                     ],
@@ -447,25 +362,16 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
                 children: [
                   Text(
                     _fmt(item.qty),
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: kurang ? _C.danger : _C.dark,
-                    ),
+                    style: AppText.w700(15, kurang ? AppColors.dangerSoft : AppColors.dark),
                   ),
                   if (satuan.isNotEmpty)
                     Text(satuan,
-                        style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 9,
-                            color: _C.muted)),
+                        style: AppText.r(9, AppColors.muted)),
                 ],
               ),
             ],
           ),
           const SizedBox(height: 10),
-          // Baris 2: stok chip BSU & BSI
           Row(
             children: [
               const SizedBox(width: 28),
@@ -498,15 +404,11 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
               children: [
                 const SizedBox(width: 28),
                 const Icon(Icons.error_outline_rounded,
-                    size: 12, color: _C.danger),
+                    size: 12, color: AppColors.dangerSoft),
                 const SizedBox(width: 4),
-                const Text(
+                Text(
                   'Stok BSU tidak mencukupi',
-                  style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w500,
-                      color: _C.danger),
+                  style: AppText.w500(10.5, AppColors.dangerSoft),
                 ),
               ],
             ),
@@ -525,30 +427,24 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
     required bool insufficient,
   }) {
     final Color color = insufficient
-        ? _C.danger
+        ? AppColors.dangerSoft
         : down
-            ? _C.muted
-            : _C.green;
+            ? AppColors.muted
+            : AppColors.green;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.07),
+        color: color.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.15)),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 8.5,
-              fontWeight: FontWeight.w700,
-              color: color.withOpacity(0.6),
-              letterSpacing: 0.5,
-            ),
+            style: AppText.p(8.5, weight: FontWeight.w700, color: color.withValues(alpha: 0.6), letterSpacing: 0.5),
           ),
           const SizedBox(height: 3),
           Row(
@@ -559,9 +455,9 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
                 style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 10,
-                    color: _C.muted,
+                    color: AppColors.muted,
                     decoration: TextDecoration.lineThrough,
-                    decorationColor: _C.muted),
+                    decorationColor: AppColors.muted),
               ),
               const SizedBox(width: 4),
               Icon(
@@ -571,19 +467,12 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
               const SizedBox(width: 2),
               Text(
                 _fmt(after),
-                style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: color),
+                style: AppText.w700(11, color),
               ),
               if (satuan.isNotEmpty) ...[
                 const SizedBox(width: 2),
                 Text(satuan,
-                    style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 9,
-                        color: color.withOpacity(0.6))),
+                    style: AppText.r(9, color.withValues(alpha: 0.6))),
               ],
             ],
           ),
@@ -591,8 +480,6 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
       ),
     );
   }
-
-  // ── Perforated separator ──────────────────────────────────────────────────
 
   Widget _buildPerforated() {
     return Row(
@@ -610,7 +497,7 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
                   height: 1,
                   child: DecoratedBox(
                       decoration:
-                          BoxDecoration(color: _C.border)),
+                          BoxDecoration(color: AppColors.border)),
                 ),
               ),
             ),
@@ -626,7 +513,7 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
       width: 16,
       height: 28,
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7F5),
+        color: AppColors.surface,
         borderRadius: BorderRadius.only(
           topRight: left ? const Radius.circular(14) : Radius.zero,
           bottomRight: left ? const Radius.circular(14) : Radius.zero,
@@ -637,8 +524,6 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
     );
   }
 
-  // ── Footer ────────────────────────────────────────────────────────────────
-
   Widget _buildFooter() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
@@ -647,24 +532,16 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
         children: [
           Text(
             'Total Jenis Sampah',
-            style: TextStyle(
-                fontFamily: 'Poppins', fontSize: 12, color: _C.muted),
+            style: AppText.r(12, AppColors.muted),
           ),
           Text(
             '${data.totalItem} item',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: _C.dark,
-            ),
+            style: AppText.w700(14, AppColors.dark),
           ),
         ],
       ),
     );
   }
-
-  // ── Bottom bar ────────────────────────────────────────────────────────────
 
   Widget _buildBottomBar(BuildContext context) {
     return Container(
@@ -674,7 +551,7 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: _C.dark.withOpacity(0.08),
+            color: AppColors.dark.withValues(alpha: 0.08),
             blurRadius: 24,
             offset: const Offset(0, -8),
           ),
@@ -683,15 +560,8 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color : Color(0xFF013236),
+          color : AppColors.dark,
           borderRadius: BorderRadius.circular(30),
-          // boxShadow: [
-          //   BoxShadow(
-          //     color: _C.dark.withOpacity(0.3),
-          //     blurRadius: 16,
-          //     offset: const Offset(0, 6),
-          //   ),
-          // ],
         ),
         child: ElevatedButton(
           onPressed: () => _simpan(context),
@@ -703,20 +573,14 @@ class PreviewSetoranBsuScreen extends StatelessWidget {
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30)),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.save_rounded, size: 18),
               SizedBox(width: 8),
               Text(
                 'Simpan Setoran BSU',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  letterSpacing: 0.2,
-                  color : Colors.white,
-                ),
+                style: AppText.p(13, weight: FontWeight.w600, color: Colors.white, letterSpacing: 0.2),
               ),
             ],
           ),

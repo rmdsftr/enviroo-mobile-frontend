@@ -1,5 +1,7 @@
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class CustomDropdownItem<T> {
   final T value;
@@ -14,8 +16,6 @@ class CustomDropdownItem<T> {
 }
 
 class CustomDropdown<T> extends StatelessWidget {
-  static const _accent = Color(0xFF4EA771);
-  static const _dark   = Color(0xFF013236);
 
   final T? value;
   final List<CustomDropdownItem<T>> items;
@@ -59,29 +59,24 @@ class CustomDropdown<T> extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(vertical: 2),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: selected ? _accent.withValues(alpha: 0.10) : Colors.transparent,
+                  color: selected ? AppColors.green.withValues(alpha: 0.10) : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
                     if (it.icon != null) ...[
-                      Icon(it.icon, size: 16, color: _accent),
+                      Icon(it.icon, size: 16, color: AppColors.green),
                       const SizedBox(width: 10),
                     ],
                     Expanded(
                       child: Text(
                         it.label,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          color: _dark,
-                          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                        ),
+                        style: AppText.p(13, weight: selected ? FontWeight.w600 : FontWeight.w500, color: AppColors.dark),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (selected)
-                      const Icon(Icons.check_rounded, size: 16, color: _accent),
+                      const Icon(Icons.check_rounded, size: 16, color: AppColors.green),
                   ],
                 ),
               ),
@@ -98,7 +93,7 @@ class CustomDropdown<T> extends StatelessWidget {
               color: fillColor ?? Colors.white.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(borderRadius),
               border: Border.all(
-                color: _dark.withValues(alpha: 0.1),
+                color: AppColors.dark.withValues(alpha: 0.1),
                 width: 1,
               ),
             ),
@@ -107,8 +102,8 @@ class CustomDropdown<T> extends StatelessWidget {
             icon: Icon(Icons.keyboard_arrow_down_rounded),
             openMenuIcon: Icon(Icons.keyboard_arrow_up_rounded),
             iconSize: 22,
-            iconEnabledColor: _accent,
-            iconDisabledColor: _accent,
+            iconEnabledColor: AppColors.green,
+            iconDisabledColor: AppColors.green,
           ),
           dropdownStyleData: DropdownStyleData(
             maxHeight: menuMaxHeight ?? 280,
@@ -116,10 +111,10 @@ class CustomDropdown<T> extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _dark.withValues(alpha: 0.08)),
+              border: Border.all(color: AppColors.dark.withValues(alpha: 0.08)),
               boxShadow: [
                 BoxShadow(
-                  color: _dark.withValues(alpha: 0.08),
+                  color: AppColors.dark.withValues(alpha: 0.08),
                   blurRadius: 24,
                   offset: const Offset(0, 8),
                 ),
@@ -131,7 +126,7 @@ class CustomDropdown<T> extends StatelessWidget {
               radius: const Radius.circular(40),
               thickness: WidgetStateProperty.all(4),
               thumbVisibility: WidgetStateProperty.all(true),
-              thumbColor: WidgetStateProperty.all(_accent.withValues(alpha: 0.4)),
+              thumbColor: WidgetStateProperty.all(AppColors.green.withValues(alpha: 0.4)),
             ),
           ),
           menuItemStyleData: const MenuItemStyleData(
@@ -148,18 +143,13 @@ class CustomDropdown<T> extends StatelessWidget {
     return Row(
       children: [
         if (iconData != null) ...[
-          Icon(iconData, size: 18, color: _accent),
+          Icon(iconData, size: 18, color: AppColors.green),
           const SizedBox(width: 10),
         ],
         Expanded(
           child: Text(
             text,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              fontWeight: isHint ? FontWeight.normal : FontWeight.w500,
-              color: isHint ? _dark.withValues(alpha: 0.3) : _dark,
-            ),
+            style: AppText.p(13, weight: isHint ? FontWeight.normal : FontWeight.w500, color: isHint ? AppColors.dark.withValues(alpha: 0.3) : AppColors.dark),
             overflow: TextOverflow.ellipsis,
           ),
         ),

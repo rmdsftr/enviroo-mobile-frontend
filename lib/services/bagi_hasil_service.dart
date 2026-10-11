@@ -3,14 +3,6 @@ import 'package:enviroo/core/config/api_config.dart';
 import 'package:enviroo/core/network/api_client.dart';
 import 'package:enviroo/core/network/api_failure.dart';
 
-/// Melayani prefix `/bagi-hasil`.
-///
-/// ⚠️ Utang yang sengaja ditunda: [getListDistribusiSisaBsu] dan
-/// [getDetailDistribusiSisaBsu] sebenarnya memakai prefix `/distribusi-sisa`,
-/// jadi rumahnya seharusnya di `DistribusiSisaService`. Dibiarkan karena
-/// distribusi-sisa di luar lingkup pengerjaan saat ini — bukan kelalaian.
-/// Dua layar yang memanggilnya (`list_bagi_hasil_bsu_screen`,
-/// `struk_bagi_hasil_bsu_screen`) juga masih memanggil service ini langsung.
 class BagiHasilService {
   static Future<Map<String, dynamic>> previewBagiHasil(String penjualanId, String bankId) async {
     try {

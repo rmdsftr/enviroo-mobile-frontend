@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-/// Tampilkan bottom sheet konfirmasi dan return true jika user konfirmasi.
 Future<bool> showConfirmBottomSheet(
   BuildContext context, {
   required IconData icon,
-  Color iconColor = const Color(0xFF013236),
+  Color iconColor = AppColors.dark,
   required String title,
   required String message,
   String cancelLabel = 'Batal',
@@ -49,7 +50,7 @@ class _ConfirmSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final confirmColor = isDanger ? const Color(0xFFD32F2F) : const Color(0xFF013236);
+    final confirmColor = isDanger ? const Color(0xFFD32F2F) : AppColors.dark;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
@@ -60,7 +61,6 @@ class _ConfirmSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle bar
           Container(
             width: 36,
             height: 4,
@@ -70,7 +70,6 @@ class _ConfirmSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
             ),
           ),
-          // Icon
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -80,40 +79,27 @@ class _ConfirmSheet extends StatelessWidget {
             child: Icon(icon, size: 28, color: iconColor),
           ),
           const SizedBox(height: 16),
-          // Title
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF013236),
-            ),
+            style: AppText.w700(16, AppColors.dark),
           ),
           const SizedBox(height: 8),
-          // Message
           Text(
             message,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              height: 1.6,
-              color: const Color(0xFF013236).withValues(alpha: 0.5),
-            ),
+            style: AppText.p(12, color: AppColors.dark.withValues(alpha: 0.5), height: 1.6),
           ),
           const SizedBox(height: 28),
-          // Buttons
           Row(
             children: [
               Expanded(
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(context, false),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF013236),
+                    foregroundColor: AppColors.dark,
                     side: BorderSide(
-                      color: const Color(0xFF013236).withValues(alpha: 0.25),
+                      color: AppColors.dark.withValues(alpha: 0.25),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
@@ -122,11 +108,7 @@ class _ConfirmSheet extends StatelessWidget {
                   ),
                   child: Text(
                     cancelLabel,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppText.w600(13),
                   ),
                 ),
               ),
@@ -145,11 +127,7 @@ class _ConfirmSheet extends StatelessWidget {
                   ),
                   child: Text(
                     confirmLabel,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppText.w600(13),
                   ),
                 ),
               ),

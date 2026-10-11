@@ -53,12 +53,6 @@ class NasabahProvider with ChangeNotifier {
   int get totalNonaktif => _nasabahs.where((n) => n.statusNasabah.toLowerCase() == 'nonaktif').length;
   int get totalPending => _nasabahs.where((n) => n.statusNasabah.toLowerCase() == 'pending').length;
 
-  // -- Daftar petugas sebuah bank ---------------------------------------------
-  //
-  // Slice terpisah karena isinya PETUGAS, bukan nasabah - lihat catatan di
-  // kepala NasabahService. Ditaruh di sini untuk sekarang karena pemakainya
-  // cuma satu layar; kalau nanti bertambah, tempat yang lebih tepat adalah
-  // ProfilService/ProfilProvider yang sudah memegang profil petugas.
   List<PetugasModel> _petugas = [];
   bool _petugasLoading = false;
   String _petugasError = '';

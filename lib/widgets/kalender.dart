@@ -1,41 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/format/app_date.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-// ─── Color Palette ───────────────────────────────────────────────────────────
-class AppColors {
-  static const primary = Color(0xFF4EA771);
-  static const dark = Color(0xFF013236);
-  static const light = Color(0xFFFFFFFF);
-  static const pale = Color(0xFFFFFFFF);
-  static const neon = Color(0xFF94DF0C);
-}
-
-// ─── Data ─────────────────────────────────────────────────────────────────────
-const List<String> _dayLabels = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
-const List<String> _monthNames = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-// ─── Calendar Widget ──────────────────────────────────────────────────────────
 class CalendarWidget extends StatefulWidget {
-  /// Events keyed by date (year, month, day only — time is ignored).
   final Map<DateTime, List<String>> events;
 
-  /// Called when a day in the current month is tapped.
   final ValueChanged<DateTime>? onDaySelected;
 
-  /// Called when the user navigates to a different month.
   final ValueChanged<DateTime>? onPageChanged;
 
-  /// Colour of the small event-dot under day numbers. Defaults to [AppColors.primary].
   final Color? eventDotColor;
 
-  /// Month to display initially. Defaults to the current month.
   final DateTime? initialMonth;
 
-  /// Kalau false, strip event di bawah grid (badge tanggal terpilih)
-  /// disembunyikan — dipakai saat detail event udah ditampilin lewat cara
-  /// lain (mis. bottom sheet on tap) biar gak dobel.
   final bool showEventBadge;
 
   const CalendarWidget({
@@ -60,10 +38,8 @@ class _CalendarWidgetState extends State<CalendarWidget>
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
 
-  /// Normalise a DateTime to date-only (year, month, day).
   DateTime _normalise(DateTime d) => DateTime(d.year, d.month, d.day);
 
-  /// Look up events for a specific day in the current month.
   List<String> _eventsForDay(int day) {
     final key = _normalise(DateTime(_current.year, _current.month, day));
     return widget.events[key] ?? [];
@@ -112,10 +88,9 @@ class _CalendarWidgetState extends State<CalendarWidget>
   int get _daysInPrevMonth =>
       DateTime(_current.year, _current.month, 0).day;
 
-  /// Monday = 0, Sunday = 6
   int get _firstWeekday {
     int wd = DateTime(_current.year, _current.month, 1).weekday;
-    return wd - 1; // weekday 1=Mon → 0
+    return wd - 1;
   }
 
   bool _isToday(int day) =>
@@ -135,10 +110,10 @@ class _CalendarWidgetState extends State<CalendarWidget>
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         decoration: BoxDecoration(
-          color: Color(0xFFFFFFFF),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(28),
           border : Border.all(
-            color: AppColors.dark.withOpacity(0.1),
+            color: AppColors.dark.withValues(alpha: 0.1),
             width: 1,
           )
         ),
@@ -146,7 +121,6 @@ class _CalendarWidgetState extends State<CalendarWidget>
           borderRadius: BorderRadius.circular(28),
           child: Stack(
             children: [
-              // Decorative top-right corner
               Positioned(
                 top: 0,
                 right: 0,
@@ -158,8 +132,8 @@ class _CalendarWidgetState extends State<CalendarWidget>
                       begin: Alignment.topRight,
                       end: Alignment.bottomLeft,
                       colors: [
-                        AppColors.pale,
-                        Colors.white.withOpacity(0),
+                        Colors.white,
+                        Colors.white.withValues(alpha: 0),
                       ],
                     ),
                     borderRadius: const BorderRadius.only(
@@ -169,16 +143,15 @@ class _CalendarWidgetState extends State<CalendarWidget>
                   ),
                 ),
               ),
-              // Dot decorations
               const Positioned(
                 top: 18,
                 right: 22,
-                child: _DecorDot(size: 8, color: AppColors.primary, opacity: 0.5),
+                child: _DecorDot(size: 8, color: AppColors.green, opacity: 0.5),
               ),
               const Positioned(
                 top: 32,
                 right: 36,
-                child: _DecorDot(size: 5, color: AppColors.light),
+                child: _DecorDot(size: 5, color: Colors.white),
               ),
 
               Padding(
@@ -208,7 +181,6 @@ class _CalendarWidgetState extends State<CalendarWidget>
     );
   }
 
-  // ── Header ────────────────────────────────────────────────────────────────
   Widget _buildHeader() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,22 +192,12 @@ class _CalendarWidgetState extends State<CalendarWidget>
               text: TextSpan(
                 children: [
                   TextSpan(
-                    text: _monthNames[_current.month - 1].substring(0, 3),
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 30,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.dark,
-                      letterSpacing: -0.5,
-                    ),
+                    text: AppDate.bulanSingkat(_current),
+                    style: AppText.p(30, weight: FontWeight.w600, color: AppColors.dark, letterSpacing: -0.5),
                   ),
-                  const TextSpan(
+                  TextSpan(
                     text: '.',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 30,
-                      color: AppColors.primary,
-                    ),
+                    style: AppText.r(30, AppColors.green),
                   ),
                 ],
               ),
@@ -246,7 +208,7 @@ class _CalendarWidgetState extends State<CalendarWidget>
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: AppColors.primary,
+                color: AppColors.green,
                 letterSpacing: 2.5,
               ),
             ),
@@ -264,20 +226,18 @@ class _CalendarWidgetState extends State<CalendarWidget>
     );
   }
 
-  // ── Gradient Divider ──────────────────────────────────────────────────────
   Widget _buildDivider() {
     return Container(
       height: 2,
       decoration: const BoxDecoration(
         borderRadius: BorderRadius.all(Radius.circular(2)),
         gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.light, Colors.transparent],
+          colors: [AppColors.green, Colors.white, Colors.transparent],
         ),
       ),
     );
   }
 
-  // ── Day Labels ────────────────────────────────────────────────────────────
   Widget _buildDayLabels() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -287,14 +247,14 @@ class _CalendarWidgetState extends State<CalendarWidget>
           width: 36,
           child: Center(
             child: Text(
-              _dayLabels[i],
+              AppDate.labelHariSingkat[i],
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
                 color: isWeekend
-                    ? AppColors.primary
-                    : AppColors.dark.withOpacity(0.4),
+                    ? AppColors.green
+                    : AppColors.dark.withValues(alpha: 0.4),
               ),
             ),
           ),
@@ -303,11 +263,9 @@ class _CalendarWidgetState extends State<CalendarWidget>
     );
   }
 
-  // ── Calendar Grid ─────────────────────────────────────────────────────────
   Widget _buildGrid() {
     final List<_DayCell> cells = [];
 
-    // Previous month trailing days
     for (int i = 0; i < _firstWeekday; i++) {
       cells.add(_DayCell(
         day: _daysInPrevMonth - _firstWeekday + 1 + i,
@@ -315,12 +273,10 @@ class _CalendarWidgetState extends State<CalendarWidget>
       ));
     }
 
-    // Current month
     for (int d = 1; d <= _daysInMonth; d++) {
       cells.add(_DayCell(day: d, type: _CellType.current));
     }
 
-    // Next month leading days
     final remaining = 42 - cells.length;
     for (int i = 1; i <= remaining; i++) {
       cells.add(_DayCell(day: i, type: _CellType.next));
@@ -366,7 +322,6 @@ class _CalendarWidgetState extends State<CalendarWidget>
     );
   }
 
-  // ── Event Badge ───────────────────────────────────────────────────────────
   Widget _buildEventBadge() {
     final day = _selected?.day;
     final events = (day != null &&
@@ -397,12 +352,7 @@ class _CalendarWidgetState extends State<CalendarWidget>
                   day != null && _selected!.month == _current.month
                       ? 'Tidak ada jadwal'
                       : 'Pilih tanggal',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                    color: AppColors.primary.withValues(alpha: 0.5),
-                  ),
+                  style: AppText.p(12, color: AppColors.green.withValues(alpha: 0.5), fontStyle: FontStyle.italic),
                 ),
               ),
             ),
@@ -410,7 +360,6 @@ class _CalendarWidgetState extends State<CalendarWidget>
   }
 }
 
-// ─── Day Tile ─────────────────────────────────────────────────────────────────
 class _DayTile extends StatelessWidget {
   final int day;
   final bool isOtherMonth;
@@ -434,15 +383,15 @@ class _DayTile extends StatelessWidget {
   Widget build(BuildContext context) {
     Color textColor;
     if (isOtherMonth) {
-      textColor = AppColors.light;
+      textColor = Colors.white;
     } else if (isToday) {
-      textColor = Color(0xFF94DF0C);
+      textColor = AppColors.neon;
     } else if (isSelected) {
       textColor = AppColors.dark;
     } else if (isSelected) {
-      textColor = Color(0xFF4EA771);
+      textColor = AppColors.green;
     } else if (isWeekend) {
-      textColor = AppColors.primary;
+      textColor = AppColors.green;
     } else {
       textColor = AppColors.dark;
     }
@@ -452,14 +401,14 @@ class _DayTile extends StatelessWidget {
       bg = Container(
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          color: Color(0xFF013236),
+          color: AppColors.dark,
         ),
       );
     } else if (isSelected) {
       bg = Container(
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          color: Color(0xFF94DF0C),
+          color: AppColors.neon,
         ),
       );
     }
@@ -485,7 +434,7 @@ class _DayTile extends StatelessWidget {
               height: 4,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: eventDotColor ?? AppColors.primary,
+                color: eventDotColor ?? AppColors.green,
               ),
             ),
           ),
@@ -494,14 +443,12 @@ class _DayTile extends StatelessWidget {
   }
 }
 
-// ─── Event Badge ─────────────────────────────────────────────────────────────
 class _EventBadge extends StatelessWidget {
   final String label;
   const _EventBadge({required this.label});
 
   @override
   Widget build(BuildContext context) {
-    // Label format: "Nama Jadwal  HH:mm – HH:mm"
     final parts = label.split('  ');
     final name = parts.first.trim();
     final time = parts.length >= 2 ? parts.last.trim() : null;
@@ -510,7 +457,7 @@ class _EventBadge extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF8E7),
+        color: AppColors.mintSoft,
         borderRadius: BorderRadius.circular(15),
       ),
       child: Row(
@@ -519,17 +466,12 @@ class _EventBadge extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.25),
+                color: AppColors.green.withValues(alpha: 0.25),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 time,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.dark,
-                ),
+                style: AppText.w700(10, AppColors.dark),
               ),
             ),
             const SizedBox(width: 10),
@@ -537,12 +479,7 @@ class _EventBadge extends StatelessWidget {
           Expanded(
             child: Text(
               name,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: AppColors.dark.withValues(alpha: 0.75),
-              ),
+              style: AppText.w500(12, AppColors.dark.withValues(alpha: 0.75)),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -552,7 +489,6 @@ class _EventBadge extends StatelessWidget {
   }
 }
 
-// ─── Nav Button ───────────────────────────────────────────────────────────────
 class _NavButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
@@ -576,7 +512,6 @@ class _NavButton extends StatelessWidget {
   }
 }
 
-// ─── Decorative Dot ───────────────────────────────────────────────────────────
 class _DecorDot extends StatelessWidget {
   final double size;
   final Color color;
@@ -601,7 +536,6 @@ class _DecorDot extends StatelessWidget {
   }
 }
 
-// ─── Internal Models ──────────────────────────────────────────────────────────
 enum _CellType { prev, current, next }
 
 class _DayCell {

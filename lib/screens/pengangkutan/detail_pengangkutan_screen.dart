@@ -1,11 +1,13 @@
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:enviroo/models/pengangkutan_bsi_model.dart';
 import 'package:enviroo/screens/pengangkutan/sesi_pengangkutan_screen.dart';
 import 'package:enviroo/screens/lihat_foto_screen.dart';
 import 'package:enviroo/services/pengangkutan_service.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
-
-// ─── Screen ─────────────────────────────────────────────────────────────────
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class DetailPengangkutanScreen extends StatefulWidget {
   final String pengangkutanId;
@@ -70,13 +72,12 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
     }
   }
 
-  // ── Status helpers ───────────────────────────────────────────────────────
   Color _statusColor(String status) {
     switch (status) {
-      case 'completed': return const Color(0xFF4EA771);
-      case 'otw':       return const Color(0xFFFAA324);
-      case 'approved':  return const Color(0xFF06C0C9);
-      case 'requested': return const Color(0xFF94DF0C);
+      case 'completed': return AppColors.green;
+      case 'otw':       return AppColors.warningAlt;
+      case 'approved':  return AppColors.cyan;
+      case 'requested': return AppColors.neon;
       case 'canceled':
       case 'rejected':  return Colors.red.shade400;
       default:          return Colors.grey;
@@ -85,13 +86,13 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
 
   Color _statusBg(String status) {
     switch (status) {
-      case 'completed': return const Color(0xFFE8F5E9);
+      case 'completed': return AppColors.mintPale;
       case 'otw':       return const Color(0xFFFFF8E1);
       case 'approved':  return const Color(0xFFE0F7FA);
       case 'requested': return const Color(0xFFF4FCE3);
       case 'canceled':
-      case 'rejected':  return Colors.red.withOpacity(0.08);
-      default:          return Colors.grey.withOpacity(0.08);
+      case 'rejected':  return Colors.red.withValues(alpha: 0.08);
+      default:          return Colors.grey.withValues(alpha: 0.08);
     }
   }
 
@@ -119,14 +120,8 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
     }
   }
 
-  String _fmt(double value) {
-    if (value == value.truncateToDouble()) {
-      return value.toInt().toString();
-    }
-    return value.toStringAsFixed(2).replaceAll('.', ',');
-  }
+  String _fmt(double value) => AppNumber.desimal(value);
 
-  // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,12 +141,12 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
                 child: _isLoading
                     ? const Center(
                         child: CircularProgressIndicator(
-                            color: Color(0xFF06C0C9)))
+                            color: AppColors.cyan))
                     : _errorMsg != null
                         ? _buildError()
                         : RefreshIndicator(
                             onRefresh: _fetch,
-                            color: const Color(0xFF06C0C9),
+                            color: AppColors.cyan,
                             child: SingleChildScrollView(
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding:
@@ -175,7 +170,6 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
     );
   }
 
-  // ── Hero Card ────────────────────────────────────────────────────────────
   Widget _buildHeroCard() {
     final h = _header!;
     final statusColor = _statusColor(h.statusTerkini);
@@ -189,7 +183,7 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -202,24 +196,14 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Struk Pengangkutan',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF013236),
-                  ),
+                  style: AppText.w700(16, AppColors.dark),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   h.pengangkutanId,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.grey,
-                  ),
+                  style: AppText.w400(11, Colors.grey),
                 ),
               ],
             ),
@@ -238,12 +222,7 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
                 const SizedBox(width: 4),
                 Text(
                   _statusLabel(h.statusTerkini),
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
-                  ),
+                  style: AppText.w700(11, statusColor),
                 ),
               ],
             ),
@@ -253,12 +232,11 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
     );
   }
 
-  // ── Info Card ────────────────────────────────────────────────────────────
   Widget _buildInfoCard() {
     final h = _header!;
     final divider = const Padding(
       padding: EdgeInsets.symmetric(vertical: 10),
-      child: Divider(height: 1, color: Color(0xFFF0F0F0)),
+      child: Divider(height: 1, color: AppColors.divider),
     );
 
     return Container(
@@ -269,7 +247,7 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -308,17 +286,13 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
                 ),
               ),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF013236),
-                side: const BorderSide(color: Color(0xFF013236), width: 1),
+                foregroundColor: AppColors.dark,
+                side: const BorderSide(color: AppColors.dark, width: 1),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(50),
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 10),
-                textStyle: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+                textStyle: AppText.w600(12),
               ),
               child: const Text('Riwayat sesi pengangkutan'),
             ),
@@ -335,19 +309,19 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF06C0C9).withOpacity(0.1),
+            color: AppColors.cyan.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(Icons.photo_camera_rounded, size: 15, color: Color(0xFF06C0C9)),
+          child: const Icon(Icons.photo_camera_rounded, size: 15, color: AppColors.cyan),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text('Bukti Foto', style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: Colors.grey)),
+            children: [
+              Text('Bukti Foto', style: AppText.r(10, Colors.grey)),
               SizedBox(height: 2),
-              Text('Tersedia', style: TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF013236))),
+              Text('Tersedia', style: AppText.w600(13, AppColors.dark)),
             ],
           ),
         ),
@@ -359,12 +333,12 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: const Color(0xFF06C0C9).withOpacity(0.1),
+              color: AppColors.cyan.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text(
+            child: Text(
               'Lihat',
-              style: TextStyle(fontFamily: 'Poppins', fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF06C0C9)),
+              style: AppText.w600(11, AppColors.cyan),
             ),
           ),
         ),
@@ -379,10 +353,10 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF06C0C9).withOpacity(0.1),
+            color: AppColors.cyan.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, size: 15, color: const Color(0xFF06C0C9)),
+          child: Icon(icon, size: 15, color: AppColors.cyan),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -391,21 +365,12 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  color: Colors.grey,
-                ),
+                style: AppText.r(10, Colors.grey),
               ),
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF013236),
-                ),
+                style: AppText.w600(13, AppColors.dark),
               ),
             ],
           ),
@@ -414,7 +379,6 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
     );
   }
 
-  // ── Rincian Sampah Card ──────────────────────────────────────────────────
   Widget _buildRincianCard() {
     final h = _header!;
 
@@ -425,7 +389,7 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -441,26 +405,21 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF06C0C9).withOpacity(0.1),
+                    color: AppColors.cyan.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.recycling_rounded,
-                      size: 15, color: Color(0xFF06C0C9)),
+                      size: 15, color: AppColors.cyan),
                 ),
                 const SizedBox(width: 10),
-                const Text(
+                Text(
                   'Rincian Sampah',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF013236),
-                  ),
+                  style: AppText.w700(13, AppColors.dark),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const Divider(height: 1, color: AppColors.divider),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
             child: Column(
@@ -474,11 +433,7 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
                     child: Center(
                       child: Text(
                         'Belum ada rincian sampah',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                          color: Colors.grey[500],
-                        ),
+                        style: AppText.r(12, Colors.grey[500]),
                       ),
                     ),
                   )
@@ -500,7 +455,7 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const Divider(height: 1, color: AppColors.divider),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
             child: _summaryRow('Total Jenis Sampah', '${h.totalItem} jenis'),
@@ -515,12 +470,7 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
     String col2, {
     bool isHeader = false,
   }) {
-    final style = TextStyle(
-      fontFamily: 'Poppins',
-      fontSize: isHeader ? 10.5 : 12,
-      fontWeight: isHeader ? FontWeight.w600 : FontWeight.w400,
-      color: isHeader ? Colors.grey[500] : const Color(0xFF013236),
-    );
+    final style = AppText.p(isHeader ? 10.5 : 12, weight: isHeader ? FontWeight.w600 : FontWeight.w400, color: isHeader ? Colors.grey[500] : AppColors.dark);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -542,62 +492,22 @@ class _DetailPengangkutanScreenState extends State<DetailPengangkutanScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 12,
-            color: Colors.grey[500],
-          ),
+          style: AppText.r(12, Colors.grey[500]),
         ),
         Text(
           value,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF013236),
-          ),
+          style: AppText.w600(12, AppColors.dark),
         ),
       ],
     );
   }
 
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline_rounded, size: 56, color: Colors.grey[300]),
-            const SizedBox(height: 14),
-            Text(
-              _errorMsg!,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: Colors.grey[500],
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _fetch,
-              icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Coba Lagi',
-                  style: TextStyle(fontFamily: 'Poppins')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF06C0C9),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 12),
-              ),
-            ),
-          ],
+  Widget _buildError() => StateMessage(
+        illustration: StateArt.error,
+        message: _errorMsg!,
+        action: StateRetryButton.icon(
+          onPressed: _fetch,
+          color: AppColors.cyan,
         ),
-      ),
-    );
-  }
+      );
 }

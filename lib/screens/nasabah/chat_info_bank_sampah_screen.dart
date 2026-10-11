@@ -1,17 +1,14 @@
+import 'package:enviroo/core/format/app_date.dart';
 import 'package:enviroo/models/jadwal_model.dart';
 import 'package:enviroo/models/notifikasi_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/notifikasi_provider.dart';
 import 'package:enviroo/providers/jadwal_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-// ── Screen ───────────────────────────────────────────────────────────────────
-// Chat info seputar bank sampah (nasabah <-> petugas). Isinya sebenarnya
-// notifikasi role_target=nasabah yang ref_type-nya 'penimbangan' /
-// 'jadwal_penimbangan' — dipindahin ke sini (bentuk chat room, read-only)
-// karena di NotifikasiScreen dia gak clickable buat lihat detail.
 class ChatInfoBankSampahScreen extends StatefulWidget {
   final String bankId;
   final String namaBank;
@@ -30,8 +27,6 @@ class ChatInfoBankSampahScreen extends StatefulWidget {
 }
 
 class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
-  static const _dark = Color(0xFF013236);
-  static const _accent = Color(0xFF4EA771);
 
   final ScrollController _scrollController = ScrollController();
   bool _scrolledToBottom = false;
@@ -54,9 +49,6 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
     super.dispose();
   }
 
-  // Chat room = defaultnya harus langsung nampilin pesan paling baru (paling
-  // bawah), bukan mulai dari atas. Cuma sekali di awal — biar gak maksa balik
-  // ke bawah tiap kali provider rebuild kalau user udah scroll ke atas.
   void _scrollToBottomOnce() {
     if (_scrolledToBottom) return;
     _scrolledToBottom = true;
@@ -66,7 +58,6 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
     });
   }
 
-  // Buka screen ini = otomatis baca semua notifikasi penimbangan/jadwal_penimbangan.
   Future<void> _markAllChatAsRead() async {
     final provider = context.read<NotifikasiProvider>();
     final unread = provider.notifikasi.where((n) => n.isChatInfoBank && !n.isRead);
@@ -77,7 +68,6 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
 
   List<NotifikasiModel> _chatNotifs(NotifikasiProvider provider) {
     final list = provider.notifikasi.where((n) => n.isChatInfoBank).toList();
-    // Kayak chat room: paling bawah = notifikasi paling baru.
     list.sort((a, b) {
       final ta = DateTime.tryParse(a.createdAt) ?? DateTime(0);
       final tb = DateTime.tryParse(b.createdAt) ?? DateTime(0);
@@ -98,7 +88,7 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -115,19 +105,15 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
                   builder: (context, provider, _) {
                     if (provider.isLoading && provider.notifikasi.isEmpty) {
                       return const Center(
-                        child: CircularProgressIndicator(color: _accent),
+                        child: CircularProgressIndicator(color: AppColors.green),
                       );
                     }
                     final chatNotifs = _chatNotifs(provider);
                     if (chatNotifs.isEmpty) {
-                      return const Center(
+                      return Center(
                         child: Text(
                           'Belum ada percakapan',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 13,
-                            color: Color(0x66013236),
-                          ),
+                          style: AppText.r(13, Color(0x66013236)),
                         ),
                       );
                     }
@@ -142,7 +128,6 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
     );
   }
 
-  // ── Header: back + avatar + nama_bank + tombol Jadwal Penimbangan ───────────
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -157,7 +142,7 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
             icon: const Icon(
               Icons.arrow_back_ios_new_rounded,
               size: 17,
-              color: _dark,
+              color: AppColors.dark,
             ),
           ),
           Container(
@@ -165,7 +150,7 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
             height: 36,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Color(0xFF94DF0C).withValues(alpha: 0.12),
+              color: AppColors.neon.withValues(alpha: 0.12),
             ),
             child: ClipOval(
               child: widget.photoUrl.isNotEmpty
@@ -183,12 +168,7 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
           Expanded(
             child: Text(
               widget.namaBank,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14.5,
-                fontWeight: FontWeight.w700,
-                color: _dark,
-              ),
+              style: AppText.w700(14.5, AppColors.dark),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -199,13 +179,13 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: Color(0xFF94DF0C),
+                color: AppColors.neon,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
                 Icons.calendar_month_rounded,
                 size: 18,
-                color: _dark,
+                color: AppColors.dark,
               ),
             ),
           ),
@@ -215,13 +195,12 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
   }
 
   Widget _headerAvatarFallback() {
-    return Icon(Icons.recycling_rounded, color: Color(0xFF94DF0C), size: 18);
+    return Icon(Icons.recycling_rounded, color: AppColors.neon, size: 18);
   }
 
   DateTime _parseTime(NotifikasiModel n) =>
       DateTime.tryParse(n.createdAt)?.toLocal() ?? DateTime.now();
 
-  // ── Chat list: bubble "incoming" doang, nasabah cuma nerima ─────────────────
   Widget _buildChatList(List<NotifikasiModel> notifs) {
     _scrollToBottomOnce();
     return ListView.builder(
@@ -248,33 +227,18 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
-  String _dateSeparatorLabel(DateTime time) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final target = DateTime(time.year, time.month, time.day);
-    final diff = today.difference(target).inDays;
-    if (diff == 0) return 'Hari ini';
-    if (diff == 1) return 'Kemarin';
-    return DateFormat('d MMMM yyyy', 'id_ID').format(time);
-  }
-
   Widget _buildDateSeparator(DateTime time) {
     return Center(
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 14),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
-          color: _dark.withValues(alpha: 0.06),
+          color: AppColors.dark.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(50),
         ),
         child: Text(
-          _dateSeparatorLabel(time),
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 10.5,
-            fontWeight: FontWeight.w600,
-            color: _dark.withValues(alpha: 0.55),
-          ),
+          AppDate.labelRelatif(time),
+          style: AppText.w600(10.5, AppColors.dark.withValues(alpha: 0.55)),
         ),
       ),
     );
@@ -306,7 +270,7 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: _dark.withValues(alpha: 0.06),
+                        color: AppColors.dark.withValues(alpha: 0.06),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -318,30 +282,19 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
                     children: [
                       Text(
                         notif.judul,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          height: 1.5,
-                          color: _dark.withValues(alpha: 0.85),
-                        ),
+                        style: AppText.p(12.5, weight: FontWeight.w600, color: AppColors.dark.withValues(alpha: 0.85), height: 1.5),
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Divider(
                           height: 1,
                           thickness: 1,
-                          color: _dark.withValues(alpha: 0.08),
+                          color: AppColors.dark.withValues(alpha: 0.08),
                         ),
                       ),
                       Text(
                         notif.pesan,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12.5,
-                          height: 1.5,
-                          color: _dark.withValues(alpha: 0.85),
-                        ),
+                        style: AppText.p(12.5, color: AppColors.dark.withValues(alpha: 0.85), height: 1.5),
                       ),
                     ],
                   ),
@@ -349,12 +302,8 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
                 Padding(
                   padding: const EdgeInsets.only(left: 4, top: 4),
                   child: Text(
-                    DateFormat('HH:mm', 'id_ID').format(time),
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 9.5,
-                      color: _dark.withValues(alpha: 0.35),
-                    ),
+                    AppDate.jam(time),
+                    style: AppText.r(9.5, AppColors.dark.withValues(alpha: 0.35)),
                   ),
                 ),
               ],
@@ -366,10 +315,6 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
   }
 }
 
-// ── Bottom sheet: Jadwal Penimbangan sebulan mendatang ───────────────────────
-// Design-nya sama persis kayak card JadwalLayouts yang lama (icon + tanggal +
-// nama_jadwal + jam), fetch dari /jadwal/penimbangan/:bank_id — cuma yang
-// status_jadwal-nya 'pending'/'upcoming' & is_active=true yang ditampilin.
 class _JadwalPenimbanganSheet extends StatefulWidget {
   final String bankId;
 
@@ -381,8 +326,6 @@ class _JadwalPenimbanganSheet extends StatefulWidget {
 }
 
 class _JadwalPenimbanganSheetState extends State<_JadwalPenimbanganSheet> {
-  static const _darkTeal = Color(0xFF013236);
-  static const _greenAccent = Color(0xFF4EA771);
 
   static const _visibleStatus = {'pending', 'upcoming'};
 
@@ -397,8 +340,6 @@ class _JadwalPenimbanganSheetState extends State<_JadwalPenimbanganSheet> {
   }
 
   Future<void> _fetchJadwal() async {
-    // "Sebulan ke depan" → tarik bulan ini + bulan depan biar tetep kecover
-    // walaupun user buka sheetnya di akhir bulan.
     final now = DateTime.now();
     final nextMonth = DateTime(now.year, now.month + 1);
     final merged = <JadwalPenimbanganItem>[];
@@ -459,14 +400,13 @@ class _JadwalPenimbanganSheetState extends State<_JadwalPenimbanganSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Drag handle
           Center(
             child: Container(
               margin: const EdgeInsets.only(top: 12, bottom: 8),
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: _darkTeal.withValues(alpha: 0.15),
+                color: AppColors.dark.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
@@ -475,19 +415,14 @@ class _JadwalPenimbanganSheetState extends State<_JadwalPenimbanganSheet> {
             padding: const EdgeInsets.fromLTRB(25, 4, 25, 20),
             child: Text(
               'Di sini kamu bisa lihat jadwal penimbangan bank sampah untuk satu bulan ke depan',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: _darkTeal.withValues(alpha: 0.75),
-              ),
+              style: AppText.w500(12, AppColors.dark.withValues(alpha: 0.75)),
             ),
           ),
           Flexible(
             child: _isLoading
                 ? const Padding(
                     padding: EdgeInsets.symmetric(vertical: 40),
-                    child: Center(child: CircularProgressIndicator(color: _greenAccent)),
+                    child: Center(child: CircularProgressIndicator(color: AppColors.green)),
                   )
                 : _error != null
                     ? Padding(
@@ -505,11 +440,7 @@ class _JadwalPenimbanganSheetState extends State<_JadwalPenimbanganSheet> {
                             child: Center(
                               child: Text(
                                 "Belum ada jadwal penimbangan.",
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 12,
-                                  color: _darkTeal.withValues(alpha: 0.5),
-                                ),
+                                style: AppText.r(12, AppColors.dark.withValues(alpha: 0.5)),
                               ),
                             ),
                           )
@@ -537,53 +468,40 @@ class _JadwalPenimbanganSheetState extends State<_JadwalPenimbanganSheet> {
       children: [
         Row(
           children: [
-            // Calendar icon
             Container(
               padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
-                color: _greenAccent.withValues(alpha: 0.1),
+                color: AppColors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
                 Icons.calendar_month_rounded,
-                color: _greenAccent,
+                color: AppColors.green,
                 size: 16,
               ),
             ),
             const SizedBox(width: 12),
 
-            // Tanggal & nama jadwal
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     tanggal,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _darkTeal,
-                    ),
+                    style: AppText.w600(12, AppColors.dark),
                   ),
                   Text(
                     namaJadwal,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: _darkTeal.withValues(alpha: 0.5),
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: AppText.w500(11, AppColors.dark.withValues(alpha: 0.5)),
                   ),
                 ],
               ),
             ),
 
-            // Jam badge
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: _darkTeal.withValues(alpha: 0.06),
+                color: AppColors.dark.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -592,17 +510,12 @@ class _JadwalPenimbanganSheetState extends State<_JadwalPenimbanganSheet> {
                   Icon(
                     Icons.access_time_rounded,
                     size: 11,
-                    color: _darkTeal.withValues(alpha: 0.65),
+                    color: AppColors.dark.withValues(alpha: 0.65),
                   ),
                   const SizedBox(width: 4),
                   Text(
                     jam,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _darkTeal.withValues(alpha: 0.75),
-                    ),
+                    style: AppText.w600(11, AppColors.dark.withValues(alpha: 0.75)),
                   ),
                 ],
               ),
@@ -613,7 +526,7 @@ class _JadwalPenimbanganSheetState extends State<_JadwalPenimbanganSheet> {
           Divider(
             height: 20,
             thickness: 1,
-            color: _darkTeal.withValues(alpha: 0.06),
+            color: AppColors.dark.withValues(alpha: 0.06),
           ),
       ],
     );

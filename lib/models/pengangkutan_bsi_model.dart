@@ -1,4 +1,4 @@
-import 'package:intl/intl.dart';
+import '../core/format/app_date.dart';
 
 class PengangkutanData {
   final String id;
@@ -34,7 +34,7 @@ class PengangkutanData {
       try {
         final parsed = DateTime.parse(json['changed_at'].toString()).toLocal();
         rawDate = parsed;
-        tanggal = DateFormat('EEEE, dd MMMM yyyy HH:mm', 'id_ID').format(parsed);
+        tanggal = AppDate.tanggalPenuhJam(parsed);
       } catch (_) {
         tanggal = json['changed_at'].toString();
       }

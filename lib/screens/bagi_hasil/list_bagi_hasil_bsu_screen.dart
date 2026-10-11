@@ -5,10 +5,12 @@ import 'package:enviroo/screens/bagi_hasil/struk_bagi_hasil_bsu_screen.dart';
 import 'package:enviroo/widgets/filter_month_year.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-
-// ── Screen ────────────────────────────────────────────────────────────────────
+import 'package:enviroo/core/format/app_date.dart';
+import 'package:enviroo/core/format/app_number.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class ListBagiHasilBsuScreen extends StatefulWidget {
   const ListBagiHasilBsuScreen({super.key});
@@ -19,8 +21,6 @@ class ListBagiHasilBsuScreen extends StatefulWidget {
 }
 
 class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
-  static const _teal = Color(0xFF013236);
-  static const _green = Color(0xFF4EA771);
 
   late DateTime _filterStart;
   late DateTime _filterEnd;
@@ -79,16 +79,12 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
     }).toList();
   }
 
-  String _fmtNominal(double val, String satuan) {
-    final s = satuan.toLowerCase();
-    if (s == 'rp') return 'Rp ${NumberFormat('#,##0', 'id_ID').format(val)}';
-    return '${NumberFormat('#,##0', 'id_ID').format(val)} $satuan';
-  }
+  String _fmtNominal(double val, String satuan) =>
+      AppNumber.nominalSatuan(val, satuan);
 
-  // Warna & ikon berdasarkan satuan
   Color _cardColor(String satuan) {
     final s = satuan.toLowerCase();
-    if (s == 'rp') return _green;
+    if (s == 'rp') return AppColors.green;
     if (s == 'poin') return const Color(0xFF2D9CDB);
     return const Color(0xFFF2C94C);
   }
@@ -105,7 +101,6 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // Background image
           Positioned.fill(
             child: Image.asset(
               'assets/images/bg_struk2.webp',
@@ -117,22 +112,15 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const TopBarBack(title: 'Bagi Hasil'),
-                // Deskripsi & filter — tampil di atas background
                 const SizedBox(height: 12),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
                     'Riwayat distribusi sisa bagi hasil yang telah diterima oleh BSU ini.',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      color: _teal.withValues(alpha: 0.7),
-                      height: 1.5,
-                    ),
+                    style: AppText.p(12, color: AppColors.dark.withValues(alpha: 0.7), height: 1.5),
                   ),
                 ),
                 const SizedBox(height: 14),
-                // White container — menutupi background hingga paling bawah
                 Expanded(
                   child: Container(
                     decoration: const BoxDecoration(
@@ -148,12 +136,7 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
                             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                             child: Text(
                               'Riwayat distribusi bagi hasil',
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: _teal,
-                              ),
+                              style: AppText.w600(14, AppColors.dark),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -174,7 +157,7 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
                           const SizedBox(height: 12),
                           Expanded(
                             child: _isLoading
-                                ? const Center(child: CircularProgressIndicator(color: _green))
+                                ? const Center(child: CircularProgressIndicator(color: AppColors.green))
                                 : _error != null
                                     ? _buildError()
                                     : _buildList(),
@@ -200,16 +183,12 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.inbox_rounded,
-                size: 56, color: _teal.withValues(alpha: 0.18)),
+                size: 56, color: AppColors.dark.withValues(alpha: 0.18)),
             const SizedBox(height: 12),
             Text(
               'Belum ada distribusi sisa\nuntuk periode ini',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: _teal.withValues(alpha: 0.45),
-              ),
+              style: AppText.r(13, AppColors.dark.withValues(alpha: 0.45)),
             ),
           ],
         ),
@@ -217,7 +196,7 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
     }
 
     return RefreshIndicator(
-      color: _green,
+      color: AppColors.green,
       onRefresh: _fetchData,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -231,8 +210,7 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
   Widget _buildCard(DistribusiSisaBsuItem item) {
     final color = _cardColor(item.satuanNominal);
     final icon = _cardIcon(item.satuanNominal);
-    final dateStr = DateFormat('dd MMM yyyy, HH:mm', 'id_ID')
-        .format(item.tanggalDistribusi);
+    final dateStr = AppDate.tanggalSingkatJam(item.tanggalDistribusi);
     final nominalStr = _fmtNominal(item.nominalDiterima, item.satuanNominal);
 
     return GestureDetector(
@@ -251,7 +229,7 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
               width: 1,
-              color: Color(0xFF013236).withOpacity(0.1)
+              color: AppColors.dark.withValues(alpha: 0.1)
           ),
         ),
         child: Row(
@@ -260,10 +238,10 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: Color(0xFF013236).withValues(alpha: 0.12),
+                color: AppColors.dark.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: Color(0xFF013236), size: 22),
+              child: Icon(icon, color: AppColors.dark, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -272,23 +250,14 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
                 children: [
                   Text(
                     dateStr,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                      color: _teal,
-                    ),
+                    style: AppText.w600(12, AppColors.dark),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'ID: ${item.penerimaSisaId}',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      color: _teal.withValues(alpha: 0.45),
-                    ),
+                    style: AppText.r(10, AppColors.dark.withValues(alpha: 0.45)),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -300,12 +269,7 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
               children: [
                 Text(
                   nominalStr,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: color,
-                  ),
+                  style: AppText.w700(13, color),
                 ),
               ],
             ),
@@ -315,45 +279,9 @@ class _ListBagiHasilBsuScreenState extends State<ListBagiHasilBsuScreen> {
     );
   }
 
-  Widget _buildError() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline_rounded,
-              size: 48, color: _teal.withValues(alpha: 0.25)),
-          const SizedBox(height: 12),
-          Text(
-            _error!,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              color: _teal.withValues(alpha: 0.55),
-            ),
-          ),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: _fetchData,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              decoration: BoxDecoration(
-                color: _green,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Coba Lagi',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildError() => StateMessage(
+        illustration: StateArt.error,
+        message: _error!,
+        action: StateRetryButton.pill(onPressed: _fetchData),
+      );
 }

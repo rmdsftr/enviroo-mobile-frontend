@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import '../../core/format/app_date.dart';
+import '../../core/format/app_number.dart';
 
 import 'package:provider/provider.dart';
 
@@ -8,12 +9,9 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/topbar_back.dart';
 import 'struk_bagi_hasil_nasabah.dart';
 import 'preview_distribusi_sisa_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-class _C {
-  static const dark = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
-  static const muted = Color(0xFF8A9A92);
-}
 
 class StrukDetailBagiHasilScreen extends StatelessWidget {
   final DetailBagiHasilModel detail;
@@ -21,18 +19,13 @@ class StrukDetailBagiHasilScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fmtRp = NumberFormat('#,##0', 'id_ID');
-    final fmtNum = NumberFormat('#,##0.##########', 'id_ID');
-
-    String fmtMain(double val) {
-      if (detail.satuan.toLowerCase() == 'rp') return 'Rp ${fmtRp.format(val)}';
-      return '${fmtNum.format(val)} ${detail.satuan}';
-    }
+    String fmtMain(double val) =>
+        AppNumber.nominalSatuan(val, detail.satuan);
 
     String tanggalFmt() {
       try {
         final dt = DateTime.parse(detail.tanggal).toLocal();
-        return DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(dt);
+        return AppDate.tanggalSingkatJam(dt);
       } catch (_) {
         return detail.tanggal;
       }
@@ -56,11 +49,9 @@ class StrukDetailBagiHasilScreen extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
                   child: Column(
                     children: [
-                      // ── Hero ────────────────────────────────────────────
                       _HeroCard(bagiHasilId: detail.bagiHasilId),
                       const SizedBox(height: 16),
 
-                      // ── Info ─────────────────────────────────────────────
                       _InfoCard(
                         tanggal: tanggalFmt(),
                         penjualanId: detail.penjualanId,
@@ -69,28 +60,19 @@ class StrukDetailBagiHasilScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
 
-                      // ── Ringkasan ─────────────────────────────────────────
                       _RingkasanCard(detail: detail, fmtMain: fmtMain),
                       const SizedBox(height: 16),
 
-                      // ── Penerima (dikelompokkan per bank) ─────────────────
                       if (detail.hasPenerima) ...[
-                        _PenerimaBankCard(
-                            detail: detail, fmtRp: fmtRp, fmtNum: fmtNum),
+                        _PenerimaBankCard(detail: detail),
                         const SizedBox(height: 16),
                       ],
 
-                      // ── Nasabah Langsung ──────────────────────────────────
                       if (detail.nasabahLangsung.isNotEmpty) ...[
-                        _PenerimaLangsungCard(
-                          detail: detail,
-                          fmtRp: fmtRp,
-                          fmtNum: fmtNum,
-                        ),
+                        _PenerimaLangsungCard(detail: detail),
                         const SizedBox(height: 16),
                       ],
 
-                      // ── Tombol Distribusi Sisa (hanya petugas_bsi dan reward uang) ────────
                       if (context.read<AuthProvider>().role == 'petugas_bsi' &&
                           detail.reward.toLowerCase() == 'uang')
                         ElevatedButton.icon(
@@ -105,16 +87,12 @@ class StrukDetailBagiHasilScreen extends StatelessWidget {
                           icon: const Icon(
                               Icons.account_balance_wallet_rounded,
                               size: 18),
-                          label: const Text(
+                          label: Text(
                             'Distribusi Sisa',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
+                            style: AppText.w600(13),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _C.dark,
+                            backgroundColor: AppColors.dark,
                             foregroundColor: Colors.white,
                             minimumSize: const Size(double.infinity, 50),
                             padding:
@@ -136,8 +114,6 @@ class StrukDetailBagiHasilScreen extends StatelessWidget {
   }
 }
 
-// ── Hero Card ─────────────────────────────────────────────────────────────────
-
 class _HeroCard extends StatelessWidget {
   final String bagiHasilId;
   const _HeroCard({required this.bagiHasilId});
@@ -155,38 +131,27 @@ class _HeroCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _C.green.withValues(alpha: 0.12),
+                color: AppColors.green.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.receipt_long_rounded,
-                  color: _C.green, size: 36),
+                  color: AppColors.green, size: 36),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Struk Bagi Hasil',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w700,
-                fontSize: 17,
-                color: _C.green,
-              ),
+              style: AppText.w700(17, AppColors.green),
             ),
             const SizedBox(height: 4),
             Text(
               'ID: $bagiHasilId',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                color: _C.dark.withValues(alpha: 0.45),
-              ),
+              style: AppText.r(11, AppColors.dark.withValues(alpha: 0.45)),
             ),
           ],
         ),
       );
 }
-
-// ── Info Card ─────────────────────────────────────────────────────────────────
 
 class _InfoCard extends StatelessWidget {
   final String tanggal;
@@ -225,8 +190,6 @@ class _InfoCard extends StatelessWidget {
       );
 }
 
-// ── Ringkasan Card ────────────────────────────────────────────────────────────
-
 class _RingkasanCard extends StatelessWidget {
   final DetailBagiHasilModel detail;
   final String Function(double) fmtMain;
@@ -254,25 +217,12 @@ class _RingkasanCard extends StatelessWidget {
       );
 }
 
-// ── Penerima Bank Card ────────────────────────────────────────────────────────
-
 class _PenerimaBankCard extends StatelessWidget {
   final DetailBagiHasilModel detail;
-  final NumberFormat fmtRp;
-  final NumberFormat fmtNum;
 
-  const _PenerimaBankCard({
-    required this.detail,
-    required this.fmtRp,
-    required this.fmtNum,
-  });
+  const _PenerimaBankCard({required this.detail});
 
-  String _fmtDiterima(NasabahBagiHasil n) {
-    if (n.satuanDiterima.toLowerCase() == 'rp') {
-      return 'Rp ${fmtRp.format(n.totalDiterima)}';
-    }
-    return '${fmtNum.format(n.totalDiterima)} ${n.satuanDiterima}';
-  }
+  String _fmtDiterima(NasabahBagiHasil n) => AppNumber.nominalSatuan(n.totalDiterima, n.satuanDiterima);
 
   @override
   Widget build(BuildContext context) => Container(
@@ -297,17 +247,12 @@ class _PenerimaBankCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     margin: const EdgeInsets.only(bottom: 6),
                     decoration: BoxDecoration(
-                      color: _C.dark.withValues(alpha: 0.05),
+                      color: AppColors.dark.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       bank.namaBank,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _C.dark.withValues(alpha: 0.6),
-                      ),
+                      style: AppText.w600(12, AppColors.dark.withValues(alpha: 0.6)),
                     ),
                   ),
                   ...bank.nasabahPenerima.asMap().entries.map((e) {
@@ -326,7 +271,7 @@ class _PenerimaBankCard extends StatelessWidget {
                   if (!isLastBank) ...[
                     const SizedBox(height: 4),
                     Divider(
-                        color: _C.dark.withValues(alpha: 0.12), height: 16),
+                        color: AppColors.dark.withValues(alpha: 0.12), height: 16),
                   ],
                 ],
               );
@@ -336,25 +281,12 @@ class _PenerimaBankCard extends StatelessWidget {
       );
 }
 
-// ── Penerima Langsung ─────────────────────────────────────────────────────────
-
 class _PenerimaLangsungCard extends StatelessWidget {
   final DetailBagiHasilModel detail;
-  final NumberFormat fmtRp;
-  final NumberFormat fmtNum;
 
-  const _PenerimaLangsungCard({
-    required this.detail,
-    required this.fmtRp,
-    required this.fmtNum,
-  });
+  const _PenerimaLangsungCard({required this.detail});
 
-  String _fmtDiterima(NasabahBagiHasil n) {
-    if (n.satuanDiterima.toLowerCase() == 'rp') {
-      return 'Rp ${fmtRp.format(n.totalDiterima)}';
-    }
-    return '${fmtNum.format(n.totalDiterima)} ${n.satuanDiterima}';
-  }
+  String _fmtDiterima(NasabahBagiHasil n) => AppNumber.nominalSatuan(n.totalDiterima, n.satuanDiterima);
 
   @override
   Widget build(BuildContext context) => Container(
@@ -367,7 +299,7 @@ class _PenerimaLangsungCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _cardHeader(Icons.group_rounded, 'Nasabah Langsung'),
+            _cardHeader(Icons.group_rounded, 'Nasabah Penerima'),
             ...detail.nasabahLangsung.asMap().entries.map((e) => Column(
                   children: [
                     if (e.key > 0) _divider(),
@@ -381,8 +313,6 @@ class _PenerimaLangsungCard extends StatelessWidget {
         ),
       );
 }
-
-// ── Nasabah Tile ──────────────────────────────────────────────────────────────
 
 class _NasabahTile extends StatelessWidget {
   final NasabahBagiHasil nasabah;
@@ -408,36 +338,17 @@ class _NasabahTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Container(
-              //   padding: const EdgeInsets.all(7),
-              //   decoration: BoxDecoration(
-              //     color: _C.green.withValues(alpha: 0.08),
-              //     borderRadius: BorderRadius.circular(10),
-              //   ),
-              //   child: const Icon(Icons.person_rounded,
-              //       size: 15, color: _C.green),
-              // ),
-              // const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       nasabah.namaNasabah,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                        color: _C.dark,
-                      ),
+                      style: AppText.w600(12, AppColors.dark),
                     ),
                     Text(
                       'ID: ${nasabah.nasabahId}',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 10,
-                        color: _C.dark.withValues(alpha: 0.45),
-                      ),
+                      style: AppText.r(10, AppColors.dark.withValues(alpha: 0.45)),
                     ),
                   ],
                 ),
@@ -447,38 +358,26 @@ class _NasabahTile extends StatelessWidget {
                 children: [
                   Text(
                     diterima,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: _C.green,
-                    ),
+                    style: AppText.w700(12, AppColors.green),
                   ),
                 ],
               ),
               const SizedBox(width: 4),
-              Icon(Icons.chevron_right_rounded, size: 18, color: _C.muted),
+              Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.muted),
             ],
           ),
         ),
       );
 }
 
-// ── Shared helpers ────────────────────────────────────────────────────────────
-
 Widget _cardHeader(IconData? icon, String title) => Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          if (icon != null) ...[Icon(icon, size: 18, color: _C.green), const SizedBox(width: 8)],
+          if (icon != null) ...[Icon(icon, size: 18, color: AppColors.green), const SizedBox(width: 8)],
           Text(
             title,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-              color: _C.dark,
-            ),
+            style: AppText.w700(13, AppColors.dark),
           ),
         ],
       ),
@@ -493,10 +392,10 @@ Widget _infoRow(IconData icon, String label, String value,
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: _C.green.withValues(alpha: 0.08),
+              color: AppColors.green.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 15, color: _C.green),
+            child: Icon(icon, size: 15, color: AppColors.green),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -505,20 +404,11 @@ Widget _infoRow(IconData icon, String label, String value,
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    color: _C.dark.withValues(alpha: 0.45),
-                  ),
+                  style: AppText.r(10, AppColors.dark.withValues(alpha: 0.45)),
                 ),
                 Text(
                   value,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: small ? 10.5 : 12,
-                    color: _C.dark,
-                  ),
+                  style: AppText.w600(small ? 10.5 : 12, AppColors.dark),
                 ),
               ],
             ),
@@ -534,24 +424,15 @@ Widget _kvRow(String label, String value) => Padding(
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 11.5,
-              color: _C.dark.withValues(alpha: 0.55),
-            ),
+            style: AppText.r(11.5, AppColors.dark.withValues(alpha: 0.55)),
           ),
           Text(
             value,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: _C.dark,
-            ),
+            style: AppText.w600(12, AppColors.dark),
           ),
         ],
       ),
     );
 
 Widget _divider() =>
-    Divider(color: _C.dark.withValues(alpha: 0.06), height: 1);
+    Divider(color: AppColors.dark.withValues(alpha: 0.06), height: 1);

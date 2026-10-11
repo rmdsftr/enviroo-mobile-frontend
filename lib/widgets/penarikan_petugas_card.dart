@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
+import '../core/format/app_date.dart';
 import '../models/penarikan_model.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-/// Card item penarikan buat sisi petugas — nampilin nama nasabah, reward,
-/// tanggal, dan status pill. Dipakai di [PenarikanPetugasScreen] (riwayat
-/// selesai) dan [PenarikanWaitingScreen] (pengajuan & siap dijemput).
 class PenarikanPetugasCard extends StatelessWidget {
   final PenarikanItem item;
   final VoidCallback onTap;
 
   const PenarikanPetugasCard({super.key, required this.item, required this.onTap});
 
-  static const Color dark = Color(0xFF013236);
+  static const Color dark = AppColors.dark;
 
   Color get _statusColor => item.status.color;
 
@@ -20,8 +19,7 @@ class PenarikanPetugasCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = DateFormat('dd MMM yyyy, HH:mm', 'id_ID')
-        .format(item.createdAt);
+    final dateStr = AppDate.tanggalSingkatJam(item.createdAt);
     final nasabah = item.namaNasabah?.isNotEmpty == true
         ? item.namaNasabah!
         : item.nasabahId ?? '-';
@@ -51,32 +49,19 @@ class PenarikanPetugasCard extends StatelessWidget {
                     children: [
                       Text(
                         nasabah,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: dark,
-                        ),
+                        style: AppText.w600(13, dark),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         item.namaReward.isEmpty
                             ? '-'
                             : _capitalize(item.namaReward),
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: Colors.black.withValues(alpha: 0.5),
-                        ),
+                        style: AppText.r(11, Colors.black.withValues(alpha: 0.5)),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         dateStr,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: Colors.black.withValues(alpha: 0.4),
-                        ),
+                        style: AppText.r(11, Colors.black.withValues(alpha: 0.4)),
                       ),
                     ],
                   ),
@@ -90,12 +75,7 @@ class PenarikanPetugasCard extends StatelessWidget {
                   ),
                   child: Text(
                     _statusLabel,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: _statusColor,
-                    ),
+                    style: AppText.w700(10, _statusColor),
                   ),
                 ),
               ],

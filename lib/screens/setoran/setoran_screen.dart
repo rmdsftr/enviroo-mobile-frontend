@@ -3,6 +3,8 @@ import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class SetoranScreen extends StatefulWidget {
   final String penimbanganId;
@@ -35,19 +37,18 @@ class _SetoranScreenState extends State<SetoranScreen> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(color: Color(0xFFFFFFFF)),
+        decoration: const BoxDecoration(color: Colors.white),
         child: SafeArea(
           child: Column(
             children: [
               TopBarBack(title: "QR Penyetoran"),
               const Spacer(),
 
-              // Instruction card
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 24),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -55,25 +56,20 @@ class _SetoranScreenState extends State<SetoranScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF013236).withOpacity(0.1),
+                        color: AppColors.dark.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
                         Icons.qr_code_scanner_rounded,
-                        color: Color(0xFF013236),
+                        color: AppColors.dark,
                         size: 24,
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         "Tunjukkan QR code ini pada petugas bank sampah untuk konfirmasi setoran",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF2D5A1D),
-                        ),
+                        style: AppText.w500(13, Color(0xFF2D5A1D)),
                       ),
                     ),
                   ],
@@ -82,7 +78,6 @@ class _SetoranScreenState extends State<SetoranScreen> {
 
               const SizedBox(height: 24),
 
-              // QR Code Card
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 decoration: BoxDecoration(
@@ -90,12 +85,12 @@ class _SetoranScreenState extends State<SetoranScreen> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF013236).withOpacity(0.15),
+                      color: AppColors.dark.withValues(alpha: 0.15),
                       blurRadius: 30,
                       offset: const Offset(0, 15),
                     ),
                     BoxShadow(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       blurRadius: 20,
                       offset: const Offset(0, -5),
                     ),
@@ -109,34 +104,24 @@ class _SetoranScreenState extends State<SetoranScreen> {
                     size: 280.0,
                     eyeStyle: const QrEyeStyle(
                       eyeShape: QrEyeShape.square,
-                      color: Color(0xFF013236),
+                      color: AppColors.dark,
                     ),
                     dataModuleStyle: const QrDataModuleStyle(
                       dataModuleShape: QrDataModuleShape.square,
-                      color: Color(0xFF013236),
+                      color: AppColors.dark,
                     ),
-                    // embeddedImage:
-                    //     const AssetImage('assets/images/logo-fix.png'),
-                    // embeddedImageStyle: const QrEmbeddedImageStyle(
-                    //   size: Size(50, 50),
-                    // ),
                   ),
                 ),
               ),
 
               const Spacer(),
 
-              // Bottom hint
               Padding(
                 padding: const EdgeInsets.only(bottom: 28, left: 25, right: 25),
                 child: Text(
                   'Scan QR code ini menggunakan aplikasi petugas Bank Sampah',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    color: const Color(0xFF013236).withOpacity(0.6),
-                  ),
+                  style: AppText.r(12, AppColors.dark.withValues(alpha: 0.6)),
                 ),
               ),
             ],

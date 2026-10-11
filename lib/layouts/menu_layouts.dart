@@ -5,6 +5,8 @@ import 'package:enviroo/screens/setoran/riwayat_setoran_screen.dart';
 import 'package:enviroo/screens/nasabah/tabungan_sampah_screen.dart';
 import 'package:enviroo/screens/penarikan/penarikan_nasabah_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class MainMenu extends StatefulWidget {
   @override
@@ -23,12 +25,7 @@ class _MainMenuState extends State<MainMenu> {
             alignment: Alignment.centerLeft,
             child: Text(
               "Menu Utama",
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF013236),
-              ),
+              style: AppText.w600(15, AppColors.dark),
             ),
           ),
           SizedBox(height: 15),
@@ -45,7 +42,7 @@ class _MainMenuState extends State<MainMenu> {
                         context: context,
                         label: "Setoran",
                         icon: Icons.qr_code_rounded,
-                        color: const Color(0xFF9B51E0), // Ungu
+                        color: const Color(0xFF9B51E0),
                         iconColor: Colors.white,
                         onTap: () => Navigator.push(
                           context,
@@ -59,7 +56,7 @@ class _MainMenuState extends State<MainMenu> {
                         context: context,
                         label: "Penarikan",
                         icon: Icons.account_balance_wallet_rounded,
-                        color: const Color(0xFFF2994A), // Oren
+                        color: const Color(0xFFF2994A),
                         iconColor: Colors.white,
                         onTap: () => Navigator.push(
                           context,
@@ -73,7 +70,7 @@ class _MainMenuState extends State<MainMenu> {
                         context: context,
                         label: "Katalog",
                         icon: Icons.grid_view_rounded,
-                        color: const Color(0xFF2D9CDB), // Biru
+                        color: const Color(0xFF2D9CDB),
                         iconColor: Colors.white,
                         onTap: () => Navigator.push(
                           context,
@@ -90,7 +87,7 @@ class _MainMenuState extends State<MainMenu> {
                         context: context,
                         label: "Bagi Hasil",
                         icon: Icons.volunteer_activism_rounded,
-                        color: const Color(0xFF1ABC9C), // Merah
+                        color: const Color(0xFF1ABC9C),
                         iconColor: Colors.white,
                         onTap: () => Navigator.push(
                           context,
@@ -104,7 +101,7 @@ class _MainMenuState extends State<MainMenu> {
                         context: context,
                         label: "Tabungan Sampah",
                         icon: Icons.savings_rounded,
-                        color: const Color(0xFF4EA771), // Hijau
+                        color: AppColors.green,
                         iconColor: Colors.white,
                         onTap: () => Navigator.push(
                           context,
@@ -164,12 +161,7 @@ class _MainMenuState extends State<MainMenu> {
             SizedBox(height: 8),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 11,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF013236),
-              ),
+              style: AppText.w600(11, AppColors.dark),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

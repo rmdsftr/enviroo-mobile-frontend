@@ -7,18 +7,7 @@ import '../models/setoran_nasabah_model.dart';
 import '../services/setoran_service.dart';
 import 'penjualan_provider.dart' show FetchStatus;
 
-/// State untuk modul setoran (endpoint `/setoran`).
-///
-/// Tiap kebutuhan baca punya slice sendiri (status + data + error). Layar
-/// memanggil `fetchX()` lalu menyalin hasilnya ke state lokalnya — provider yang
-/// tahu cara fetch, parse, dan melapor error; layar memegang salinannya.
-///
-/// Pola salin itu penting buat [fetchDetail]: `DetailSetoranScreen` didorong
-/// dari 5 tempat, jadi kalau dua layar detail sempat bertumpuk, fetch yang kedua
-/// akan menimpa slice ini. Dengan disalin, tiap layar tetap memegang hasil
-/// fetch-nya sendiri.
 class SetoranProvider extends ChangeNotifier {
-  // ── Riwayat setoran nasabah ────────────────────────────────────────────────
   FetchStatus _riwayatStatus = FetchStatus.idle;
   List<RiwayatSetoranModel> _riwayat = [];
   String? _riwayatError;
@@ -27,7 +16,6 @@ class SetoranProvider extends ChangeNotifier {
   List<RiwayatSetoranModel> get riwayat => _riwayat;
   String? get riwayatError => _riwayatError;
 
-  // ── Detail satu setoran ────────────────────────────────────────────────────
   FetchStatus _detailStatus = FetchStatus.idle;
   SetoranDetailHeader? _detailHeader;
   List<SetoranItem> _detailItems = [];
@@ -38,7 +26,6 @@ class SetoranProvider extends ChangeNotifier {
   List<SetoranItem> get detailItems => _detailItems;
   String? get detailError => _detailError;
 
-  // ── Preview sebelum setoran disimpan ───────────────────────────────────────
   FetchStatus _previewStatus = FetchStatus.idle;
   Map<String, dynamic>? _preview;
   String? _previewError;
@@ -46,10 +33,6 @@ class SetoranProvider extends ChangeNotifier {
   FetchStatus get previewStatus => _previewStatus;
   Map<String, dynamic>? get preview => _preview;
   String? get previewError => _previewError;
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // Baca
-  // ───────────────────────────────────────────────────────────────────────────
 
   Future<void> fetchRiwayat(
     String nasabahId, {
@@ -77,8 +60,6 @@ class SetoranProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Respons dibelah jadi dua: `data['header']` dan `data['items']`. Tidak ada
-  /// model gabungan untuk keduanya, jadi disimpan sebagai dua field.
   Future<void> fetchDetail(String setoranId) async {
     _detailStatus = FetchStatus.loading;
     _detailError = null;
@@ -102,8 +83,6 @@ class SetoranProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Hasilnya `Map` mentah — belum ada model untuk respons preview, dan layarnya
-  /// memang memakainya langsung sebagai map.
   Future<void> fetchPreview(
     String penimbanganId,
     String nasabahId,
@@ -127,12 +106,6 @@ class SetoranProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Aksi — hasil diteruskan apa adanya, state tidak disentuh
-  // ───────────────────────────────────────────────────────────────────────────
-
-  /// Hasilnya langsung dipakai untuk navigasi (`nasabah_id`, `nama_nasabah`,
-  /// `photo_url`), tidak ada yang perlu bertahan.
   Future<Map<String, dynamic>> verifikasiSetoran(
           String qrData, String adminId) =>
       SetoranService.verifikasiSetoran(qrData, adminId);

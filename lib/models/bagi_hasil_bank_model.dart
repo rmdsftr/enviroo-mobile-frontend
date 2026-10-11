@@ -1,4 +1,3 @@
-// ─── Persentase bagi hasil per jenis reward (GET /nilai-reward/get/:bank_id) ──
 class PersenBagiHasilReward {
   final int rewardId;
   final String namaReward;
@@ -6,13 +5,8 @@ class PersenBagiHasilReward {
   final double persenBagiHasil;
   final bool isActive;
 
-  /// Satuan saldo yang dipakai reward ini -- backend mengirim "Rp" atau
-  /// "poin" apa adanya. Kartu bagi hasil di beranda nasabah memakainya untuk
-  /// melabeli jenis saldo ("Saldo Rupiah" / "Saldo Poin").
   final String satuan;
 
-  /// Keterangan panjang jenis insentif — ditampilkan di kartu reward beranda
-  /// nasabah.
   final String deskripsi;
 
   PersenBagiHasilReward({
@@ -29,12 +23,6 @@ class PersenBagiHasilReward {
     final reward = json['reward'] as Map<String, dynamic>?;
     return PersenBagiHasilReward(
       rewardId: (json['reward_id'] as num?)?.toInt() ?? 0,
-      // Endpoint /nilai-reward mengirim reward bersarang dalam snake_case
-      // (`nama_reward`), sementara sebagian endpoint lain memakai PascalCase.
-      // Dulu di sini cuma PascalCase yang dibaca, jadi namaReward diam-diam
-      // kosong dan layar riwayat bagi hasil cuma menulis "Insentif " —
-      // tanpa error apa pun. Model tetangga (RewardInfo, RewardModel) sudah
-      // menangani dua-duanya sejak awal.
       namaReward:
           (reward?['nama_reward'] ?? reward?['NamaReward'] ?? '').toString(),
       levelUser: json['level_user']?.toString() ?? '',

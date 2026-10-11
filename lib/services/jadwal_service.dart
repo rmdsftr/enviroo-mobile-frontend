@@ -16,7 +16,6 @@ class JadwalService {
     }
   }
 
-  // Khusus petugas_bsm — GET /jadwal/penimbangan/:bank_id?month=&year=
   static Future<Map<String, dynamic>> getJadwalPenimbanganBsm(
     String bankId, {
     required int month,

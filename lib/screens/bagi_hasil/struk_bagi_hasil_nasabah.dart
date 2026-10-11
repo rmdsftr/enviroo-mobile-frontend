@@ -4,9 +4,11 @@ import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
 import 'package:provider/provider.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-
-// ── Screen ────────────────────────────────────────────────────────────────────
+import 'package:enviroo/core/format/app_date.dart';
+import 'package:enviroo/core/format/app_number.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class StrukBagiHasilNasabah extends StatefulWidget {
   final String penerimaId;
@@ -17,8 +19,6 @@ class StrukBagiHasilNasabah extends StatefulWidget {
 }
 
 class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
-  static const _teal = Color(0xFF013236);
-  static const _green = Color(0xFF4EA771);
 
   BagiHasilNasabahDetail? _detail;
   bool _isLoading = true;
@@ -52,39 +52,16 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
     }
   }
 
-  String _formatAmount(double amount, String satuan) {
-    final s = satuan.toLowerCase();
-    if (s.contains('rp') || s.contains('uang') || s.contains('idr')) {
-      return NumberFormat.currency(
-              locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
-          .format(amount);
-    }
-    return '${NumberFormat('#,##0.##', 'id_ID').format(amount)} $satuan';
-  }
+  String _fmtValue(double v, String satuan) =>
+      AppNumber.nominalSatuan(v, satuan);
 
-  String _fmtNum(double v) {
-    if (v == v.truncateToDouble()) return v.toInt().toString();
-    return NumberFormat('#,##0.##', 'id_ID').format(v);
-  }
-
-  String _fmtCurrency(double v) =>
-      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
-          .format(v);
-
-  bool _isRupiah(String satuan) {
-    final s = satuan.toLowerCase();
-    return s.contains('rp') || s.contains('uang') || s.contains('idr');
-  }
-
-  String _fmtValue(double v, String satuan) {
-    if (_isRupiah(satuan)) return _fmtCurrency(v);
-    return '${NumberFormat('#,##0.##', 'id_ID').format(v)} $satuan';
-  }
+  String _fmtNum(double v) =>
+      v == v.truncateToDouble() ? v.toInt().toString() : AppNumber.desimal(v);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -99,7 +76,7 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
               Expanded(
                 child: _isLoading
                     ? const Center(
-                        child: CircularProgressIndicator(color: _green))
+                        child: CircularProgressIndicator(color: AppColors.green))
                     : _error != null
                         ? _buildError()
                         : _buildStruk(),
@@ -119,7 +96,6 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
       child: Column(
         children: [
-          // ── Hero Header ──────────────────────────────────────────────────
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
@@ -128,7 +104,7 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 width: 1,
-                color: const Color(0xFF013236).withOpacity(0.1),
+                color: AppColors.dark.withValues(alpha: 0.1),
               ),
             ),
             child: Column(
@@ -136,51 +112,35 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: _green.withValues(alpha: 0.18),
+                    color: AppColors.green.withValues(alpha: 0.18),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.volunteer_activism_rounded,
-                    color: _green,
+                    color: AppColors.green,
                     size: 26,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _formatAmount(d.totalDiterima, d.satuanDiterima),
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: _green,
-                    letterSpacing: -0.5,
-                  ),
+                  _fmtValue(d.totalDiterima, d.satuanDiterima),
+                  style: AppText.p(26, weight: FontWeight.w800, color: AppColors.green, letterSpacing: -0.5),
                 ),
                 Text(
                   'Total Bagi Hasil Diterima',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    color: _teal.withValues(alpha: 0.5),
-                  ),
+                  style: AppText.r(10, AppColors.dark.withValues(alpha: 0.5)),
                 ),
                 const SizedBox(height: 12),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
-                    color: _teal.withValues(alpha: 0.05),
+                    color: AppColors.dark.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    DateFormat('EEEE, dd MMMM yyyy · HH:mm', 'id_ID')
-                        .format(d.tanggal),
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: _teal.withValues(alpha: 0.65),
-                    ),
+                    AppDate.tanggalPenuhJam(d.tanggal),
+                    style: AppText.w500(10, AppColors.dark.withValues(alpha: 0.65)),
                   ),
                 ),
               ],
@@ -189,12 +149,10 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
 
           const SizedBox(height: 14),
 
-          // ── Info Card ────────────────────────────────────────────────────
           _buildInfoCard(d),
 
           const SizedBox(height: 14),
 
-          // ── Items Card ───────────────────────────────────────────────────
           if (d.items.isNotEmpty) _buildItemsCard(d, d.satuanDiterima),
         ],
       ),
@@ -279,16 +237,11 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
           const SizedBox(height: 10),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 flex: 6,
                 child: Text(
                   'Total Nilai Sampah',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    color: _teal,
-                  ),
+                  style: AppText.w600(12, AppColors.dark),
                 ),
               ),
               Expanded(
@@ -296,12 +249,7 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
                 child: Text(
                   _fmtValue(totalSubtotal, satuan),
                   textAlign: TextAlign.right,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: _green,
-                  ),
+                  style: AppText.w700(13, AppColors.green),
                 ),
               ),
             ],
@@ -321,11 +269,7 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
             flex: 4,
             child: Text(
               item.namaSampah,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                color: _teal,
-              ),
+              style: AppText.r(11, AppColors.dark),
             ),
           ),
           Expanded(
@@ -333,11 +277,7 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
             child: Text(
               _fmtNum(item.qty),
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                color: _teal.withValues(alpha: 0.7),
-              ),
+              style: AppText.r(11, AppColors.dark.withValues(alpha: 0.7)),
             ),
           ),
           Expanded(
@@ -345,11 +285,7 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
             child: Text(
               _fmtValue(item.hargaItem, satuan),
               textAlign: TextAlign.right,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                color: _teal.withValues(alpha: 0.7),
-              ),
+              style: AppText.r(11, AppColors.dark.withValues(alpha: 0.7)),
             ),
           ),
           Expanded(
@@ -357,12 +293,7 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
             child: Text(
               _fmtValue(item.subtotalHarga, satuan),
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
-                color: _teal,
-              ),
+              style: AppText.w600(11, AppColors.dark),
             ),
           ),
         ],
@@ -377,19 +308,14 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
           width: 3,
           height: 16,
           decoration: BoxDecoration(
-            color: _green,
+            color: AppColors.green,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
         const SizedBox(width: 8),
         Text(
           label,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-            color: _teal,
-          ),
+          style: AppText.w700(13, AppColors.dark),
         ),
       ],
     );
@@ -404,10 +330,10 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: _green.withValues(alpha: 0.08),
+              color: AppColors.green.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 15, color: _green),
+            child: Icon(icon, size: 15, color: AppColors.green),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -416,20 +342,11 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    color: _teal.withValues(alpha: 0.45),
-                  ),
+                  style: AppText.r(10, AppColors.dark.withValues(alpha: 0.45)),
                 ),
                 Text(
                   value,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: small ? 10.5 : 12,
-                    color: _teal,
-                  ),
+                  style: AppText.w600(small ? 10.5 : 12, AppColors.dark),
                 ),
               ],
             ),
@@ -439,7 +356,7 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
     );
   }
 
-  Widget _divider() => Divider(color: _teal.withValues(alpha: 0.06), height: 1);
+  Widget _divider() => Divider(color: AppColors.dark.withValues(alpha: 0.06), height: 1);
 
   Widget _dashedDivider() {
     return LayoutBuilder(
@@ -455,7 +372,7 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
             (_) => Container(
               width: dashWidth,
               height: 1,
-              color: _teal.withValues(alpha: 0.12),
+              color: AppColors.dark.withValues(alpha: 0.12),
             ),
           ),
         );
@@ -463,52 +380,11 @@ class _StrukBagiHasilNasabahState extends State<StrukBagiHasilNasabah> {
     );
   }
 
-  TextStyle get _headerStyle => TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w600,
-        fontSize: 10,
-        color: _teal.withValues(alpha: 0.45),
-      );
+  TextStyle get _headerStyle => AppText.w600(10, AppColors.dark.withValues(alpha: 0.45));
 
-  Widget _buildError() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline_rounded,
-              size: 48, color: _teal.withValues(alpha: 0.25)),
-          const SizedBox(height: 12),
-          Text(
-            _error!,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              color: _teal.withValues(alpha: 0.55),
-            ),
-          ),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: _fetchDetail,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              decoration: BoxDecoration(
-                color: _green,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Coba Lagi',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildError() => StateMessage(
+        illustration: StateArt.error,
+        message: _error!,
+        action: StateRetryButton.pill(onPressed: _fetchDetail),
+      );
 }

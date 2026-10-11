@@ -7,8 +7,6 @@ import 'package:enviroo/core/config/api_config.dart';
 import 'package:enviroo/core/network/api_client.dart';
 import 'package:enviroo/core/network/api_failure.dart';
 
-/// Serialize [dt] (jam lokal, diasumsikan WIB seperti sisa aplikasi) ke ISO-8601
-/// dengan offset eksplisit, mis. "2026-08-16T15:00:00+07:00".
 String _isoWib(DateTime dt) {
   String two(int v) => v.toString().padLeft(2, '0');
   final date = '${dt.year.toString().padLeft(4, '0')}-${two(dt.month)}-${two(dt.day)}';
@@ -137,18 +135,6 @@ class PenarikanService {
     }
   }
 
-  /// Menyelesaikan penarikan (approved -> completed) via PATCH /penarikan/selesai.
-  ///
-  /// Dikirim sebagai **multipart/form-data**, bukan JSON: sejak backend berubah,
-  /// [buktiFoto] dikirim sebagai berkas mentah, bukan string base64. Nama
-  /// field-nya tetap `bukti_foto` - yang berubah hanya encoding-nya.
-  ///
-  /// Dua jalur:
-  /// - QR: isi [qrData] (mentah persis hasil scan), [catatan] opsional.
-  ///   [buktiFoto] TIDAK disertakan - backend mengabaikannya lebih awal, jadi
-  ///   percuma mengunggahnya. [nasabahId]/[penarikanId] diambil backend dari QR.
-  /// - Manual: isi [nasabahId] + [penarikanId] + [buktiFoto] (wajib semua),
-  ///   [catatan] wajib non-kosong.
   static Future<Map<String, dynamic>> selesaikanPenarikan({
     String? qrData,
     String? nasabahId,
@@ -162,7 +148,6 @@ class PenarikanService {
           'PATCH',
           Uri.parse(ApiConfig.selesaiPenarikanUrl),
         );
-        // qr_data tetap string JSON di field teks, bukan objek.
         if (qrData != null) request.fields['qr_data'] = qrData;
         if (nasabahId != null) request.fields['nasabah_id'] = nasabahId;
         if (penarikanId != null) request.fields['penarikan_id'] = penarikanId;
@@ -184,8 +169,6 @@ class PenarikanService {
     }
   }
 
-  /// Petugas menolak pengajuan pending. Endpoint konfirmasi/:id lain,
-  /// dibedakan lewat field `status`.
   static Future<Map<String, dynamic>> tolakPengajuan({
     required String penarikanId,
     required String catatan,
@@ -206,8 +189,6 @@ class PenarikanService {
     }
   }
 
-  /// Petugas menyetujui pengajuan pending. Sama endpoint dengan [konfirmasi],
-  /// dibedakan lewat field `status`.
   static Future<Map<String, dynamic>> setujuiPengajuan({
     required String penarikanId,
     required DateTime deadlineJemput,

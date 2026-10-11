@@ -1,3 +1,4 @@
+import 'package:enviroo/core/format/app_date.dart';
 import 'package:enviroo/models/jadwal_model.dart';
 
 import 'package:enviroo/services/pengangkutan_service.dart';
@@ -10,25 +11,19 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:enviroo/providers/jadwal_provider.dart';
 import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Palette
-// ─────────────────────────────────────────────────────────────────────────────
 class _C {
-  static const dark      = Color(0xFF013236);
-  static const green     = Color(0xFF4EA771);
-  static const lime      = Color(0xFF94DF0C);
-  static const bgLight   = Color(0xFFFFFFFF);
-  static const softGreen = Color(0xFFEAF8E7);
+  static const dark      = AppColors.dark;
+  static const green     = AppColors.green;
+  static const lime      = AppColors.neon;
+  static const softGreen = AppColors.mintSoft;
   static const surface   = Color(0xFFF5F9F3);
   static const orange    = Color(0xFFFD7D00);
 }
 
 
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// MAIN SCREEN
-// ═══════════════════════════════════════════════════════════════════════════════
 class JadwalScreen extends StatefulWidget {
   final VoidCallback? onBack;
   const JadwalScreen({super.key, this.onBack});
@@ -41,17 +36,15 @@ class _JadwalScreenState extends State<JadwalScreen>
     with SingleTickerProviderStateMixin {
   int _selectedTab = 0;
 
-  // For smooth content transitions
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
 
   DateTime _focusedMonth = DateTime.now();
 
-  // ── petugas_bsm: state jadwal penimbangan (endpoint terpisah) ──
   List<JadwalPenimbanganItem> _bsmJadwal = [];
   bool _bsmLoading = false;
   String? _bsmError;
-  String _bsmFilter = 'semua'; // semua | rutin | khusus
+  String _bsmFilter = 'semua';
 
   @override
   void initState() {
@@ -110,11 +103,19 @@ class _JadwalScreenState extends State<JadwalScreen>
   }
 
   List<JadwalPenimbanganItem> get _filteredBsmJadwal {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final viewingPastMonth =
+        DateTime(_focusedMonth.year, _focusedMonth.month).isBefore(DateTime(now.year, now.month));
+    final upcoming = _bsmJadwal.where((j) =>
+        viewingPastMonth ||
+        !DateTime(j.tanggal.year, j.tanggal.month, j.tanggal.day)
+            .isBefore(today));
     final list = _bsmFilter == 'rutin'
-        ? _bsmJadwal.where((j) => j.isRutin).toList()
+        ? upcoming.where((j) => j.isRutin).toList()
         : _bsmFilter == 'khusus'
-            ? _bsmJadwal.where((j) => !j.isRutin).toList()
-            : List.of(_bsmJadwal);
+            ? upcoming.where((j) => !j.isRutin).toList()
+            : upcoming.toList();
     list.sort((a, b) => a.tanggal.compareTo(b.tanggal));
     return list;
   }
@@ -135,7 +136,7 @@ class _JadwalScreenState extends State<JadwalScreen>
       case 'pending':     return ('Mendatang', _C.green);
       case 'aktif':       return ('Sedang berlangsung', _C.orange);
       case 'selesai':     return ('Selesai', _C.dark.withAlpha(100));
-      case 'dibatalkan':  return ('Batal', const Color(0xFFE53935));
+      case 'dibatalkan':  return ('Batal', AppColors.dangerAlt);
       default:            return (status, _C.dark.withAlpha(100));
     }
   }
@@ -154,7 +155,6 @@ class _JadwalScreenState extends State<JadwalScreen>
     });
   }
 
-  // ── Getters for current tab ──
   List<JadwalRutin> get _currentRutin {
     final prov = context.read<JadwalProvider>();
     return _selectedTab == 0 ? prov.rutinPenimbangan : prov.rutinPengangkutan;
@@ -165,7 +165,6 @@ class _JadwalScreenState extends State<JadwalScreen>
     return _selectedTab == 0 ? prov.customPenimbangan : prov.customPengangkutan;
   }
 
-  // ── Build calendar event map ──
   Map<DateTime, List<String>> _buildEvents() {
     final map = <DateTime, List<String>>{};
     void addEvent(DateTime d, String label) {
@@ -221,10 +220,8 @@ class _JadwalScreenState extends State<JadwalScreen>
     }
   }
 
-  // ── Choice sheet when date already has events ──
   void _showDayOptions(DateTime date, List<String> events) {
-    final months = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-    final dateStr = '${date.day} ${months[date.month]} ${date.year}';
+    final dateStr = AppDate.tanggalPanjang(date);
 
     _showSheet(
       builder: (ctx, setBS) => Column(
@@ -233,7 +230,6 @@ class _JadwalScreenState extends State<JadwalScreen>
         children: [
           _handleBar(),
 
-          // Date header
           Row(
             children: [
               Container(
@@ -248,21 +244,15 @@ class _JadwalScreenState extends State<JadwalScreen>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(dateStr, style: const TextStyle(
-                    fontFamily: 'Poppins', fontSize: 15, fontWeight: FontWeight.w600,
-                    color: _C.dark,
-                  )),
+                  Text(dateStr, style: AppText.w600(15, _C.dark)),
                   const SizedBox(height: 2),
-                  Text('${events.length} jadwal', style: TextStyle(
-                    fontFamily: 'Poppins', fontSize: 12, color: _C.dark.withAlpha(100),
-                  )),
+                  Text('${events.length} jadwal', style: AppText.r(12, _C.dark.withAlpha(100))),
                 ],
               ),
             ],
           ),
           const SizedBox(height: 20),
 
-          // Event list
           ...events.map((e) => Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Container(
@@ -287,10 +277,7 @@ class _JadwalScreenState extends State<JadwalScreen>
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(e, style: TextStyle(
-                      fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w500,
-                      color: _C.dark.withAlpha(180), height: 1.4,
-                    )),
+                    child: Text(e, style: AppText.p(12, weight: FontWeight.w500, color: _C.dark.withAlpha(180), height: 1.4)),
                   ),
                 ],
               ),
@@ -307,9 +294,9 @@ class _JadwalScreenState extends State<JadwalScreen>
                   _showAjukanPengangkutan(date);
                 },
                 icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text(
+                label: Text(
                   'Ajukan Pengangkutan',
-                  style: TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600),
+                  style: AppText.w600(13),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _C.green,
@@ -324,10 +311,8 @@ class _JadwalScreenState extends State<JadwalScreen>
     );
   }
 
-  // ── Choice sheet khusus petugas_bsm — nama_jadwal + badge status + jam ──
   void _showBsmDayOptions(DateTime date, List<JadwalPenimbanganItem> items) {
-    final months = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-    final dateStr = '${date.day} ${months[date.month]} ${date.year}';
+    final dateStr = AppDate.tanggalPanjang(date);
 
     _showSheet(
       builder: (ctx, setBS) => Column(
@@ -336,7 +321,6 @@ class _JadwalScreenState extends State<JadwalScreen>
         children: [
           _handleBar(),
 
-          // Date header
           Row(
             children: [
               Container(
@@ -351,21 +335,15 @@ class _JadwalScreenState extends State<JadwalScreen>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(dateStr, style: const TextStyle(
-                    fontFamily: 'Poppins', fontSize: 15, fontWeight: FontWeight.w600,
-                    color: _C.dark,
-                  )),
+                  Text(dateStr, style: AppText.w600(15, _C.dark)),
                   const SizedBox(height: 2),
-                  Text('${items.length} jadwal', style: TextStyle(
-                    fontFamily: 'Poppins', fontSize: 12, color: _C.dark.withAlpha(100),
-                  )),
+                  Text('${items.length} jadwal', style: AppText.r(12, _C.dark.withAlpha(100))),
                 ],
               ),
             ],
           ),
           const SizedBox(height: 20),
 
-          // Jadwal list
           ...items.map((j) => Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: _buildBsmSheetItem(j),
@@ -396,10 +374,7 @@ class _JadwalScreenState extends State<JadwalScreen>
               Expanded(
                 child: Text(
                   j.namaJadwal.isNotEmpty ? j.namaJadwal : 'Penimbangan',
-                  style: TextStyle(
-                    fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600,
-                    color: _C.dark.withAlpha(isDead ? 140 : 220),
-                  ),
+                  style: AppText.w600(13, _C.dark.withAlpha(isDead ? 140 : 220)),
                 ),
               ),
               const SizedBox(width: 8),
@@ -411,9 +386,7 @@ class _JadwalScreenState extends State<JadwalScreen>
             children: [
               Icon(Icons.access_time_rounded, size: 11, color: _C.dark.withAlpha(70)),
               const SizedBox(width: 4),
-              Text(j.formattedJam, style: TextStyle(
-                fontFamily: 'Poppins', fontSize: 11.5, color: _C.dark.withAlpha(90),
-              )),
+              Text(j.formattedJam, style: AppText.r(11.5, _C.dark.withAlpha(90))),
             ],
           ),
         ],
@@ -423,7 +396,6 @@ class _JadwalScreenState extends State<JadwalScreen>
     return isDead ? Opacity(opacity: 0.55, child: content) : content;
   }
 
-  // ─── BUILD ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final role = context.watch<AuthProvider>().role;
@@ -438,7 +410,6 @@ class _JadwalScreenState extends State<JadwalScreen>
           children: [
             TopBarBack(title: "Monitoring Jadwal", onBack: widget.onBack),
 
-            // ── Tab Navbar ──
             if (!isBsm)
               NavbarJadwal(
                 selectedIndex: _selectedTab,
@@ -447,7 +418,6 @@ class _JadwalScreenState extends State<JadwalScreen>
 
             if (!isBsm) const SizedBox(height: 12),
 
-            // ── Scrollable content with fade transition ──
             Expanded(
               child: isLoading
                 ? const Center(child: CircularProgressIndicator(color: _C.green))
@@ -460,7 +430,6 @@ class _JadwalScreenState extends State<JadwalScreen>
                   child: Column(
                     children: isBsm
                         ? [
-                            // ── Calendar ──
                             CalendarWidget(
                               events: _buildBsmEvents(),
                               onDaySelected: _onDaySelected,
@@ -473,20 +442,16 @@ class _JadwalScreenState extends State<JadwalScreen>
                               showEventBadge: false,
                             ),
                             const SizedBox(height: 25),
-                            // ── Jadwal bulan ini (petugas_bsm) ──
                             _buildBsmJadwalSection(),
                             const SizedBox(height: 60),
                           ]
                         : [
-                            // ── Jadwal Rutin section ──
                             _buildRutinSection(),
 
                             const SizedBox(height: 10),
 
-                            // ── Info banner (Pengangkutan only, khusus BSU/BSM) ──
                             if (_selectedTab == 1 && !isBsi) _buildInfoBanner(),
 
-                            // ── Calendar ──
                             CalendarWidget(
                               events: _buildEvents(),
                               onDaySelected: _onDaySelected,
@@ -500,7 +465,6 @@ class _JadwalScreenState extends State<JadwalScreen>
 
                             const SizedBox(height: 25),
 
-                            // ── Jadwal Khusus bulan ini ──
                             _buildJadwalKhususSection(),
 
                             const SizedBox(height: 60),
@@ -515,11 +479,6 @@ class _JadwalScreenState extends State<JadwalScreen>
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // HELPERS
-  // ═════════════════════════════════════════════════════════════════════════
-
-  /// Returns sorted list of (JadwalRutin, nextDate?) — order: today → upcoming → past.
   List<(JadwalRutin, DateTime?)> _sortedRutinWithDate() {
     final today = DateTime.now();
     final todayNorm = DateTime(today.year, today.month, today.day);
@@ -575,34 +534,24 @@ class _JadwalScreenState extends State<JadwalScreen>
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withAlpha(60), width: 0.8),
       ),
-      child: Text(label, style: TextStyle(
-        fontFamily: 'Poppins', fontSize: 9.5, fontWeight: FontWeight.w600, color: color,
-      )),
+      child: Text(label, style: AppText.w600(9.5, color)),
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // JADWAL BULAN INI (petugas_bsm) — endpoint /jadwal/penimbangan/:bank_id
-  // ═════════════════════════════════════════════════════════════════════════
   Widget _buildBsmJadwalSection() {
-    final months = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-    final monthLabel = '${months[_focusedMonth.month]} ${_focusedMonth.year}';
+    final monthLabel = AppDate.bulanTahun(_focusedMonth);
     final filtered = _filteredBsmJadwal;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Section header ──
         Padding(
           padding: const EdgeInsets.fromLTRB(30, 0, 30, 12),
           child: Row(
             children: [
-              const Text(
+              Text(
                 'Jadwal bulan ini',
-                style: TextStyle(
-                  fontFamily: 'Poppins', fontSize: 13.5,
-                  fontWeight: FontWeight.w600, color: _C.dark,
-                ),
+                style: AppText.w600(13.5, _C.dark),
               ),
               const SizedBox(width: 8),
               Container(
@@ -613,17 +562,13 @@ class _JadwalScreenState extends State<JadwalScreen>
                 ),
                 child: Text(
                   monthLabel,
-                  style: TextStyle(
-                    fontFamily: 'Poppins', fontSize: 10,
-                    fontWeight: FontWeight.w600, color: _C.green,
-                  ),
+                  style: AppText.w600(10, _C.green),
                 ),
               ),
             ],
           ),
         ),
 
-        // ── Filter chips ──
         Padding(
           padding: const EdgeInsets.only(bottom: 14),
           child: FilterChipRow<String>(
@@ -638,13 +583,12 @@ class _JadwalScreenState extends State<JadwalScreen>
           ),
         ),
 
-        // ── List / empty / error ──
         if (_bsmError != null)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 27, vertical: 8),
             child: Text(
               _bsmError!,
-              style: const TextStyle(fontFamily: 'Poppins', fontSize: 12, color: Colors.red),
+              style: AppText.r(12, Colors.red),
             ),
           )
         else if (filtered.isEmpty)
@@ -663,7 +607,7 @@ class _JadwalScreenState extends State<JadwalScreen>
                     ),
                     const SizedBox(height: 12),
                     Text('Belum ada jadwal bulan ini',
-                      style: TextStyle(fontFamily: 'Poppins', fontSize: 12.5, color: _C.dark.withAlpha(90))),
+                      style: AppText.r(12.5, _C.dark.withAlpha(90))),
                   ],
                 ),
               ),
@@ -679,10 +623,7 @@ class _JadwalScreenState extends State<JadwalScreen>
   }
 
   Widget _buildBsmJadwalRow(JadwalPenimbanganItem j, {required bool isLast}) {
-    final months = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-    final dayNames = ['', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-    final dayName = dayNames[j.tanggal.weekday];
-    final dateStr = '$dayName, ${j.tanggal.day} ${months[j.tanggal.month]}';
+    final dateStr = AppDate.hariTanggal(j.tanggal);
     final (badgeLabel, badgeColor) = _bsmStatusBadge(j.statusJadwal);
     final isDead = j.statusJadwal == 'selesai' ||
         j.statusJadwal == 'dibatalkan' ||
@@ -696,7 +637,6 @@ class _JadwalScreenState extends State<JadwalScreen>
     final content = Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // ── Date badge ──
         Container(
           width: 44, height: 44,
           decoration: BoxDecoration(
@@ -708,24 +648,16 @@ class _JadwalScreenState extends State<JadwalScreen>
             children: [
               Text(
                 '${j.tanggal.day}',
-                style: TextStyle(
-                  fontFamily: 'Poppins', fontSize: 16,
-                  fontWeight: FontWeight.w700, color: dateColor,
-                  height: 1.1,
-                ),
+                style: AppText.p(16, weight: FontWeight.w700, color: dateColor, height: 1.1),
               ),
               Text(
-                months[j.tanggal.month].substring(0, 3).toUpperCase(),
-                style: TextStyle(
-                  fontFamily: 'Poppins', fontSize: 8.5,
-                  fontWeight: FontWeight.w600, color: dateColor.withAlpha(160),
-                ),
+                AppDate.bulanSingkat(j.tanggal).toUpperCase(),
+                style: AppText.w600(8.5, dateColor.withAlpha(160)),
               ),
             ],
           ),
         ),
         const SizedBox(width: 13),
-        // ── Info ──
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -735,11 +667,7 @@ class _JadwalScreenState extends State<JadwalScreen>
                   Expanded(
                     child: Text(
                       j.namaJadwal.isNotEmpty ? j.namaJadwal : 'Penimbangan',
-                      style: TextStyle(
-                        fontFamily: 'Poppins', fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: _C.dark.withAlpha(isDead ? 130 : 210),
-                      ),
+                      style: AppText.w600(12.5, _C.dark.withAlpha(isDead ? 130 : 210)),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -751,9 +679,7 @@ class _JadwalScreenState extends State<JadwalScreen>
                 children: [
                   Icon(Icons.calendar_today_rounded, size: 10, color: _C.dark.withAlpha(60)),
                   const SizedBox(width: 4),
-                  Text(dateStr, style: TextStyle(
-                    fontFamily: 'Poppins', fontSize: 11, color: _C.dark.withAlpha(80),
-                  )),
+                  Text(dateStr, style: AppText.r(11, _C.dark.withAlpha(80))),
                   if (j.isRutin) ...[
                     const SizedBox(width: 8),
                     Icon(Icons.repeat_rounded, size: 10, color: _C.green.withAlpha(140)),
@@ -765,9 +691,7 @@ class _JadwalScreenState extends State<JadwalScreen>
                 children: [
                   Icon(Icons.access_time_rounded, size: 10, color: _C.dark.withAlpha(60)),
                   const SizedBox(width: 4),
-                  Text(j.formattedJam, style: TextStyle(
-                    fontFamily: 'Poppins', fontSize: 11, color: _C.dark.withAlpha(80),
-                  )),
+                  Text(j.formattedJam, style: AppText.r(11, _C.dark.withAlpha(80))),
                 ],
               ),
             ],
@@ -776,12 +700,8 @@ class _JadwalScreenState extends State<JadwalScreen>
       ],
     );
 
-    // Status selesai/dibatalkan → jadwalnya udah gak relevan lagi, bikin
-    // kartunya keliatan "mati" (redup) biar keliatan bedanya.
     final rowBody = isDead ? Opacity(opacity: 0.55, child: content) : content;
 
-    // Jadwal hari ini → highlight biar langsung keliatan tanpa harus baca
-    // tanggal satu-satu.
     final rowContent = isToday
         ? Container(
             padding: const EdgeInsets.all(12),
@@ -815,9 +735,6 @@ class _JadwalScreenState extends State<JadwalScreen>
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // JADWAL KHUSUS BULAN INI
-  // ═════════════════════════════════════════════════════════════════════════
   Widget _buildJadwalKhususSection() {
     final monthCustom = _currentCustom.where((c) {
       return c.tanggal.year == _focusedMonth.year && c.tanggal.month == _focusedMonth.month;
@@ -826,25 +743,20 @@ class _JadwalScreenState extends State<JadwalScreen>
 
     if (monthCustom.isEmpty) return const SizedBox.shrink();
 
-    final months = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-    final monthLabel = '${months[_focusedMonth.month]} ${_focusedMonth.year}';
+    final monthLabel = AppDate.bulanTahun(_focusedMonth);
     final typeLabel = _selectedTab == 0 ? 'Penimbangan' : 'Pengangkutan';
     final accentColor = _selectedTab == 0 ? _C.green : _C.orange;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Section header ──
         Padding(
           padding: const EdgeInsets.fromLTRB(30, 0, 30, 12),
           child: Row(
             children: [
               Text(
                 'Jadwal Khusus',
-                style: const TextStyle(
-                  fontFamily: 'Poppins', fontSize: 13.5,
-                  fontWeight: FontWeight.w600, color: _C.dark,
-                ),
+                style: AppText.w600(13.5, _C.dark),
               ),
               const SizedBox(width: 8),
               Container(
@@ -855,23 +767,17 @@ class _JadwalScreenState extends State<JadwalScreen>
                 ),
                 child: Text(
                   monthLabel,
-                  style: TextStyle(
-                    fontFamily: 'Poppins', fontSize: 10,
-                    fontWeight: FontWeight.w600, color: accentColor,
-                  ),
+                  style: AppText.w600(10, accentColor),
                 ),
               ),
             ],
           ),
         ),
 
-        // ── List ──
         ...monthCustom.asMap().entries.map((entry) {
           final idx = entry.key;
           final c = entry.value;
-          final dayNames = ['', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-          final dayName = dayNames[c.tanggal.weekday];
-          final dateStr = '$dayName, ${c.tanggal.day} ${months[c.tanggal.month]}';
+          final dateStr = AppDate.hariTanggal(c.tanggal);
           final isLast = idx == monthCustom.length - 1;
           final today = DateTime.now();
           final todayNorm = DateTime(today.year, today.month, today.day);
@@ -894,7 +800,6 @@ class _JadwalScreenState extends State<JadwalScreen>
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // ── Date badge ──
                     Container(
                       width: 44, height: 44,
                       decoration: BoxDecoration(
@@ -906,24 +811,16 @@ class _JadwalScreenState extends State<JadwalScreen>
                         children: [
                           Text(
                             '${c.tanggal.day}',
-                            style: TextStyle(
-                              fontFamily: 'Poppins', fontSize: 16,
-                              fontWeight: FontWeight.w700, color: accentColor,
-                              height: 1.1,
-                            ),
+                            style: AppText.p(16, weight: FontWeight.w700, color: accentColor, height: 1.1),
                           ),
                           Text(
-                            months[c.tanggal.month].substring(0, 3).toUpperCase(),
-                            style: TextStyle(
-                              fontFamily: 'Poppins', fontSize: 8.5,
-                              fontWeight: FontWeight.w600, color: accentColor.withAlpha(160),
-                            ),
+                            AppDate.bulanSingkat(c.tanggal).toUpperCase(),
+                            style: AppText.w600(8.5, accentColor.withAlpha(160)),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 13),
-                    // ── Info ──
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -935,11 +832,7 @@ class _JadwalScreenState extends State<JadwalScreen>
                                   c.pesan != null && c.pesan!.isNotEmpty
                                       ? c.pesan!
                                       : '$typeLabel Khusus',
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins', fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: _C.dark.withAlpha(210),
-                                  ),
+                                  style: AppText.w600(12.5, _C.dark.withAlpha(210)),
                                 ),
                               ),
                               if (customChip != null) ...[
@@ -953,17 +846,11 @@ class _JadwalScreenState extends State<JadwalScreen>
                             children: [
                               Icon(Icons.calendar_today_rounded, size: 10, color: _C.dark.withAlpha(60)),
                               const SizedBox(width: 4),
-                              Text(dateStr, style: TextStyle(
-                                fontFamily: 'Poppins', fontSize: 11,
-                                color: _C.dark.withAlpha(80),
-                              )),
+                              Text(dateStr, style: AppText.r(11, _C.dark.withAlpha(80))),
                               const SizedBox(width: 10),
                               Icon(Icons.access_time_rounded, size: 10, color: _C.dark.withAlpha(60)),
                               const SizedBox(width: 4),
-                              Text(c.waktu, style: TextStyle(
-                                fontFamily: 'Poppins', fontSize: 11,
-                                color: _C.dark.withAlpha(80),
-                              )),
+                              Text(c.waktu, style: AppText.r(11, _C.dark.withAlpha(80))),
                             ],
                           ),
                         ],
@@ -987,16 +874,13 @@ class _JadwalScreenState extends State<JadwalScreen>
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // INFO BANNER (Pengangkutan)
-  // ═════════════════════════════════════════════════════════════════════════
   Widget _buildInfoBanner() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 14),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color : Color(0xFF013236),
+          color : AppColors.dark,
           borderRadius: BorderRadius.circular(25),
         ),
         child: Row(
@@ -1015,12 +899,7 @@ class _JadwalScreenState extends State<JadwalScreen>
             Expanded(
               child: Text(
                 "Anda dapat mengajukan permintaan pengangkutan kepada BSI dengan memilih salah satu tanggal pada kalender",
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11.5,
-                  height: 1.55,
-                  color: Colors.white.withAlpha(210),
-                ),
+                style: AppText.p(11.5, color: Colors.white.withAlpha(210), height: 1.55),
               ),
             ),
           ],
@@ -1031,9 +910,6 @@ class _JadwalScreenState extends State<JadwalScreen>
 
   
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // JADWAL RUTIN SECTION
-  // ═════════════════════════════════════════════════════════════════════════
   Widget _buildRutinSection() {
     final sorted = _sortedRutinWithDate();
     final hideTarget = context.read<AuthProvider>().role == 'petugas_bsu';
@@ -1054,7 +930,7 @@ class _JadwalScreenState extends State<JadwalScreen>
                 ),
                 const SizedBox(height: 12),
                 Text('Belum ada jadwal rutin',
-                  style: TextStyle(fontFamily: 'Poppins', fontSize: 12.5, color: _C.dark.withAlpha(90))),
+                  style: AppText.r(12.5, _C.dark.withAlpha(90))),
               ],
             ),
           ),
@@ -1062,7 +938,6 @@ class _JadwalScreenState extends State<JadwalScreen>
       );
     }
 
-    // Chunk into pages of max 5
     final pages = <List<(JadwalRutin, DateTime?)>>[];
     for (int i = 0; i < sorted.length; i += 5) {
       pages.add(sorted.sublist(i, (i + 5).clamp(0, sorted.length)));
@@ -1086,14 +961,12 @@ class _JadwalScreenState extends State<JadwalScreen>
                     child: const Icon(Icons.repeat_rounded, color: _C.green, size: 16),
                   ),
                   const SizedBox(width: 10),
-                  const Text('Jadwal Rutin', style: TextStyle(
-                    fontFamily: 'Poppins', fontSize: 13.5, fontWeight: FontWeight.w600, color: _C.dark,
-                  )),
+                  Text('Jadwal Rutin', style: AppText.w600(13.5, _C.dark)),
                   const Spacer(),
                   if (pages.length > 1)
                     Text(
                       '${pageIdx + 1}/${pages.length}',
-                      style: TextStyle(fontFamily: 'Poppins', fontSize: 11, color: _C.dark.withAlpha(80)),
+                      style: AppText.r(11, _C.dark.withAlpha(80)),
                     ),
                 ],
               ),
@@ -1126,7 +999,6 @@ class _JadwalScreenState extends State<JadwalScreen>
       );
     }
 
-    // Horizontal scroll for multiple pages
     final rowH = hideTarget ? 64.0 : 82.0;
     final cardH = 70.0 + pages.first.length * rowH + 8.0;
     final cardW = MediaQuery.of(context).size.width - 48.0;
@@ -1146,13 +1018,12 @@ class _JadwalScreenState extends State<JadwalScreen>
     );
   }
 
-  /// Frosted-glass style card wrapper used across the screen.
   Widget _frostedCard({required Widget child}) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9), // Reduced opacity slightly since there's no blur
+        color: Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(25),
-        border : Border.all(color: _C.dark.withOpacity(0.1), width: 1),
+        border : Border.all(color: _C.dark.withValues(alpha: 0.1), width: 1),
       ),
       child: child,
     );
@@ -1166,7 +1037,6 @@ class _JadwalScreenState extends State<JadwalScreen>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Gradient accent bar
               Container(
                 width: 3, height: 36,
                 decoration: BoxDecoration(
@@ -1179,28 +1049,20 @@ class _JadwalScreenState extends State<JadwalScreen>
                 ),
               ),
               const SizedBox(width: 13),
-              // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       r.label,
-                      style: TextStyle(
-                        fontFamily: 'Poppins', fontSize: 12,
-                        fontWeight: FontWeight.w500, color: _C.dark.withAlpha(200),
-                        height: 1.45,
-                      ),
+                      style: AppText.p(12, weight: FontWeight.w500, color: _C.dark.withAlpha(200), height: 1.45),
                     ),
                     const SizedBox(height: 3),
                     Row(
                       children: [
                         Icon(Icons.access_time_rounded, size: 12, color: _C.dark.withAlpha(60)),
                         const SizedBox(width: 4),
-                        Text(r.waktu, style: TextStyle(
-                          fontFamily: 'Poppins', fontSize: 11,
-                          color: _C.dark.withAlpha(90),
-                        )),
+                        Text(r.waktu, style: AppText.r(11, _C.dark.withAlpha(90))),
                       ],
                     ),
                     if (r.targetBankName.isNotEmpty && !hideTarget) ...[
@@ -1212,11 +1074,7 @@ class _JadwalScreenState extends State<JadwalScreen>
                           Expanded(
                             child: Text(
                               r.targetBankName,
-                              style: TextStyle(
-                                fontFamily: 'Poppins', fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: _C.green.withAlpha(200),
-                              ),
+                              style: AppText.w700(11, _C.green.withAlpha(200)),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -1227,7 +1085,6 @@ class _JadwalScreenState extends State<JadwalScreen>
                 ),
               ),
               const SizedBox(width: 10),
-              // Status chip (replaces day chips)
               _occurrenceChip(nextDate),
             ],
           ),
@@ -1242,14 +1099,7 @@ class _JadwalScreenState extends State<JadwalScreen>
   }
 
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // POPUP: TAMBAH JADWAL PENIMBANGAN CUSTOM
-  // ═════════════════════════════════════════════════════════════════════════
-  // ═════════════════════════════════════════════════════════════════════════
-  // POPUP: AJUKAN PENGANGKUTAN
-  // ═════════════════════════════════════════════════════════════════════════
   void _showAjukanPengangkutan(DateTime date) {
-    final months = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
     final pesanCtrl    = TextEditingController();
     final jamMulaiCtrl = TextEditingController(text: '08:00');
     bool  _submitting  = false;
@@ -1263,18 +1113,17 @@ class _JadwalScreenState extends State<JadwalScreen>
           _sheetTitle('Ajukan Pengangkutan'),
           const SizedBox(height: 5),
           Text('Ajukan permintaan pengangkutan ke BSI',
-            style: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: _C.dark.withAlpha(100), height: 1.4),
+            style: AppText.p(12, color: _C.dark.withAlpha(100), height: 1.4),
           ),
           const SizedBox(height: 20),
 
           _dateBox(
-            dateText: '${date.day} ${months[date.month]} ${date.year}',
+            dateText: AppDate.tanggalPanjang(date),
             color: _C.green,
             bgColor: _C.softGreen,
           ),
           const SizedBox(height: 22),
 
-          // ── Jam mulai ──
           _sectionLabel('Jam Mulai'),
           const SizedBox(height: 10),
           GestureDetector(
@@ -1306,9 +1155,7 @@ class _JadwalScreenState extends State<JadwalScreen>
               child: Row(children: [
                 const Icon(Icons.access_time_rounded, size: 18, color: _C.green),
                 const SizedBox(width: 10),
-                Text(jamMulaiCtrl.text, style: const TextStyle(
-                  fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.w500, color: _C.dark,
-                )),
+                Text(jamMulaiCtrl.text, style: AppText.w500(14, _C.dark)),
                 const Spacer(),
                 Icon(Icons.edit_rounded, size: 15, color: _C.dark.withAlpha(60)),
               ]),
@@ -1316,17 +1163,16 @@ class _JadwalScreenState extends State<JadwalScreen>
           ),
           const SizedBox(height: 22),
 
-          // ── Catatan / alasan ──
           _sectionLabel('Pesan untuk BSI'),
           const SizedBox(height: 10),
           TextField(
             controller: pesanCtrl,
             maxLines: 4,
             cursorColor: _C.green,
-            style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, color: _C.dark, height: 1.5),
+            style: AppText.p(13, color: _C.dark, height: 1.5),
             decoration: InputDecoration(
               hintText: 'Tuliskan pesan / catatan untuk BSI...',
-              hintStyle: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: _C.dark.withAlpha(55)),
+              hintStyle: AppText.r(13, _C.dark.withAlpha(55)),
               filled: true,
               fillColor: _C.surface,
               contentPadding: const EdgeInsets.all(16),
@@ -1341,7 +1187,6 @@ class _JadwalScreenState extends State<JadwalScreen>
           ),
           const SizedBox(height: 28),
 
-          // ── Submit ──
           _submitting
               ? const Center(child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 14),
@@ -1352,6 +1197,7 @@ class _JadwalScreenState extends State<JadwalScreen>
                   enabled: pesanCtrl.text.trim().isNotEmpty,
                   color: _C.green,
                   onPressed: () async {
+                    final sheetNav = Navigator.of(ctx);
                     setBS(() => _submitting = true);
                     final auth = context.read<AuthProvider>();
                     final bsuId   = auth.bankId ?? '';
@@ -1365,9 +1211,8 @@ class _JadwalScreenState extends State<JadwalScreen>
                     if (!mounted) return;
                     setBS(() => _submitting = false);
 
-                    Navigator.pop(ctx);
+                    sheetNav.pop();
                     if (res['success'] == true) {
-                      // Refresh data dari server agar kalender langsung update
                       _fetchData();
                       _showSuccessSnackbar('Pengajuan pengangkutan berhasil dikirim');
                     } else {
@@ -1380,11 +1225,6 @@ class _JadwalScreenState extends State<JadwalScreen>
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // SHARED UI COMPONENTS
-  // ═════════════════════════════════════════════════════════════════════════
-
-  /// Unified bottom sheet launcher with spring-curve opening.
   void _showSheet({
     required Widget Function(BuildContext ctx, StateSetter setBS) builder,
   }) {
@@ -1427,17 +1267,11 @@ class _JadwalScreenState extends State<JadwalScreen>
   }
 
   Widget _sheetTitle(String text) {
-    return Text(text, style: const TextStyle(
-      fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.w600,
-      color: _C.dark,
-    ));
+    return Text(text, style: AppText.w600(14, _C.dark));
   }
 
   Widget _sectionLabel(String text) {
-    return Text(text, style: TextStyle(
-      fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600,
-      color: _C.dark.withAlpha(200),
-    ));
+    return Text(text, style: AppText.w600(13, _C.dark.withAlpha(200)));
   }
 
   Widget _dateBox({
@@ -1463,10 +1297,7 @@ class _JadwalScreenState extends State<JadwalScreen>
             child: Icon(Icons.calendar_today_rounded, size: 15, color: color),
           ),
           const SizedBox(width: 12),
-          Text(dateText, style: const TextStyle(
-            fontFamily: 'Poppins', fontSize: 14,
-            fontWeight: FontWeight.w600, color: _C.dark,
-          )),
+          Text(dateText, style: AppText.w600(14, _C.dark)),
         ],
       ),
     );
@@ -1498,9 +1329,7 @@ class _JadwalScreenState extends State<JadwalScreen>
             elevation: 0,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
           ),
-          child: Text(label, style: const TextStyle(
-            fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.w600,
-          )),
+          child: Text(label, style: AppText.w600(14)),
         ),
       ),
     );

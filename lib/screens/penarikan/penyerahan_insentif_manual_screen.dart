@@ -9,13 +9,9 @@ import '../../widgets/custom_snackbar.dart';
 import '../../widgets/topbar_back.dart';
 import '../petugas/inapp_camera_screen.dart';
 import '../lihat_foto_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
-/// Fallback petugas ketika QR nasabah tidak bisa dipindai — konfirmasi
-/// penyerahan insentif manual (foto bukti + catatan wajib), pakai jalur
-/// manual dari PATCH /penarikan/selesai (nasabah_id + penarikan_id + bukti_foto
-/// + catatan, semuanya wajib).
-///
-/// Pop dengan `true` kalau berhasil diselesaikan.
 class PenyerahanInsentifManualScreen extends StatefulWidget {
   final String penarikanId;
   final String nasabahId;
@@ -33,7 +29,7 @@ class PenyerahanInsentifManualScreen extends StatefulWidget {
 
 class _PenyerahanInsentifManualScreenState
     extends State<PenyerahanInsentifManualScreen> {
-  static const Color dark = Color(0xFF013236);
+  static const Color dark = AppColors.dark;
 
   File? _photo;
   bool _submitting = false;
@@ -55,8 +51,6 @@ class _PenyerahanInsentifManualScreenState
   }
 
   bool get _isValid => _photo != null && _catatanController.text.trim().isNotEmpty;
-
-  // ── Foto ──────────────────────────────────────────────────────────────────
 
   Future<void> _ambilFoto() async {
     final file = await Navigator.push<File?>(
@@ -85,8 +79,6 @@ class _PenyerahanInsentifManualScreenState
     );
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────
-
   Future<void> _submit() async {
     final photo = _photo;
     if (photo == null) return;
@@ -95,8 +87,6 @@ class _PenyerahanInsentifManualScreenState
 
     setState(() => _submitting = true);
 
-    // Berkasnya dikirim mentah sebagai multipart; tidak perlu lagi dibaca jadi
-    // byte lalu di-base64-kan seperti sebelum backend berubah.
     final prov = context.read<PenarikanPetugasProvider>();
     final ok = await prov.selesaikanManual(
       nasabahId: widget.nasabahId,
@@ -116,8 +106,6 @@ class _PenyerahanInsentifManualScreenState
           context, prov.errorDetail ?? 'Gagal menyelesaikan penarikan');
     }
   }
-
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +132,6 @@ class _PenyerahanInsentifManualScreenState
                 ),
               ),
             ),
-            // ── Bottom bar button ──────────────────────────────────────
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -172,7 +159,7 @@ class _PenyerahanInsentifManualScreenState
         aspectRatio: 4 / 3,
         child: Container(
           decoration: BoxDecoration(
-            color: _photo == null ? const Color(0xFFF5F7F5) : Colors.black,
+            color: _photo == null ? AppColors.surface : Colors.black,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: _photo == null
@@ -191,12 +178,7 @@ class _PenyerahanInsentifManualScreenState
                     const SizedBox(height: 8),
                     Text(
                       'Ambil Foto Bukti Penyerahan',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: dark.withValues(alpha: 0.45),
-                      ),
+                      style: AppText.w600(12.5, dark.withValues(alpha: 0.45)),
                     ),
                   ],
                 )
@@ -252,26 +234,13 @@ class _PenyerahanInsentifManualScreenState
         maxLength: 255,
         textInputAction: TextInputAction.done,
         inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\n'))],
-        style: const TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 13,
-          color: dark,
-          height: 1.5,
-        ),
+        style: AppText.p(13, color: dark, height: 1.5),
         decoration: InputDecoration(
           hintText: 'Tulis catatan penyerahan insentif untuk nasabah ini',
-          hintStyle: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 13,
-            color: dark.withValues(alpha: 0.35),
-          ),
+          hintStyle: AppText.r(13, dark.withValues(alpha: 0.35)),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          counterStyle: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 11,
-            color: dark.withValues(alpha: 0.35),
-          ),
+          counterStyle: AppText.r(11, dark.withValues(alpha: 0.35)),
         ),
       ),
     );
@@ -299,14 +268,9 @@ class _PenyerahanInsentifManualScreenState
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2.5),
                     )
-                  : const Text(
+                  : Text(
                       'Selesaikan Penarikan',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppText.w600(14, Colors.white),
                     ),
             ),
           ),
@@ -315,8 +279,6 @@ class _PenyerahanInsentifManualScreenState
     );
   }
 }
-
-// ── Section label (icon bintang merah kalau wajib diisi) ───────────────────
 
 class _SectionLabel extends StatelessWidget {
   final String text;
@@ -328,22 +290,12 @@ class _SectionLabel extends StatelessWidget {
     return RichText(
       text: TextSpan(
         text: text,
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Colors.black.withValues(alpha: 0.7),
-        ),
+        style: AppText.w600(12, Colors.black.withValues(alpha: 0.7)),
         children: [
           if (required)
-            const TextSpan(
+            TextSpan(
               text: '*',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.red,
-              ),
+              style: AppText.w600(12, Colors.red),
             ),
         ],
       ),

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:intl/intl.dart';
 
+import '../core/format/app_date.dart';
 import '../models/katalog_model.dart';
 import '../models/penarikan_model.dart';
 import '../services/dashboard_service.dart';
@@ -12,20 +12,16 @@ import 'reward_provider.dart';
 class PenarikanNasabahProvider extends ChangeNotifier {
   AuthProvider? _auth;
 
-  // ── Saldo ──────────────────────────────────────────────────────────────────
   bool loadingSaldo = false;
   SaldoNasabahV2? saldo;
   String? errorSaldo;
 
-  // ── Reward types ──────────────────────────────────────────────────────────
   bool loadingRewards = false;
   List<NilaiRewardBank> nilaiRewards = [];
 
-  // ── Barang catalog (for request form) ───────────────────────────────────
   bool loadingBarang = false;
   List<KatalogBarangModel> barangList = <KatalogBarangModel>[];
 
-  // ── Penarikan list ────────────────────────────────────────────────────────
   bool loadingList = false;
   bool loadingMore = false;
   List<PenarikanItem> penarikanList = [];
@@ -35,17 +31,14 @@ class PenarikanNasabahProvider extends ChangeNotifier {
   bool hasMore = false;
   String? errorList;
 
-  // ── Current filter ────────────────────────────────────────────────────────
   int? _activeRewardId;
   late DateTime _filterStart;
   late DateTime _filterEnd;
 
-  // ── Detail ────────────────────────────────────────────────────────────────
   bool loadingDetail = false;
   PenarikanDetail? detail;
   String? errorDetail;
 
-  // ── Submit states ─────────────────────────────────────────────────────────
   bool canceling = false;
 
   PenarikanNasabahProvider() {
@@ -69,8 +62,6 @@ class PenarikanNasabahProvider extends ChangeNotifier {
   bool get _ok => _nasabahId?.isNotEmpty ?? false;
   bool get _hasToken => _auth != null;
 
-  // ── Getters for filter state ──────────────────────────────────────────────
-
   int? get activeRewardId => _activeRewardId;
   DateTime get filterStart => _filterStart;
   DateTime get filterEnd => _filterEnd;
@@ -86,8 +77,6 @@ class PenarikanNasabahProvider extends ChangeNotifier {
             (r) => r!.isBarang,
             orElse: () => null,
           );
-
-  // ── Load saldo ────────────────────────────────────────────────────────────
 
   Future<void> loadSaldo() async {
     if (!_ok) return;
@@ -107,11 +96,6 @@ class PenarikanNasabahProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Load reward types ─────────────────────────────────────────────────────
-
-  /// [reward] disuntik lewat argumen — endpoint /nilai-reward dimiliki
-  /// RewardProvider, tapi datanya harus ada di tangan provider ini karena
-  /// getter [rewardUang] dan [rewardBarang] diturunkan darinya.
   Future<void> loadRewards(RewardProvider reward) async {
     if (_bankId == null) return;
     loadingRewards = true;
@@ -122,8 +106,6 @@ class PenarikanNasabahProvider extends ChangeNotifier {
     loadingRewards = false;
     notifyListeners();
   }
-
-  // ── Load barang catalog ──────────────────────────────────────────────────
 
   Future<void> loadBarang() async {
     if (_bankId == null) return;
@@ -141,8 +123,6 @@ class PenarikanNasabahProvider extends ChangeNotifier {
     }
     notifyListeners();
   }
-
-  // ── Load initial data for PenarikanNasabahScreen ─────────────────────────
 
   Future<void> loadInitial(RewardProvider reward) async {
     final now = DateTime.now();
@@ -162,8 +142,6 @@ class PenarikanNasabahProvider extends ChangeNotifier {
     await loadList(refresh: true);
   }
 
-  // ── Load form data for RequestPenarikanScreen ─────────────────────────────
-
   Future<void> loadFormData(RewardProvider reward) async {
     await Future.wait([
       if (saldo == null) loadSaldo(),
@@ -172,17 +150,8 @@ class PenarikanNasabahProvider extends ChangeNotifier {
     ]);
   }
 
-  // ── Load penarikan list ───────────────────────────────────────────────────
-
-  String _dateStr(DateTime dt) => DateFormat('yyyy-MM-dd').format(dt);
-
-  String get _startDateStr =>
-      _dateStr(DateTime(_filterStart.year, _filterStart.month, 1));
-
-  String get _endDateStr {
-    final lastDay = DateTime(_filterEnd.year, _filterEnd.month + 1, 0);
-    return _dateStr(lastDay);
-  }
+  String get _startDateStr => AppDate.apiAwalBulan(_filterStart);
+  String get _endDateStr => AppDate.apiAkhirBulan(_filterEnd);
 
   Future<void> loadList({bool refresh = true}) async {
     if (!_ok) {
@@ -261,8 +230,6 @@ class PenarikanNasabahProvider extends ChangeNotifier {
     if (changed) loadList(refresh: true);
   }
 
-  // ── Load detail ───────────────────────────────────────────────────────────
-
   Future<void> loadDetail(String penarikanId) async {
     if (!_hasToken) {
       loadingDetail = false;
@@ -289,8 +256,6 @@ class PenarikanNasabahProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Preview ───────────────────────────────────────────────────────────────
-
   Future<Map<String, dynamic>> callPreview({
     required int rewardId,
     double? nominalPenarikan,
@@ -306,8 +271,6 @@ class PenarikanNasabahProvider extends ChangeNotifier {
       itemBarang: itemBarang,
     );
   }
-
-  // ── Ajukan ────────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> callAjukan({
     required int rewardId,
@@ -329,8 +292,6 @@ class PenarikanNasabahProvider extends ChangeNotifier {
     );
   }
 
-  // ── Batalkan ─────────────────────────────────────────────────────────────
-
   Future<bool> callBatal(String penarikanId, {String? catatan}) async {
     if (!_hasToken) return false;
     canceling = true;
@@ -340,9 +301,7 @@ class PenarikanNasabahProvider extends ChangeNotifier {
 
     canceling = false;
     if (res['success'] == true) {
-      // Reload detail to reflect new status
       await loadDetail(penarikanId);
-      // Also invalidate list cache so next visit is fresh
       penarikanList = penarikanList.map((item) {
         if (item.penarikanId == penarikanId) {
           return PenarikanItem(

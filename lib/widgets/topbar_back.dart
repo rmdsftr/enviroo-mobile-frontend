@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class TopBarBack extends StatelessWidget {
   final String title;
@@ -27,18 +29,13 @@ class TopBarBack extends StatelessWidget {
                 Icons.arrow_back_ios_new_rounded,
                 size: 17,
               ),
-              color: const Color(0xFF013236),
+              color: AppColors.dark,
             ),
           ),
           const SizedBox(width: 5),
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF013236),
-            ),
+            style: AppText.w600(15, AppColors.dark),
           ),
           const Spacer(),
         ],

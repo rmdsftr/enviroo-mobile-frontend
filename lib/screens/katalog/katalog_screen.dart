@@ -1,3 +1,4 @@
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:enviroo/models/katalog_model.dart';
 import 'package:enviroo/providers/auth_provider.dart';
 import 'package:enviroo/providers/katalog_provider.dart';
@@ -12,30 +13,12 @@ import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
-class _C {
-  static const bg     = Color(0xFFF2FAF0);
-  static const dark   = Color(0xFF0D3B3E);
-  static const accent = Color(0xFF4EA771);
-  static const teal   = Color(0xFF013236);
-}
-
-/// Katalog sampah (dan barang) milik satu bank sampah. Murni penampil — tidak
-/// ada aksi ubah data apa pun di layar ini.
-///
-/// Dipakai empat peran dengan isi yang berbeda-beda; lihat [role].
 class KatalogScreen extends StatefulWidget {
-  /// Peran pemakai. Menentukan dua hal: siapa yang dapat tab Barang (lihat
-  /// `_punyaTabBarang`), dan level harga mana yang tampil di [DetailSampahSheet]
-  /// — nasabah cuma level 'nasabah', petugas lebih luas.
-  ///
-  /// Sengaja tanpa nilai default. Sebelumnya default-nya 'petugas_bsu', jadi
-  /// pemanggil yang lupa mengisinya diam-diam dapat peran yang salah.
   final String role;
-
-  /// Diisi kalau layar ini dipasang sebagai TAB di beranda (BSI/BSU) — tombol
-  /// back-nya balik ke tab beranda. Null berarti layar ini di-push sebagai
-  /// route biasa (nasabah dan BSM), dan back-nya pop seperti biasa.
   final VoidCallback? onBack;
 
   const KatalogScreen({super.key, required this.role, this.onBack});
@@ -52,22 +35,13 @@ class _KatalogScreenState extends State<KatalogScreen> {
   String _barangSearchQuery = '';
   int _tabIndex = 0;
 
-  /// Tab Barang cuma untuk BSM (yang mengelola stoknya) dan nasabah (yang
-  /// menukar poin dengan barang itu). BSI dan BSU tidak berurusan dengan
-  /// katalog barang bank sampah, jadi buat mereka layar ini sampah saja.
   bool get _punyaTabBarang =>
       widget.role == 'petugas_bsm' || widget.role == 'nasabah';
 
-  /// Pengantar di atas daftar sampah.
-  ///
-  /// Nasabah datang ke sini untuk tahu *apa yang bisa saya setorkan*, jadi
-  /// teksnya menjelaskan isi daftarnya. Petugas datang untuk memantau harga,
-  /// jadi teksnya mengarahkan ke aksi (klik item -> riwayat harga).
   String get _deskripsiSampah => widget.role == 'nasabah'
       ? 'Daftar item sampah yang bisa kamu setorkan dan diterima bank sampah saat hari penimbangan'
       : 'Klik item sampah untuk melihat detail harga dan riwayat perubahan harga sampah tersebut';
 
-  /// Pengantar di atas daftar barang — lihat [_deskripsiSampah].
   String get _deskripsiBarang => widget.role == 'nasabah'
       ? 'Daftar item barang yang bisa kamu dapatkan ketika melakukan penarikan saldo poin'
       : 'Klik item barang untuk melihat detail poin dan informasi barang tersebut';
@@ -140,11 +114,11 @@ class _KatalogScreenState extends State<KatalogScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.12),
-        // Tab Riwayat isinya distribusi BSI-BSU, data internal antar-bank.
-        // Tab Barang cuma dipegang BSM dan nasabah, dan tidak satu pun dari
-        // keduanya berhak melihatnya. Dulu role di sini dipatok 'petugas_bsm'
-        // supaya tab itu tidak muncul -- kebetulan benar dengan alasan yang
-        // salah, dan langsung jadi bocor begitu nasabah ikut masuk.
+        
+        
+        
+        
+        
         child: DetailBarangSheet(role: widget.role, showRiwayat: false),
       ),
     );
@@ -159,7 +133,7 @@ class _KatalogScreenState extends State<KatalogScreen> {
         final filtered = _getFilteredSampah(katalog);
 
         return Scaffold(
-          backgroundColor: _C.bg,
+          backgroundColor: AppColors.surfaceLeaf,
           body: Stack(
             children: [
               Positioned(
@@ -175,8 +149,6 @@ class _KatalogScreenState extends State<KatalogScreen> {
             child: Column(
               children: [
                 TopBarBack(
-                  // BSI/BSU tidak punya tab Barang, jadi judulnya jangan
-                  // menjanjikan sesuatu yang tidak ada di layar mereka.
                   title: punyaTabBarang
                       ? "Katalog Sampah dan Barang"
                       : "Katalog Sampah",
@@ -215,8 +187,6 @@ class _KatalogScreenState extends State<KatalogScreen> {
                       child: CustomScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         slivers: [
-                          // Deskripsi + search + chip: tergulir habis seperti
-                          // biasa.
                           SliverToBoxAdapter(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,12 +196,7 @@ class _KatalogScreenState extends State<KatalogScreen> {
                                       const EdgeInsets.fromLTRB(28, 16, 28, 0),
                                   child: Text(
                                     _deskripsiSampah,
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 12.5,
-                                      height: 1.6,
-                                      color: _C.dark.withOpacity(0.65),
-                                    ),
+                                    style: AppText.p(12.5, color: AppColors.darkAlt.withValues(alpha: 0.65), height: 1.6),
                                   ),
                                 ),
                                 const SizedBox(height: 10),
@@ -254,9 +219,6 @@ class _KatalogScreenState extends State<KatalogScreen> {
                               ],
                             ),
                           ),
-
-                          // Judul + jumlah item nempel di bawah TopBar saat
-                          // digulir, jadi konteksnya tidak ikut hilang.
                           SliverPersistentHeader(
                             pinned: true,
                             delegate: _StickyHeaderDelegate(
@@ -270,14 +232,9 @@ class _KatalogScreenState extends State<KatalogScreen> {
                                       horizontal: 28),
                                   child: Row(
                                     children: [
-                                      const Text(
+                                      Text(
                                         'Katalog Sampah',
-                                        style: TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                          color: _C.dark,
-                                        ),
+                                        style: AppText.w600(13, AppColors.darkAlt),
                                       ),
                                       const Spacer(),
                                       Container(
@@ -285,18 +242,13 @@ class _KatalogScreenState extends State<KatalogScreen> {
                                             horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
                                           color:
-                                              _C.accent.withValues(alpha: 0.1),
+                                              AppColors.green.withValues(alpha: 0.1),
                                           borderRadius:
                                               BorderRadius.circular(20),
                                         ),
                                         child: Text(
                                           '${filtered.length} item',
-                                          style: const TextStyle(
-                                            fontFamily: 'Poppins',
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            color: _C.accent,
-                                          ),
+                                          style: AppText.w600(10, AppColors.green),
                                         ),
                                       ),
                                     ],
@@ -305,59 +257,54 @@ class _KatalogScreenState extends State<KatalogScreen> {
                               ),
                             ),
                           ),
-
-                          // Grid -- satu-satunya yang bergerak di bawah header.
-                          SliverToBoxAdapter(
-                            child: Container(
-                              width: double.infinity,
-                              constraints: BoxConstraints(
-                                minHeight: MediaQuery.of(context).size.height,
-                              ),
-                              decoration:
-                                  const BoxDecoration(color: Colors.white),
-                              padding: EdgeInsets.only(
-                                // Bar melayang di atas konten, jadi ruangnya
-                                // harus disisakan sendiri.
-                                bottom: 40 +
-                                    kRuangBottomBar +
-                                    MediaQuery.of(context).padding.bottom,
-                              ),
-                              child: katalog.isLoading
-                                  ? const Padding(
-                                      padding: EdgeInsets.only(top: 100),
-                                      child: Center(
-                                          child: CircularProgressIndicator(
-                                              color: _C.accent)),
-                                    )
-                                  : Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        _buildGrid(filtered),
-                                        // Katalog sampah dipaginasi di server
-                                        // (KatalogProvider._applyPagination).
-                                        // Tanpa kontrol ini isinya mentok di
-                                        // halaman 1 -- dan itu yang selama ini
-                                        // terjadi di layar harga.
-                                        if (katalog.totalPages > 1) ...[
-                                          const SizedBox(height: 24),
-                                          Pagination(
-                                            currentPage: katalog.currentPage,
-                                            totalPages: katalog.totalPages,
-                                            onPageChanged: (page) {
-                                              final auth =
-                                                  Provider.of<AuthProvider>(
-                                                      context,
-                                                      listen: false);
-                                              if (auth.bankId != null) {
-                                                katalog.goToPage(
-                                                    auth.bankId!, page);
-                                              }
-                                            },
-                                          ),
+                          SliverLayoutBuilder(
+                            builder: (context, sc) => SliverToBoxAdapter(
+                              child: Container(
+                                width: double.infinity,
+                                constraints: BoxConstraints(
+                                  minHeight: (sc.viewportMainAxisExtent -
+                                          sc.precedingScrollExtent)
+                                      .clamp(0.0, double.infinity),
+                                ),
+                                decoration:
+                                    const BoxDecoration(color: Colors.white),
+                                padding: EdgeInsets.only(  
+                                  bottom: 40 +
+                                      kRuangBottomBar +
+                                      MediaQuery.of(context).padding.bottom,
+                                ),
+                                child: katalog.isLoading
+                                    ? const Padding(
+                                        padding: EdgeInsets.only(top: 100),
+                                        child: Center(
+                                            child: CircularProgressIndicator(
+                                                color: AppColors.green)),
+                                      )
+                                    : Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          _buildGrid(filtered),
+                                          if (katalog.totalPages > 1) ...[
+                                            const SizedBox(height: 24),
+                                            Pagination(
+                                              currentPage: katalog.currentPage,
+                                              totalPages: katalog.totalPages,
+                                              onPageChanged: (page) {
+                                                final auth =
+                                                    Provider.of<AuthProvider>(
+                                                        context,
+                                                        listen: false);
+                                                if (auth.bankId != null) {
+                                                  katalog.goToPage(
+                                                      auth.bankId!, page);
+                                                }
+                                              },
+                                            ),
+                                          ],
                                         ],
-                                      ],
-                                    ),
+                                      ),
+                              ),
                             ),
                           ),
                         ],
@@ -371,7 +318,7 @@ class _KatalogScreenState extends State<KatalogScreen> {
                       builder: (context, barang, _) {
                         final filteredBarang = _getFilteredBarang(barang);
                         return RefreshIndicator(
-                          color: _C.accent,
+                          color: AppColors.green,
                           onRefresh: () async {
                             final auth = Provider.of<AuthProvider>(context, listen: false);
                             if (auth.bankId != null) {
@@ -381,8 +328,6 @@ class _KatalogScreenState extends State<KatalogScreen> {
                           child: CustomScrollView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             slivers: [
-                              // Deskripsi + search: tergulir habis seperti
-                              // biasa. Sama persis dengan tab Sampah.
                               SliverToBoxAdapter(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,12 +337,7 @@ class _KatalogScreenState extends State<KatalogScreen> {
                                           28, 16, 28, 0),
                                       child: Text(
                                         _deskripsiBarang,
-                                        style: TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontSize: 12.5,
-                                          height: 1.6,
-                                          color: _C.dark.withOpacity(0.65),
-                                        ),
+                                        style: AppText.p(12.5, color: AppColors.darkAlt.withValues(alpha: 0.65), height: 1.6),
                                       ),
                                     ),
                                     const SizedBox(height: 20),
@@ -418,9 +358,6 @@ class _KatalogScreenState extends State<KatalogScreen> {
                                   ],
                                 ),
                               ),
-
-                              // Judul + jumlah item nempel di bawah TopBar,
-                              // sama seperti tab Sampah.
                               SliverPersistentHeader(
                                 pinned: true,
                                 delegate: _StickyHeaderDelegate(
@@ -434,33 +371,23 @@ class _KatalogScreenState extends State<KatalogScreen> {
                                           horizontal: 28),
                                       child: Row(
                                         children: [
-                                          const Text(
+                                          Text(
                                             'Katalog Barang',
-                                            style: TextStyle(
-                                              fontFamily: 'Poppins',
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 13,
-                                              color: _C.dark,
-                                            ),
+                                            style: AppText.w600(13, AppColors.darkAlt),
                                           ),
                                           const Spacer(),
                                           Container(
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 10, vertical: 4),
                                             decoration: BoxDecoration(
-                                              color: _C.accent
+                                              color: AppColors.green
                                                   .withValues(alpha: 0.1),
                                               borderRadius:
                                                   BorderRadius.circular(20),
                                             ),
                                             child: Text(
                                               '${filteredBarang.length} item',
-                                              style: const TextStyle(
-                                                fontFamily: 'Poppins',
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w600,
-                                                color: _C.accent,
-                                              ),
+                                              style: AppText.w600(10, AppColors.green),
                                             ),
                                           ),
                                         ],
@@ -469,9 +396,6 @@ class _KatalogScreenState extends State<KatalogScreen> {
                                   ),
                                 ),
                               ),
-
-                              // Grid -- satu-satunya yang bergerak di bawah
-                              // header.
                               SliverToBoxAdapter(
                                 child: Container(
                                   width: double.infinity,
@@ -495,7 +419,7 @@ class _KatalogScreenState extends State<KatalogScreen> {
                                           padding: EdgeInsets.only(top: 100),
                                           child: Center(
                                               child: CircularProgressIndicator(
-                                                  color: _C.accent)),
+                                                  color: AppColors.green)),
                                         )
                                       else
                                         _buildBarangGrid(filteredBarang),
@@ -537,8 +461,6 @@ class _KatalogScreenState extends State<KatalogScreen> {
       },
     );
   }
-
-  // ── Sampah: Filter chips ──────────────────────────────────────────────────
   Widget _buildFilterChips(KatalogProvider katalog) {
     return SizedBox(
       height: 34,
@@ -547,9 +469,6 @@ class _KatalogScreenState extends State<KatalogScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 24),
         physics: const BouncingScrollPhysics(),
         children: [
-          // Label memakai jenis SALDO supaya seragam dengan 'Poin' di
-          // sebelahnya. Nilai 'uang' tetap kunci internal dari _rewardType(),
-          // jangan ikut diubah — itu yang dibandingkan saat menyaring.
           _buildFilterChip('semua', 'Semua'),
           _buildFilterChip('uang', 'Rupiah'),
           _buildFilterChip('poin', 'Poin'),
@@ -572,10 +491,10 @@ class _KatalogScreenState extends State<KatalogScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color:
-                isSelected ? _C.accent.withOpacity(0.1) : Colors.white,
+                isSelected ? AppColors.green.withValues(alpha: 0.1) : Colors.white,
             borderRadius: BorderRadius.circular(50),
             border: Border.all(
-              color: isSelected ? _C.accent : const Color(0xFFE5E5E5),
+              color: isSelected ? AppColors.green : const Color(0xFFE5E5E5),
               width: 1,
             ),
           ),
@@ -583,18 +502,12 @@ class _KatalogScreenState extends State<KatalogScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (isSelected) ...[
-                const Icon(Icons.check, size: 14, color: _C.accent),
+                const Icon(Icons.check, size: 14, color: AppColors.green),
                 const SizedBox(width: 4),
               ],
               Text(
                 label,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? _C.accent : _C.dark.withOpacity(0.5),
-                  letterSpacing: -0.2,
-                ),
+                style: AppText.p(12, weight: FontWeight.w600, color: isSelected ? AppColors.green : AppColors.darkAlt.withValues(alpha: 0.5), letterSpacing: -0.2),
               ),
             ],
           ),
@@ -602,8 +515,6 @@ class _KatalogScreenState extends State<KatalogScreen> {
       ),
     );
   }
-
-  // ── Sampah: Grid ──────────────────────────────────────────────────────────
   Widget _buildGrid(List<KatalogSampahModel> items) {
     if (items.isEmpty) return _buildEmptyState();
 
@@ -633,7 +544,7 @@ class _KatalogScreenState extends State<KatalogScreen> {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: _C.dark.withOpacity(0.06),
+              color: AppColors.darkAlt.withValues(alpha: 0.06),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -664,17 +575,12 @@ class _KatalogScreenState extends State<KatalogScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _C.accent.withOpacity(0.9),
+                          color: AppColors.green.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           item.kategori!.kategori,
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 8,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
+                          style: AppText.w700(8, Colors.white),
                         ),
                       ),
                     ),
@@ -684,13 +590,13 @@ class _KatalogScreenState extends State<KatalogScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(5),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.history_rounded,
                         size: 14,
-                        color: _C.accent,
+                        color: AppColors.green,
                       ),
                     ),
                   ),
@@ -707,14 +613,7 @@ class _KatalogScreenState extends State<KatalogScreen> {
                   children: [
                     Text(
                       item.namaSampah,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _C.dark,
-                        letterSpacing: -0.3,
-                        height: 1.2,
-                      ),
+                      style: AppText.p(13, weight: FontWeight.w600, color: AppColors.darkAlt, height: 1.2, letterSpacing: -0.3),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -736,13 +635,13 @@ class _KatalogScreenState extends State<KatalogScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         color: hasStok
-            ? _C.teal.withOpacity(0.05)
-            : Colors.orange.withOpacity(0.08),
+            ? AppColors.dark.withValues(alpha: 0.05)
+            : Colors.orange.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: hasStok
-              ? _C.teal.withOpacity(0.12)
-              : Colors.orange.withOpacity(0.2),
+              ? AppColors.dark.withValues(alpha: 0.12)
+              : Colors.orange.withValues(alpha: 0.2),
           width: 0.8,
         ),
       ),
@@ -752,19 +651,14 @@ class _KatalogScreenState extends State<KatalogScreen> {
           Icon(
             Icons.inventory_2_rounded,
             size: 9,
-            color: hasStok ? _C.teal : Colors.orange,
+            color: hasStok ? AppColors.dark : Colors.orange,
           ),
           const SizedBox(width: 3),
           Text(
             hasStok
-                ? 'Stok: ${_formatDouble(stok)} $satuan'
+                ? 'Stok: ${AppNumber.desimal(stok)} $satuan'
                 : '0 $satuan',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              color: hasStok ? _C.teal : Colors.orange,
-            ),
+            style: AppText.w600(9, hasStok ? AppColors.dark : Colors.orange),
           ),
         ],
       ),
@@ -775,35 +669,15 @@ class _KatalogScreenState extends State<KatalogScreen> {
     return Container(
       color: const Color(0xFFF2F2F2),
       child: Center(
-        child: Icon(icon, size: 36, color: _C.accent.withOpacity(0.5)),
+        child: Icon(icon, size: 36, color: AppColors.green.withValues(alpha: 0.5)),
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48),
-      child: Center(
-        child: Column(
-          children: [
-            Icon(Icons.search_off_rounded,
-                size: 48, color: _C.dark.withOpacity(0.15)),
-            const SizedBox(height: 12),
-            Text(
-              "Tidak ada hasil",
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                color: _C.dark.withOpacity(0.4),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Barang: Grid ─────────────────────────────────────────────────────────
+  Widget _buildEmptyState() => StateMessage(
+        illustration: StateArt.empty,
+        message: "Tidak ada hasil",
+      );
   Widget _buildBarangGrid(List<KatalogBarangModel> items) {
     if (items.isEmpty) {
       return Padding(
@@ -812,22 +686,17 @@ class _KatalogScreenState extends State<KatalogScreen> {
           child: Column(
             children: [
               Icon(Icons.search_off_rounded,
-                  size: 48, color: _C.dark.withOpacity(0.15)),
+                  size: 48, color: AppColors.darkAlt.withValues(alpha: 0.15)),
               const SizedBox(height: 12),
               Text(
                 'Tidak ada hasil',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 14,
-                  color: _C.dark.withOpacity(0.4),
-                ),
+                style: AppText.r(14, AppColors.darkAlt.withValues(alpha: 0.4)),
               ),
             ],
           ),
         ),
       );
     }
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: GridView.builder(
@@ -854,7 +723,7 @@ class _KatalogScreenState extends State<KatalogScreen> {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: _C.dark.withOpacity(0.06),
+              color: AppColors.darkAlt.withValues(alpha: 0.06),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -882,13 +751,13 @@ class _KatalogScreenState extends State<KatalogScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(5),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.info_outline_rounded,
                         size: 14,
-                        color: _C.accent,
+                        color: AppColors.green,
                       ),
                     ),
                   ),
@@ -905,14 +774,7 @@ class _KatalogScreenState extends State<KatalogScreen> {
                   children: [
                     Text(
                       item.namaBarang,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _C.dark,
-                        letterSpacing: -0.3,
-                        height: 1.2,
-                      ),
+                      style: AppText.p(12, weight: FontWeight.w600, color: AppColors.darkAlt, height: 1.2, letterSpacing: -0.3),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -938,13 +800,13 @@ class _KatalogScreenState extends State<KatalogScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         color: hasStok
-            ? _C.teal.withOpacity(0.05)
-            : Colors.orange.withOpacity(0.08),
+            ? AppColors.dark.withValues(alpha: 0.05)
+            : Colors.orange.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: hasStok
-              ? _C.teal.withOpacity(0.12)
-              : Colors.orange.withOpacity(0.2),
+              ? AppColors.dark.withValues(alpha: 0.12)
+              : Colors.orange.withValues(alpha: 0.2),
           width: 0.8,
         ),
       ),
@@ -952,16 +814,11 @@ class _KatalogScreenState extends State<KatalogScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.inventory_2_rounded,
-              size: 9, color: hasStok ? _C.teal : Colors.orange),
+              size: 9, color: hasStok ? AppColors.dark : Colors.orange),
           const SizedBox(width: 3),
           Text(
             hasStok ? 'Stok: ${stok.toInt()}' : 'Stok habis',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              color: hasStok ? _C.teal : Colors.orange,
-            ),
+            style: AppText.w600(9, hasStok ? AppColors.dark : Colors.orange),
           ),
         ],
       ),
@@ -969,32 +826,25 @@ class _KatalogScreenState extends State<KatalogScreen> {
   }
 
   Widget _buildBarangPoinBadge(double poin) {
-    final label = poin == poin.truncateToDouble()
-        ? '${poin.toInt()} poin'
-        : '${poin.toStringAsFixed(2)} poin';
+    final label = AppNumber.denganSatuan(poin, 'poin');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: _C.accent.withOpacity(0.08),
+        color: AppColors.green.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: _C.accent.withOpacity(0.2),
+          color: AppColors.green.withValues(alpha: 0.2),
           width: 0.8,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.stars_rounded, size: 9, color: _C.accent),
+          const Icon(Icons.stars_rounded, size: 9, color: AppColors.green),
           const SizedBox(width: 3),
           Text(
             label,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              color: _C.accent,
-            ),
+            style: AppText.w600(9, AppColors.green),
           ),
         ],
       ),
@@ -1006,29 +856,12 @@ class _KatalogScreenState extends State<KatalogScreen> {
       color: const Color(0xFFF2F2F2),
       child: Center(
         child: Icon(Icons.storefront_rounded,
-            size: 36, color: _C.accent.withOpacity(0.5)),
+            size: 36, color: AppColors.green.withValues(alpha: 0.5)),
       ),
     );
   }
-
-  String _formatDouble(double value) {
-    if (value == value.truncateToDouble()) {
-      return value
-          .toInt()
-          .toString()
-          .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-    }
-    return value
-        .toStringAsFixed(2)
-        .replaceAll(RegExp(r'0*$'), '')
-        .replaceAll(RegExp(r'\.$'), '')
-        .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-  }
 }
 
-// -- Sticky header delegate ---------------------------------------------------
-// Bikin judul seksi ("Katalog Sampah" / "Katalog Barang") nempel (pinned) di
-// bawah TopBarBack saat di-scroll, sementara cuma grid item yang ikut bergerak.
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   final double height;

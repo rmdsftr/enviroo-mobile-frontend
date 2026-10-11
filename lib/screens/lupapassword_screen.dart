@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:enviroo/widgets/success_bottom_sheet.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class LupaPasswordScreen extends StatefulWidget {
   const LupaPasswordScreen({Key? key}) : super(key: key);
@@ -30,7 +32,6 @@ class _LupaPasswordState extends State<LupaPasswordScreen> {
   Future<void> _onKonfirmasi() async {
     final email = _emailController.text.trim();
 
-    // Validasi format email
     final isValid = RegExp(r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$').hasMatch(email);
     if (email.isEmpty || !isValid) {
       setState(() {
@@ -50,7 +51,12 @@ class _LupaPasswordState extends State<LupaPasswordScreen> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      // Tampilkan bottom sheet sukses lalu navigasi ke verifikasi OTP
+      await context
+          .read<AuthProvider>()
+          .savePendingReset(email, result['expired_at'] as String?);
+
+      if (!mounted) return;
+
       await showSuccessBottomSheet(
         context,
         title: 'Cek Email Kamu!',
@@ -63,11 +69,13 @@ class _LupaPasswordState extends State<LupaPasswordScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => VerifikasiOtpScreen(email: email),
+          builder: (_) => VerifikasiOtpScreen(
+            email: email,
+            expiredAt: result['expired_at'] as String?,
+          ),
         ),
       );
     } else {
-      // Tampilkan error dari backend
       setState(() {
         _isEmailInvalid = true;
         _errorMessage = result['message'] ?? 'Email tidak terdaftar';
@@ -90,36 +98,26 @@ class _LupaPasswordState extends State<LupaPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const TopBarBack(title: ""),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 30),
                 child: Text(
                   "Lupa Password",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF013236),
-                    fontSize: 20,
-                  ),
+                  style: AppText.w700(20, AppColors.dark),
                 ),
               ),
               const SizedBox(height: 15),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 30),
                 child: Text(
                   "Masukkan alamat email yang terdaftar sebagai akun nasabah ataupun akun petugas kamu. Kode OTP untuk melakukan reset password akan dikirimkan melalui email tersebut",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    height: 1.5,
-                    color: Color(0xFF013236),
-                  ),
+                  style: AppText.p(13, color: AppColors.dark, height: 1.5),
                   textAlign: TextAlign.justify,
                 ),
               ),
@@ -133,31 +131,22 @@ class _LupaPasswordState extends State<LupaPasswordScreen> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       enabled: !_isLoading,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 14,
-                        color: Color(0xFF2D3748),
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppText.w600(14, Color(0xFF2D3748)),
                       decoration: InputDecoration(
                         contentPadding: const EdgeInsets.symmetric(
                             vertical: 18, horizontal: 20),
                         hintText: "example@gmail.com",
-                        hintStyle: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 14,
-                          color: const Color(0xFF013236).withOpacity(0.35),
-                        ),
+                        hintStyle: AppText.r(14, AppColors.dark.withValues(alpha: 0.35)),
                         prefixIcon: Icon(
                           Icons.email_rounded,
                           color: _isEmailInvalid
-                              ? const Color(0xFFB61E20)
-                              : const Color(0xFF013236),
+                              ? AppColors.dangerDeep
+                              : AppColors.dark,
                         ),
                         filled: true,
                         fillColor: _isEmailInvalid
-                            ? const Color(0xFFB61E20).withOpacity(0.1)
-                            : const Color(0xFF013236).withOpacity(0.1),
+                            ? AppColors.dangerDeep.withValues(alpha: 0.1)
+                            : AppColors.dark.withValues(alpha: 0.1),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(18),
                           borderSide: BorderSide.none,
@@ -169,8 +158,8 @@ class _LupaPasswordState extends State<LupaPasswordScreen> {
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(18),
                           borderSide: _isEmailInvalid
-                              ? const BorderSide(color: Color(0xFFB61E20), width: 1.5)
-                              : const BorderSide(color: Color(0xFF013236), width: 1.5),
+                              ? const BorderSide(color: AppColors.dangerDeep, width: 1.5)
+                              : const BorderSide(color: AppColors.dark, width: 1.5),
                         ),
                       ),
                     ),
@@ -181,12 +170,7 @@ class _LupaPasswordState extends State<LupaPasswordScreen> {
                           _errorMessage.isNotEmpty
                               ? _errorMessage
                               : 'Email tidak valid',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 12,
-                            color: Color(0xFFB61E20),
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: AppText.w600(12, AppColors.dangerDeep),
                         ),
                       ),
                   ],
@@ -198,7 +182,7 @@ class _LupaPasswordState extends State<LupaPasswordScreen> {
         ),
       ),
       bottomNavigationBar: Container(
-        color: const Color(0xFFFFFFFF),
+        color: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
         child: SafeArea(
           child: SizedBox(
@@ -209,7 +193,7 @@ class _LupaPasswordState extends State<LupaPasswordScreen> {
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
+                    color: Colors.black.withValues(alpha: 0.15),
                     blurRadius: 12,
                     offset: const Offset(0, 6),
                   ),
@@ -218,9 +202,9 @@ class _LupaPasswordState extends State<LupaPasswordScreen> {
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _onKonfirmasi,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF013236),
+                  backgroundColor: AppColors.dark,
                   disabledBackgroundColor:
-                      const Color(0xFF013236).withOpacity(0.5),
+                      AppColors.dark.withValues(alpha: 0.5),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
@@ -233,17 +217,12 @@ class _LupaPasswordState extends State<LupaPasswordScreen> {
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                              Color(0xFFFFFFFF)),
+                              Colors.white),
                         ),
                       )
-                    : const Text(
+                    : Text(
                         "Dapatkan Kode OTP",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFFFFFFF),
-                        ),
+                        style: AppText.w600(16, Colors.white),
                       ),
               ),
             ),

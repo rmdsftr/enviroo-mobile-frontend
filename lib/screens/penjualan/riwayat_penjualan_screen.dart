@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format/app_number.dart';
 import '../../models/penjualan_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/penjualan_provider.dart';
@@ -11,14 +11,14 @@ import '../../widgets/filter_month_year.dart';
 import '../../widgets/filter_chip_row.dart';
 import 'detail_penjualan_screen.dart';
 import 'jenis_transaksi_screen.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 class _C {
-  static const dark = Color(0xFF013236);
-  static const green = Color(0xFF4EA771);
-  static const cardBg = Color(0xFFF7FBF5);
-  static const muted = Color(0xFF8A9A92);
-  static const danger = Color(0xFFD94848);
-  static const sectionBg = Color(0xFFF2F3F2);
+  static const dark = AppColors.dark;
+  static const green = AppColors.green;
+  static const muted = AppColors.muted;
 }
 
 class RiwayatPenjualanScreen extends StatefulWidget {
@@ -77,7 +77,7 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F5),
+      backgroundColor: AppColors.surface,
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -103,7 +103,6 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
                       return CustomScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         slivers: [
-                          // ── Bagian atas — scroll away normally ────────
                           SliverToBoxAdapter(
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -137,8 +136,6 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
                               ),
                             )
                           else ...[
-                            // Sticky: "Riwayat Penjualan" + filter bulan + filter status,
-                            // pin di bawah TopBarBack
                             SliverPersistentHeader(
                               pinned: true,
                               delegate: _StickyHeaderDelegate(
@@ -149,16 +146,11 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Padding(
+                                      Padding(
                                         padding: EdgeInsets.symmetric(horizontal: 22),
                                         child: Text(
                                           'Riwayat Penjualan',
-                                          style: TextStyle(
-                                            fontFamily: 'Poppins',
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 14,
-                                            color: _C.dark,
-                                          ),
+                                          style: AppText.w600(14, _C.dark),
                                         ),
                                       ),
                                       const SizedBox(height: 12),
@@ -191,15 +183,17 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
                                 ),
                               ),
                             ),
-                            // List — cuma ini yang scroll di bawah sticky header
-                            SliverToBoxAdapter(
+                            SliverLayoutBuilder(
+                              builder: (context, sc) => SliverToBoxAdapter(
                               child: Builder(builder: (context) {
                                 final filtered =
                                     _getFilteredList(prov.riwayat, reward.allReward);
                                 return Container(
                                   width: double.infinity,
                                   constraints: BoxConstraints(
-                                    minHeight: MediaQuery.of(context).size.height,
+                                    minHeight: (sc.viewportMainAxisExtent -
+                                            sc.precedingScrollExtent)
+                                        .clamp(0.0, double.infinity),
                                   ),
                                   decoration: const BoxDecoration(
                                     color: Colors.white,
@@ -225,6 +219,7 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
                                 );
                               }),
                             ),
+                            ),
                           ],
                         ],
                       );
@@ -244,14 +239,12 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
     List<RewardModel> rewards,
   ) {
     return list.where((item) {
-      // Filter tanggal
       final d = item.createdAt;
       final start = DateTime(_filterStart.year, _filterStart.month);
       final end =
           DateTime(_filterEnd.year, _filterEnd.month + 1, 0, 23, 59, 59);
       if (d.isBefore(start) || d.isAfter(end)) return false;
 
-      // Filter status: Selesai vs Menunggu Bagi Hasil
       final sudah = item.statusBagiHasil.toLowerCase() == 'berhasil';
       if (_statusFilter == 'Selesai' && !sudah) return false;
       if (_statusFilter == 'Menunggu Bagi Hasil' && sudah) return false;
@@ -268,7 +261,7 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
       child: InkWell(
         onTap: () => _openForm(),
         borderRadius: BorderRadius.circular(20),
-        child: const Padding(
+        child: Padding(
           padding: EdgeInsets.symmetric(vertical: 18, horizontal: 12),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -283,21 +276,11 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
                   children: [
                     Text(
                       'Jual Sampah',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: Colors.white,
-                      ),
+                      style: AppText.w600(13, Colors.white),
                     ),
                     Text(
                       'ke Pengepul',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: Colors.white,
-                      ),
+                      style: AppText.w600(13, Colors.white),
                     ),
                   ],
                 ),
@@ -322,7 +305,7 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: _C.green.withValues(alpha: 0.25), width: 1),
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -335,21 +318,11 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
                   children: [
                     Text(
                       'Daftar Mitra',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w500,
-                        fontSize: 12,
-                        color: _C.dark,
-                      ),
+                      style: AppText.w500(12, _C.dark),
                     ),
                     Text(
                       'Pengepul Langganan',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w500,
-                        fontSize: 12,
-                        color: _C.dark,
-                      ),
+                      style: AppText.w500(12, _C.dark),
                     ),
                   ],
                 ),
@@ -389,14 +362,9 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
                       ),
                     ),
                   ),
-                  const Text(
+                  Text(
                     'Mitra Pengepul Langganan',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                      color: _C.dark,
-                    ),
+                    style: AppText.w600(15, _C.dark),
                   ),
                   const SizedBox(height: 12),
                   Expanded(
@@ -411,11 +379,7 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
                           return Center(
                             child: Text(
                               'Belum ada mitra langganan',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 12.5,
-                                color: _C.muted,
-                              ),
+                              style: AppText.r(12.5, _C.muted),
                             ),
                           );
                         }
@@ -439,21 +403,21 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
-                                        color: const Color(0xFFE6EDE9)),
+                                        color: AppColors.border),
                                   ),
                                   child: Row(
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF94DF0C)
+                                          color: AppColors.neon
                                               .withValues(alpha: 0.1),
                                           shape: BoxShape.circle,
                                         ),
                                         child: const Icon(
                                             Icons.storefront_rounded,
                                             size: 18,
-                                            color: Color(0xFF94DF0C)),
+                                            color: AppColors.neon),
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(
@@ -461,12 +425,7 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
                                           mitra.namaMitra,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontFamily: 'Poppins',
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                            color: _C.dark,
-                                          ),
+                                          style: AppText.w500(13, _C.dark),
                                         ),
                                       ),
                                     ],
@@ -499,75 +458,19 @@ class _RiwayatPenjualanScreenState extends State<RiwayatPenjualanScreen> {
     );
   }
 
-  Widget _buildEmpty() => Center(
-        child: Padding(
-          padding:
-              const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Icon(Icons.receipt_long_rounded,
-                  size: 64, color: _C.muted),
-              const SizedBox(height: 12),
-              const Text(
-                'Belum ada riwayat penjualan',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: _C.muted,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Tekan tombol di atas untuk mulai menjual sampah',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  color: _C.muted,
-                ),
-              ),
-            ],
-          ),
-        ),
+  Widget _buildEmpty() => StateMessage(
+        illustration: StateArt.empty,
+        message: 'Belum ada riwayat penjualan',
+        subtitle: 'Pilih menu jual sampah ke pengepul untuk melakukan penjualan sampah',
       );
 
-  Widget _buildError(String msg) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, color: _C.danger, size: 42),
-              const SizedBox(height: 10),
-              Text(
-                msg,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  color: _C.danger,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: _load,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _C.dark,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Coba Lagi',
-                    style: TextStyle(fontFamily: 'Poppins')),
-              ),
-            ],
-          ),
-        ),
+  Widget _buildError(String msg) => StateMessage(
+        illustration: StateArt.error,
+        message: msg,
+        action: StateRetryButton(onPressed: _load),
       );
 }
 
-// ─── Card item riwayat ──────────────────────────────────────────────────────
 class _RiwayatCard extends StatelessWidget {
   final RiwayatPenjualanModel item;
   final VoidCallback onTap;
@@ -575,8 +478,6 @@ class _RiwayatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fmtPoin = NumberFormat('#,##0.##########', 'id_ID');
-    final isBerhasil = item.statusBagiHasil.toLowerCase() == 'berhasil';
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
@@ -586,11 +487,11 @@ class _RiwayatCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
               width: 1,
-              color: const Color(0xFF013236).withOpacity(0.1), // Brand color dengan opacity cuma 10%
+              color: AppColors.dark.withValues(alpha: 0.1),
             ),
           ),
           child: Row(
@@ -600,7 +501,7 @@ class _RiwayatCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: Color(0xFF013236).withValues(alpha: 0.1),
+                  color: AppColors.dark.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: Icon(
@@ -608,7 +509,7 @@ class _RiwayatCard extends StatelessWidget {
                           item.satuanReward.toLowerCase() == 'rupiah'
                       ? Icons.payments_rounded
                       : Icons.shopping_basket_rounded,
-                  color: Color(0xFF013236),
+                  color: AppColors.dark,
                   size: 22,
                 ),
               ),
@@ -624,37 +525,21 @@ class _RiwayatCard extends StatelessWidget {
                             item.namaMitra,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                              color: _C.dark,
-                            ),
+                            style: AppText.w600(13.5, _C.dark),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             item.tanggalFormatted,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 11,
-                              color: _C.muted,
-                            ),
+                            style: AppText.r(11, _C.muted),
                           )
                         ]
                     ),
                     Text(
-                      item.satuanReward.toLowerCase() == 'rupiah' ||
-                          item.satuanReward.toLowerCase() == 'rp'
-                          ? 'Rp ${fmtPoin.format(item.totalPenjualan)}'
-                          : '${fmtPoin.format(item.totalPenjualan)} ${item.satuanReward}',
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: _C.green,
-                      ),
+                      AppNumber.nominalSatuan(
+                          item.totalPenjualan, item.satuanReward),
+                      style: AppText.w700(13, _C.green),
                     ),
                   ],
                 ),
@@ -667,9 +552,6 @@ class _RiwayatCard extends StatelessWidget {
   }
 }
 
-// ── Sticky header delegate ───────────────────────────────────────────────────
-// Bikin "Riwayat Penjualan" + filter bulan + filter status nempel (pinned) di
-// bawah TopBarBack saat di-scroll, sementara cuma list riwayat yang ikut bergerak.
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   final double height;
