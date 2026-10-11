@@ -169,7 +169,7 @@ class _HomeBsmScreenState extends State<HomeBsmScreen> {
               onTap: _onNavTap,
               items: const [
                 BottomBarItem(icon: Icons.home_outlined, label: 'Beranda'),
-                BottomBarItem(icon: Icons.account_balance, label: 'Profil'),
+                BottomBarItem(icon: Icons.account_balance, label: 'Profil Bank'),
               ],
             ),
           ),

@@ -8,6 +8,9 @@ import 'package:enviroo/screens/lihat_foto_screen.dart';
 import 'package:enviroo/providers/profil_provider.dart';
 import 'package:enviroo/providers/penjualan_provider.dart' show FetchStatus;
 import 'package:enviroo/widgets/topbar_back.dart';
+import 'package:enviroo/widgets/search.dart';
+import 'package:enviroo/widgets/filter_chip_row.dart';
+import 'package:enviroo/widgets/state_message.dart';
 import 'package:enviroo/core/theme/app_colors.dart';
 import 'package:enviroo/core/theme/app_text.dart';
 
@@ -276,10 +279,17 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
     );
   }
 
+  static const _jumlahPreview = 3;
+
   Widget _buildStaffCard(List<AdminBankModel> admins) {
+    final pengurus = _urutkanPengurus(admins);
+    final jumlahAdmin = pengurus.where((a) => _isAdmin(a.roleAdmin)).length;
+    final jumlahPetugas = pengurus.where((a) => _isPetugas(a.roleAdmin)).length;
+    final preview = pengurus.take(_jumlahPreview).toList();
+
     return _buildSectionCard(
       icon: Icons.people_alt_rounded,
-      title: 'Tim Staff (${admins.length})',
+      title: 'Pengurus Bank Sampah (${admins.length})',
       children: admins.isEmpty
           ? [
               Center(
@@ -292,90 +302,67 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
                 ),
               ),
             ]
-          : admins.asMap().entries.map((entry) {
-              final isLast = entry.key == admins.length - 1;
-              return Column(
+          : [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  _buildStaffTile(entry.value),
-                  if (!isLast)
-                    Divider(
-                      color: AppColors.dark.withValues(alpha: 0.07),
-                      height: 1, thickness: 0.5,
-                    ),
+                  if (jumlahAdmin > 0)
+                    _RoleBadge(isAdmin: true, label: '$jumlahAdmin Admin'),
+                  if (jumlahPetugas > 0)
+                    _RoleBadge(isAdmin: false, label: '$jumlahPetugas Petugas'),
                 ],
-              );
-            }).toList(),
-    );
-  }
-
-  Widget _buildStaffTile(AdminBankModel admin) {
-    Color roleTextColor;
-    Color roleBg;
-    if (admin.roleAdmin == 'Admin') {
-      roleTextColor = AppColors.dark;
-      roleBg = AppColors.neon;
-    } else if (admin.roleAdmin == 'Superadmin') {
-      roleTextColor = Colors.white;
-      roleBg = AppColors.dark;
-    } else {
-      roleTextColor = AppColors.green;
-      roleBg = AppColors.green.withValues(alpha: 0.12);
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 42, height: 42,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.green.withValues(alpha: 0.4), width: 1.5),
-            ),
-            child: ClipOval(
-              child: admin.photoUrl.isNotEmpty
-                  ? Image.network(
-                      admin.photoUrl, width: 42, height: 42, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _defaultStaffAvatar(),
-                    )
-                  : _defaultStaffAvatar(),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  admin.namaAdmin,
-                  style: AppText.w600(13, AppColors.dark),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  admin.adminId,
-                  style: AppText.r(10, AppColors.dark.withValues(alpha: 0.4)),
+              ),
+              const SizedBox(height: 6),
+              ...preview.asMap().entries.map((entry) {
+                final isLast = entry.key == preview.length - 1;
+                return Column(
+                  children: [
+                    _StaffTile(admin: entry.value),
+                    if (!isLast)
+                      Divider(
+                        color: AppColors.dark.withValues(alpha: 0.07),
+                        height: 1, thickness: 0.5,
+                      ),
+                  ],
+                );
+              }),
+              if (pengurus.length > _jumlahPreview) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => _bukaDaftarPengurus(pengurus),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.dark,
+                      side: BorderSide(color: AppColors.dark.withValues(alpha: 0.15)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Lihat Semua Pengurus (${pengurus.length})',
+                          style: AppText.w600(12),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right_rounded, size: 18),
+                      ],
+                    ),
+                  ),
                 ),
               ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: roleBg, borderRadius: BorderRadius.circular(20)),
-            child: Text(
-              admin.roleAdmin,
-              style: AppText.w600(10, roleTextColor),
-            ),
-          ),
-        ],
-      ),
+            ],
     );
   }
 
-  Widget _defaultStaffAvatar() {
-    return Container(
-      width: 42, height: 42,
-      color: AppColors.dark.withValues(alpha: 0.08),
-      child: Icon(Icons.person_rounded, color: AppColors.dark.withValues(alpha: 0.4), size: 22),
+  void _bukaDaftarPengurus(List<AdminBankModel> pengurus) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _StaffListSheet(pengurus: pengurus),
     );
   }
 
@@ -464,6 +451,251 @@ class _ProfilBankScreenState extends State<ProfilBankScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+bool _isAdmin(String role) => role.toLowerCase().contains('admin');
+
+bool _isPetugas(String role) => role.toLowerCase().contains('petugas');
+
+String _roleLabel(String role) {
+  if (_isAdmin(role)) return 'Admin';
+  if (_isPetugas(role)) return 'Petugas';
+  return role;
+}
+
+List<AdminBankModel> _urutkanPengurus(List<AdminBankModel> admins) {
+  return [...admins]..sort((a, b) {
+      final rankA = _isAdmin(a.roleAdmin) ? 0 : 1;
+      final rankB = _isAdmin(b.roleAdmin) ? 0 : 1;
+      if (rankA != rankB) return rankA.compareTo(rankB);
+      return a.namaAdmin.toLowerCase().compareTo(b.namaAdmin.toLowerCase());
+    });
+}
+
+class _RoleBadge extends StatelessWidget {
+  final bool isAdmin;
+  final String label;
+
+  const _RoleBadge({required this.isAdmin, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: isAdmin ? AppColors.neon : AppColors.green.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: AppText.w600(10, isAdmin ? AppColors.dark : AppColors.green),
+      ),
+    );
+  }
+}
+
+class _StaffTile extends StatelessWidget {
+  final AdminBankModel admin;
+
+  const _StaffTile({required this.admin});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 42, height: 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.green.withValues(alpha: 0.4), width: 1.5),
+            ),
+            child: ClipOval(
+              child: admin.photoUrl.isNotEmpty
+                  ? Image.network(
+                      admin.photoUrl, width: 42, height: 42, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _defaultAvatar(),
+                    )
+                  : _defaultAvatar(),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  admin.namaAdmin,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.w600(13, AppColors.dark),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  admin.adminId,
+                  style: AppText.r(10, AppColors.dark.withValues(alpha: 0.4)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _RoleBadge(
+            isAdmin: _isAdmin(admin.roleAdmin),
+            label: _roleLabel(admin.roleAdmin),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _defaultAvatar() {
+    return Container(
+      width: 42, height: 42,
+      color: AppColors.dark.withValues(alpha: 0.08),
+      child: Icon(Icons.person_rounded, color: AppColors.dark.withValues(alpha: 0.4), size: 22),
+    );
+  }
+}
+
+class _StaffListSheet extends StatefulWidget {
+  final List<AdminBankModel> pengurus;
+
+  const _StaffListSheet({required this.pengurus});
+
+  @override
+  State<_StaffListSheet> createState() => _StaffListSheetState();
+}
+
+class _StaffListSheetState extends State<_StaffListSheet> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
+  String _filterRole = 'semua';
+
+  List<AdminBankModel> get _filtered {
+    final q = _query.toLowerCase();
+    return widget.pengurus.where((a) {
+      final cocokRole = _filterRole == 'semua' ||
+          (_filterRole == 'admin' && _isAdmin(a.roleAdmin)) ||
+          (_filterRole == 'petugas' && _isPetugas(a.roleAdmin));
+      final cocokCari = q.isEmpty ||
+          a.namaAdmin.toLowerCase().contains(q) ||
+          a.adminId.toLowerCase().contains(q);
+      return cocokRole && cocokCari;
+    }).toList();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        children: [
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 4),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.dark.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 10, 20, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pengurus Bank Sampah',
+                        style: AppText.w700(15, AppColors.dark),
+                      ),
+                      Text(
+                        '${widget.pengurus.length} pengurus terdaftar',
+                        style: AppText.r(11, AppColors.dark.withValues(alpha: 0.5)),
+                      ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2F2F2),
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    child: const Icon(Icons.close_rounded, size: 16, color: AppColors.dark),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+            child: CustomSearchBar(
+              controller: _searchCtrl,
+              hintText: 'Cari nama atau ID pengurus...',
+              searchQuery: _query,
+              onChanged: (v) => setState(() => _query = v),
+              onClear: () {
+                _searchCtrl.clear();
+                setState(() => _query = '');
+              },
+            ),
+          ),
+          FilterChipRow<String>(
+            items: const [
+              FilterChipItem(value: 'semua', label: 'Semua'),
+              FilterChipItem(value: 'admin', label: 'Admin'),
+              FilterChipItem(value: 'petugas', label: 'Petugas'),
+            ],
+            selectedValue: _filterRole,
+            onSelected: (v) => setState(() => _filterRole = v),
+          ),
+          const SizedBox(height: 6),
+          Expanded(child: _buildList()),
+          SizedBox(height: bottomPad + 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildList() {
+    final list = _filtered;
+
+    if (list.isEmpty) {
+      return const StateMessage(
+        illustration: StateArt.error,
+        message: 'Pengurus tidak ditemukan',
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      itemCount: list.length,
+      separatorBuilder: (_, __) => Divider(
+        color: AppColors.dark.withValues(alpha: 0.07),
+        height: 1, thickness: 0.5,
+      ),
+      itemBuilder: (_, i) => _StaffTile(admin: list[i]),
     );
   }
 }

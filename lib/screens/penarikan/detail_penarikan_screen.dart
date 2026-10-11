@@ -211,19 +211,26 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/bg_struk.webp'),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: SafeArea(
-          child: Consumer<PenarikanNasabahProvider>(
-            builder: (_, prov, __) {
-              return Column(
+    return Consumer<PenarikanNasabahProvider>(
+      builder: (_, prov, __) {
+        final detail = prov.detail;
+        final qrDetail = !prov.loadingDetail &&
+                prov.errorDetail == null &&
+                detail?.status == StatusPenarikan.approved
+            ? detail
+            : null;
+
+        return Scaffold(
+          backgroundColor: AppColors.surface,
+          body: Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/bg_struk.webp'),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
                 children: [
                   const TopBarBack(title: 'Detail Penarikan'),
                   Expanded(
@@ -233,16 +240,17 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
                                 color: primary))
                         : prov.errorDetail != null
                             ? _buildError(prov)
-                            : prov.detail == null
+                            : detail == null
                                 ? _buildEmpty()
-                                : _buildDetail(prov.detail!, prov),
+                                : _buildDetail(detail, prov),
                   ),
                 ],
-              );
-            },
+              ),
+            ),
           ),
-        ),
-      ),
+          bottomNavigationBar: qrDetail == null ? null : _buildQrCard(qrDetail),
+        );
+      },
     );
   }
 
@@ -265,7 +273,6 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
   Widget _buildDetail(
       PenarikanDetail detail, PenarikanNasabahProvider prov) {
     final isPending = detail.status == StatusPenarikan.pending;
-    final isApproved = detail.status == StatusPenarikan.approved;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(top: 24),
@@ -296,14 +303,10 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
                   const SizedBox(height: 16),
                   _buildBatalCard(prov),
                 ],
-                if (!isApproved) const SizedBox(height: 32),
+                const SizedBox(height: 32),
               ],
             ),
           ),
-          if (isApproved) ...[
-            const SizedBox(height: 20),
-            _buildQrCard(detail),
-          ],
         ],
       ),
     );
@@ -407,8 +410,10 @@ class _DetailPenarikanScreenState extends State<DetailPenarikanScreen> {
           ),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+      padding: EdgeInsets.fromLTRB(
+          18, 16, 18, MediaQuery.of(context).padding.bottom + 18),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             'Tunjukkan QR code berikut pada petugas saat pengambilan insentif '

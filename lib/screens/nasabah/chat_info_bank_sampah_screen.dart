@@ -97,6 +97,7 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
           ),
         ),
         child: SafeArea(
+          top: false,
           child: Column(
             children: [
               _buildHeader(),
@@ -134,7 +135,8 @@ class _ChatInfoBankSampahScreenState extends State<ChatInfoBankSampahScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
       ),
-      padding: const EdgeInsets.fromLTRB(5, 10, 16, 10),
+      padding: EdgeInsets.fromLTRB(
+          5, MediaQuery.of(context).padding.top + 10, 16, 10),
       child: Row(
         children: [
           IconButton(

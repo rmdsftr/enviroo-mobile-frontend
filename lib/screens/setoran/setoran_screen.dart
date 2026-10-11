@@ -1,4 +1,10 @@
+import 'dart:async';
+
+import 'package:enviroo/core/messaging/fcm_messaging.dart';
+import 'package:enviroo/core/messaging/notif_payload.dart';
 import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/screens/setoran/detail_setoran_screen.dart';
+import 'package:enviroo/widgets/success_bottom_sheet.dart';
 import 'package:enviroo/widgets/topbar_back.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -16,11 +22,39 @@ class SetoranScreen extends StatefulWidget {
 
 class _SetoranScreenState extends State<SetoranScreen> {
   String _qrData = '';
+  StreamSubscription<NotifPayload>? _notifSub;
+  bool _sudahDiproses = false;
 
   @override
   void initState() {
     super.initState();
     _generateQRCode();
+    _notifSub = context.read<FcmMessaging>().foregroundPayloads.listen(_onNotif);
+  }
+
+  @override
+  void dispose() {
+    _notifSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _onNotif(NotifPayload payload) async {
+    if (payload.refType != 'setoran' || _sudahDiproses || !mounted) return;
+    _sudahDiproses = true;
+
+    await showSuccessBottomSheet(
+      context,
+      title: 'Setoran Sampah Berhasil',
+      message: 'Sampahmu sudah ditimbang petugas dan tercatat di buku tabungan sampah.',
+      buttonLabel: 'Lihat Struk Setoran',
+    );
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetailSetoranScreen(setoranId: payload.refId),
+      ),
+    );
   }
 
   void _generateQRCode() {

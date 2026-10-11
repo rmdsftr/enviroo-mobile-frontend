@@ -1,8 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../core/messaging/fcm_messaging.dart';
+import '../../core/messaging/notif_payload.dart';
+import '../../models/penarikan_model.dart';
+import '../../providers/penarikan_nasabah_provider.dart';
+import '../../widgets/success_bottom_sheet.dart';
 import '../../widgets/topbar_back.dart';
 import 'package:enviroo/core/theme/app_colors.dart';
 import 'package:enviroo/core/theme/app_text.dart';
@@ -30,6 +36,8 @@ class _QrPenarikanScreenState extends State<QrPenarikanScreen> {
   Timer? _ticker;
   late Duration _remaining;
   late final String _qrData;
+  StreamSubscription<NotifPayload>? _notifSub;
+  bool _sedangMengecek = false;
 
   @override
   void initState() {
@@ -42,12 +50,42 @@ class _QrPenarikanScreenState extends State<QrPenarikanScreen> {
       if (!mounted) return;
       setState(() => _remaining = widget.deadline.difference(DateTime.now()));
     });
+    _notifSub = context.read<FcmMessaging>().foregroundPayloads.listen(_onNotif);
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    _notifSub?.cancel();
     super.dispose();
+  }
+
+  Future<void> _onNotif(NotifPayload payload) async {
+    if (payload.refType != 'penarikan' ||
+        payload.refId != widget.transaksiId ||
+        _sedangMengecek ||
+        !mounted) {
+      return;
+    }
+    _sedangMengecek = true;
+
+    final prov = context.read<PenarikanNasabahProvider>();
+    await prov.loadDetail(widget.transaksiId);
+    if (!mounted) return;
+    if (prov.detail?.status != StatusPenarikan.completed) {
+      _sedangMengecek = false;
+      return;
+    }
+
+    _ticker?.cancel();
+    await showSuccessBottomSheet(
+      context,
+      title: 'Penarikan Berhasil',
+      message: 'Insentif sudah diserahkan petugas dan penarikanmu telah selesai.',
+      buttonLabel: 'Lihat Detail Penarikan',
+    );
+    if (!mounted) return;
+    Navigator.pop(context);
   }
 
   String _formatCountdown(Duration d) {

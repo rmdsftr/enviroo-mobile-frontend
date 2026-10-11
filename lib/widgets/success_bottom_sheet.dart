@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:enviroo/core/theme/app_colors.dart';
 import 'package:enviroo/core/theme/app_text.dart';
+import 'package:enviroo/widgets/state_message.dart';
 
 Future<void> showSuccessBottomSheet(
   BuildContext context, {
@@ -57,18 +58,7 @@ class _SuccessSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: AppColors.green.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.check_rounded,
-              size: 36,
-              color: AppColors.green,
-            ),
-          ),
+          Image.asset(StateArt.success, width: 200),
           const SizedBox(height: 20),
           Text(
             title,

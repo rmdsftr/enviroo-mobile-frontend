@@ -89,6 +89,7 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
           ),
         ),
         child: SafeArea(
+          top: false,
           child: Column(
             children: [
               _buildHeader(),
@@ -128,7 +129,8 @@ class _ChatInfoKeNasabahScreenState extends State<ChatInfoKeNasabahScreen> {
     return Container(
       width: double.infinity,
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(5, 12, 20, 12),
+      padding: EdgeInsets.fromLTRB(
+          5, MediaQuery.of(context).padding.top + 12, 20, 12),
       child: Row(
         children: [
           IconButton(

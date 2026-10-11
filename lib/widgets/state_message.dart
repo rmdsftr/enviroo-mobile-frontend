@@ -203,4 +203,5 @@ abstract final class StateArt {
   static const empty = 'assets/images/state-icon-1.png';
   static const emptyMoney = 'assets/images/state-icon-2.png';
   static const error = 'assets/images/state-icon-3.png';
+  static const success = 'assets/images/state-icon-4.png';
 }

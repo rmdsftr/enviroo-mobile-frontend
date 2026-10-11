@@ -265,7 +265,9 @@ class _RiwayatSetoranScreenState extends State<RiwayatSetoranScreen> {
           context,
           MaterialPageRoute(
               builder: (_) => SetoranScreen(penimbanganId: _penimbanganId)),
-        ),
+        ).then((_) {
+          if (mounted) _fetchAll();
+        }),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
           decoration: BoxDecoration(

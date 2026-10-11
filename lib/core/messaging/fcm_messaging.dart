@@ -29,6 +29,11 @@ class FcmMessaging {
   StreamSubscription<String>? _tokenSub;
   bool _started = false;
 
+  final StreamController<NotifPayload> _foreground =
+      StreamController<NotifPayload>.broadcast();
+
+  Stream<NotifPayload> get foregroundPayloads => _foreground.stream;
+
   NotifPayload? _pendingDeepLink;
 
   NotifPayload? takePendingDeepLink() {
@@ -48,6 +53,8 @@ class FcmMessaging {
     _subs.add(FirebaseMessaging.onMessage.listen((msg) {
       debugPrint('[FCM] onMessage received: ${msg.notification?.title}');
       refreshNotifikasi();
+      final payload = NotifPayload.from(msg);
+      if (payload != null) _foreground.add(payload);
     }));
 
     _subs.add(FirebaseMessaging.onMessageOpenedApp.listen((msg) {
