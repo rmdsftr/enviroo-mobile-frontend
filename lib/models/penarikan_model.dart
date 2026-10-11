@@ -1,206 +1,653 @@
-// Enum untuk status penarikan uang
-enum PenarikanUangStatus {
-  selesai,
-  ditolak,
-  menungguPersetujuan,
-  dibatalkan,
+import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+
+double _toDouble(dynamic v) {
+  if (v == null) return 0;
+  if (v is num) return v.toDouble();
+  if (v is String) return double.tryParse(v) ?? 0;
+  return 0;
 }
 
-// Enum untuk status penarikan poin
-enum PenarikanPoinStatus {
-  selesai,
-  ditolak,
-  menungguPersetujuan,
-  menungguPenjemputan,
-  dibatalkan,
+int _toInt(dynamic v) {
+  if (v == null) return 0;
+  if (v is num) return v.toInt();
+  if (v is String) return int.tryParse(v) ?? 0;
+  return 0;
 }
 
-// Model untuk barang sembako yang di-redeem
-class SembakoItem {
-  final String nama;
-  final int qty;
-  final int poin;
+class RewardInfo {
+  final int rewardId;
+  final String namaReward;
+  final String satuan;
+  final String? deskripsi;
 
-  SembakoItem({
-    required this.nama,
+  RewardInfo({required this.rewardId, required this.namaReward, required this.satuan, this.deskripsi});
+
+  factory RewardInfo.fromJson(Map<String, dynamic> json) {
+    return RewardInfo(
+      rewardId: _toInt(json['reward_id'] ?? json['RewardID']),
+      namaReward: (json['nama_reward'] ?? json['NamaReward'] ?? '') as String,
+      satuan: (json['satuan'] ?? json['Satuan'] ?? '') as String,
+      deskripsi: json['deskripsi'] ?? json['Deskripsi'] as String?,
+    );
+  }
+}
+
+class NilaiRewardBank {
+  final String nilaiRewardId;
+  final int rewardId;
+  final double nilaiPoin;
+  final double nilaiKonversi;
+  final RewardInfo? reward;
+
+  NilaiRewardBank({
+    required this.nilaiRewardId,
+    required this.rewardId,
+    required this.nilaiPoin,
+    required this.nilaiKonversi,
+    this.reward,
+  });
+
+  String get namaReward => reward?.namaReward ?? '';
+  String get satuan => reward?.satuan ?? '';
+
+  bool get isBarang => namaReward.toLowerCase().contains('barang');
+  bool get isUang => namaReward.toLowerCase().contains('uang');
+
+  double convertPoin(double poin) {
+    if (nilaiPoin <= 0) return 0;
+    return (poin / nilaiPoin) * nilaiKonversi;
+  }
+
+  factory NilaiRewardBank.fromJson(Map<String, dynamic> json) {
+    final rewardJson = json['Reward'] ?? json['reward'];
+    return NilaiRewardBank(
+      nilaiRewardId: (json['nilai_reward_id'] ?? json['NilaiRewardID'] ?? '') as String,
+      rewardId: _toInt(json['reward_id'] ?? json['RewardID']),
+      nilaiPoin: _toDouble(json['nilai_poin'] ?? json['NilaiPoin']),
+      nilaiKonversi: _toDouble(json['nilai_konversi'] ?? json['NilaiKonversi']),
+      reward: rewardJson is Map<String, dynamic> ? RewardInfo.fromJson(rewardJson) : null,
+    );
+  }
+}
+
+enum StatusPenarikan {
+  pending,
+  approved,
+  completed,
+  canceled,
+  rejected,
+  requestExpired,
+  pickupExpired,
+  unknown,
+}
+
+StatusPenarikan statusPenarikanFromString(String? v) {
+  switch (v) {
+    case 'pending':
+      return StatusPenarikan.pending;
+    case 'approved':
+      return StatusPenarikan.approved;
+    case 'completed':
+      return StatusPenarikan.completed;
+    case 'canceled':
+      return StatusPenarikan.canceled;
+    case 'rejected':
+      return StatusPenarikan.rejected;
+    case 'request_expired':
+      return StatusPenarikan.requestExpired;
+    case 'pickup_expired':
+      return StatusPenarikan.pickupExpired;
+    default:
+      return StatusPenarikan.unknown;
+  }
+}
+
+extension StatusPenarikanX on StatusPenarikan {
+  bool get isDalamProses =>
+      this == StatusPenarikan.pending || this == StatusPenarikan.approved;
+
+  String get label {
+    switch (this) {
+      case StatusPenarikan.pending:
+        return 'Menunggu Konfirmasi';
+      case StatusPenarikan.approved:
+        return 'Siap Diambil';
+      case StatusPenarikan.completed:
+        return 'Selesai';
+      case StatusPenarikan.canceled:
+        return 'Dibatalkan';
+      case StatusPenarikan.rejected:
+        return 'Pengajuan Ditolak';
+      case StatusPenarikan.requestExpired:
+        return 'Pengajuan Kadaluarsa';
+      case StatusPenarikan.pickupExpired:
+        return 'Pengambilan Kadaluarsa';
+      case StatusPenarikan.unknown:
+        return 'Unknown';
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case StatusPenarikan.pending:
+        return AppColors.warning;
+      case StatusPenarikan.approved:
+        return const Color(0xFF3B82F6);
+      case StatusPenarikan.completed:
+        return AppColors.green;
+      case StatusPenarikan.canceled:
+        return AppColors.danger;
+      case StatusPenarikan.rejected:
+        return AppColors.danger;
+      case StatusPenarikan.requestExpired:
+        return const Color(0xFF9CA3AF);
+      case StatusPenarikan.pickupExpired:
+        return const Color(0xFF9CA3AF);
+      case StatusPenarikan.unknown:
+        return const Color(0xFF9E9E9E);
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case StatusPenarikan.pending:
+        return Icons.hourglass_empty_rounded;
+      case StatusPenarikan.approved:
+        return Icons.inventory_2_rounded;
+      case StatusPenarikan.completed:
+        return Icons.check_circle_rounded;
+      case StatusPenarikan.canceled:
+        return Icons.cancel_rounded;
+      case StatusPenarikan.rejected:
+        return Icons.block_rounded;
+      case StatusPenarikan.requestExpired:
+        return Icons.timer_off_rounded;
+      case StatusPenarikan.pickupExpired:
+        return Icons.event_busy_rounded;
+      case StatusPenarikan.unknown:
+        return Icons.help_outline_rounded;
+    }
+  }
+
+  String? get description {
+    switch (this) {
+      case StatusPenarikan.approved:
+        return 'Pengajuan disetujui. Silakan datang ke bank sampah untuk mengambil sesuai kesepakatan.';
+      case StatusPenarikan.completed:
+        return 'Penarikan telah berhasil diproses.';
+      case StatusPenarikan.canceled:
+        return 'Pengajuan penarikan telah dibatalkan.';
+      case StatusPenarikan.rejected:
+        return 'Pengajuan penarikan ditolak oleh petugas.';
+      case StatusPenarikan.requestExpired:
+        return 'Pengajuan kadaluarsa karena tidak dikonfirmasi dalam 2 jam. Saldo sudah dikembalikan.';
+      case StatusPenarikan.pickupExpired:
+        return 'Waktu pengambilan sudah habis. Hubungi petugas bank sampah untuk info lebih lanjut.';
+      case StatusPenarikan.pending:
+      case StatusPenarikan.unknown:
+        return null;
+    }
+  }
+}
+
+double _d(dynamic v) {
+  if (v == null) return 0;
+  if (v is num) return v.toDouble();
+  if (v is String) return double.tryParse(v) ?? 0;
+  return 0;
+}
+
+int _i(dynamic v) {
+  if (v == null) return 0;
+  if (v is num) return v.toInt();
+  if (v is String) return int.tryParse(v) ?? 0;
+  return 0;
+}
+
+DateTime? _parseDate(dynamic v) {
+  if (v == null) return null;
+  if (v is String && v.isNotEmpty) {
+    if (v.endsWith('Z') || v.contains('+')) {
+      return DateTime.tryParse(v)?.toLocal();
+    }
+    return DateTime.tryParse('$v+07:00')?.toLocal();
+  }
+  return null;
+}
+
+class SaldoReward {
+  final int rewardId;
+  final String namaReward;
+  final String satuan;
+  final double nominal;
+
+  SaldoReward({
+    required this.rewardId,
+    required this.namaReward,
+    required this.satuan,
+    required this.nominal,
+  });
+
+  bool get isUang => namaReward.toLowerCase().contains('uang');
+  bool get isBarang => namaReward.toLowerCase().contains('barang');
+
+  factory SaldoReward.fromJson(Map<String, dynamic> j) => SaldoReward(
+        rewardId: _i(j['reward_id']),
+        namaReward: (j['nama_reward'] ?? '') as String,
+        satuan: (j['satuan'] ?? '') as String,
+        nominal: _d(j['nominal'] ?? j['nominal_saldo']),
+      );
+}
+
+class SaldoNasabahV2 {
+  final String nasabahId;
+  final String namaNasabah;
+  final List<SaldoReward> saldo;
+  final double saldoPoinTotal;
+
+  SaldoNasabahV2({
+    required this.nasabahId,
+    required this.namaNasabah,
+    required this.saldo,
+    required this.saldoPoinTotal,
+  });
+
+  SaldoReward? get saldoUang =>
+      saldo.cast<SaldoReward?>().firstWhere((s) => s!.isUang, orElse: () => null);
+  SaldoReward? get saldoBarang =>
+      saldo.cast<SaldoReward?>().firstWhere((s) => s!.isBarang, orElse: () => null);
+
+  bool get hasPerRewardSaldo => saldo.isNotEmpty;
+
+  factory SaldoNasabahV2.fromJson(Map<String, dynamic> j) {
+    List<SaldoReward> saldoList = [];
+
+    final uangData = j['uang'] as Map<String, dynamic>?;
+    final poinData = j['poin'] as Map<String, dynamic>?;
+    if (uangData != null || poinData != null) {
+      if (uangData != null) {
+        saldoList.add(SaldoReward(
+            rewardId: 1,
+            namaReward: 'uang',
+            satuan: 'rupiah',
+            nominal: _d(uangData['total_uang'])));
+      }
+      if (poinData != null) {
+        saldoList.add(SaldoReward(
+            rewardId: 2,
+            namaReward: 'barang',
+            satuan: 'poin',
+            nominal: _d(poinData['total_poin'])));
+      }
+    }
+
+    if (saldoList.isEmpty) {
+      final saldoData = j['saldo'];
+      if (saldoData is List) {
+        saldoList = saldoData
+            .whereType<Map<String, dynamic>>()
+            .map(SaldoReward.fromJson)
+            .toList();
+      }
+    }
+
+    if (saldoList.isEmpty) {
+      if (j['saldo_uang'] != null) {
+        saldoList.add(SaldoReward(
+            rewardId: 1,
+            namaReward: 'uang',
+            satuan: 'rupiah',
+            nominal: _d(j['saldo_uang'])));
+      }
+      if (j['saldo_poin_sembako'] != null) {
+        saldoList.add(SaldoReward(
+            rewardId: 2,
+            namaReward: 'barang',
+            satuan: 'poin',
+            nominal: _d(j['saldo_poin_sembako'])));
+      }
+    }
+
+    double saldoPoinTotal = _d(j['saldo_poin']);
+    if (saldoPoinTotal == 0 && poinData != null) {
+      saldoPoinTotal = _d(poinData['total_poin']);
+    }
+
+    return SaldoNasabahV2(
+      nasabahId: (j['nasabah_id'] ?? '') as String,
+      namaNasabah: (j['nama_nasabah'] ?? '') as String,
+      saldo: saldoList,
+      saldoPoinTotal: saldoPoinTotal,
+    );
+  }
+}
+
+class PenarikanItem {
+  final String penarikanId;
+  final String? nasabahId;
+  final String? namaNasabah;
+  final String? bankId;
+  final String? namaBank;
+  final int? rewardId;
+  final String namaReward;
+  final double nominalPenarikan;
+  final String satuanPenarikan;
+  final StatusPenarikan status;
+  final DateTime? kadaluarsaAt;
+  final String? buktiFoto;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  PenarikanItem({
+    required this.penarikanId,
+    this.nasabahId,
+    this.namaNasabah,
+    this.bankId,
+    this.namaBank,
+    this.rewardId,
+    required this.namaReward,
+    required this.nominalPenarikan,
+    required this.satuanPenarikan,
+    required this.status,
+    this.kadaluarsaAt,
+    this.buktiFoto,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  bool get isUang => namaReward.toLowerCase().contains('uang');
+  bool get isBarang => namaReward.toLowerCase().contains('barang');
+
+  factory PenarikanItem.fromJson(Map<String, dynamic> j) => PenarikanItem(
+        penarikanId: (j['penarikan_id'] ?? '') as String,
+        nasabahId: j['nasabah_id'] as String?,
+        namaNasabah: j['nama_nasabah'] as String?,
+        bankId: j['bank_id'] as String?,
+        namaBank: j['nama_bank'] as String?,
+        rewardId: j['reward_id'] == null ? null : _i(j['reward_id']),
+        namaReward: (j['nama_reward'] ?? '') as String,
+        nominalPenarikan: _d(j['nominal_penarikan']),
+        satuanPenarikan: (j['satuan_penarikan'] ?? '') as String,
+        status: statusPenarikanFromString(j['status_penarikan'] as String?),
+        kadaluarsaAt: _parseDate(j['kadaluarsa_at']),
+        buktiFoto: j['bukti_foto'] as String?,
+        createdAt: _parseDate(j['created_at']) ?? DateTime.now(),
+        updatedAt: _parseDate(j['updated_at']) ?? DateTime.now(),
+      );
+}
+
+class DetailBarangItem {
+  final String produkId;
+  final String namaBarang;
+  final String? photoUrl;
+  final double qty;
+  final double nilaiPoin;
+  final double subtotalPoin;
+
+  DetailBarangItem({
+    required this.produkId,
+    required this.namaBarang,
+    this.photoUrl,
     required this.qty,
-    required this.poin,
+    required this.nilaiPoin,
+    required this.subtotalPoin,
   });
+
+  factory DetailBarangItem.fromJson(Map<String, dynamic> j) =>
+      DetailBarangItem(
+        produkId: (j['produk_id'] ?? '') as String,
+        namaBarang: (j['nama_barang'] ?? '') as String,
+        photoUrl: j['photo_url'] as String?,
+        qty: _d(j['qty']),
+        nilaiPoin: _d(j['nilai_poin']),
+        subtotalPoin: _d(j['subtotal_poin']),
+      );
 }
 
-// Model untuk penarikan saldo uang
-class PenarikanUang {
-  final String id;
-  final PenarikanUangStatus status;
-  final DateTime tanggalDiajukan;
-  final DateTime? tanggalDisetujui;
-  final DateTime? tanggalDitolak;
-  final DateTime? tanggalDibatalkan;
-  final int saldoDicairkan;
-  final String metodeTransfer;
-  final String? buktiTransfer;
-  final String? adminName;
-  final String? alasanPenolakan;
+class PenarikanRiwayatItem {
+  final String riwayatPenarikanId;
+  final StatusPenarikan status;
+  final String? catatan;
+  final String createdBy;
+  final DateTime createdAt;
 
-  PenarikanUang({
-    required this.id,
+  PenarikanRiwayatItem({
+    required this.riwayatPenarikanId,
     required this.status,
-    required this.tanggalDiajukan,
-    this.tanggalDisetujui,
-    this.tanggalDitolak,
-    this.tanggalDibatalkan,
-    required this.saldoDicairkan,
-    required this.metodeTransfer,
-    this.buktiTransfer,
-    this.adminName,
-    this.alasanPenolakan,
+    this.catatan,
+    required this.createdBy,
+    required this.createdAt,
   });
+
+  factory PenarikanRiwayatItem.fromJson(Map<String, dynamic> j) =>
+      PenarikanRiwayatItem(
+        riwayatPenarikanId: (j['riwayat_penarikan_id'] ?? '') as String,
+        status: statusPenarikanFromString(j['status_penarikan'] as String?),
+        catatan: j['catatan'] as String?,
+        createdBy: (j['created_by'] ?? '') as String,
+        createdAt: _parseDate(j['created_at']) ?? DateTime.now(),
+      );
 }
 
-// Model untuk penarikan saldo poin
-class PenarikanPoin {
-  final String id;
-  final PenarikanPoinStatus status;
-  final DateTime tanggalDiajukan;
-  final DateTime? tanggalDisetujui;
-  final DateTime? tanggalDitolak;
-  final DateTime? tanggalDibatalkan;
-  final List<SembakoItem> items;
-  final String? adminName;
-  final String? pesanAdmin;
+class PenarikanDetail {
+  final String penarikanId;
+  final String? nasabahId;
+  final String? namaNasabah;
+  final String? bankId;
+  final String? namaBank;
+  final int? rewardId;
+  final String namaReward;
+  final double nominalPenarikan;
+  final String satuanPenarikan;
+  final StatusPenarikan status;
+  final DateTime? deadlineKonfirmasi;
+  final DateTime? deadlineJemput;
+  final String? buktiFoto;
+  final List<PenarikanRiwayatItem> riwayat;
+  final List<DetailBarangItem> detailBarang;
 
-  PenarikanPoin({
-    required this.id,
+  PenarikanDetail({
+    required this.penarikanId,
+    this.nasabahId,
+    this.namaNasabah,
+    this.bankId,
+    this.namaBank,
+    this.rewardId,
+    required this.namaReward,
+    required this.nominalPenarikan,
+    required this.satuanPenarikan,
     required this.status,
-    required this.tanggalDiajukan,
-    this.tanggalDisetujui,
-    this.tanggalDitolak,
-    this.tanggalDibatalkan,
-    required this.items,
-    this.adminName,
-    this.pesanAdmin,
+    this.deadlineKonfirmasi,
+    this.deadlineJemput,
+    this.buktiFoto,
+    this.riwayat = const [],
+    this.detailBarang = const [],
   });
 
-  // Getter untuk total poin keseluruhan
-  int get totalPoin => items.fold(0, (sum, item) => sum + (item.qty * item.poin));
+  bool get isUang => namaReward.toLowerCase().contains('uang');
+  bool get isBarang => namaReward.toLowerCase().contains('barang');
+
+  DateTime get createdAt =>
+      riwayat.isNotEmpty ? riwayat.first.createdAt : (deadlineKonfirmasi ?? DateTime.now());
+
+  DateTime get updatedAt => riwayat.isNotEmpty ? riwayat.last.createdAt : createdAt;
+
+  factory PenarikanDetail.fromJson(Map<String, dynamic> j) {
+    final header = (j['header'] as Map<String, dynamic>?) ?? j;
+    final riwayatList = (j['riwayat'] as List?) ?? [];
+    final detailList = (j['detail_penarikan'] as List?) ?? [];
+    return PenarikanDetail(
+      penarikanId: (header['penarikan_id'] ?? '') as String,
+      nasabahId: header['nasabah_id'] as String?,
+      namaNasabah: header['nama_nasabah'] as String?,
+      bankId: header['bank_id'] as String?,
+      namaBank: header['nama_bank'] as String?,
+      rewardId: header['reward_id'] == null ? null : _i(header['reward_id']),
+      namaReward: (header['nama_reward'] ?? '') as String,
+      nominalPenarikan: _d(header['nominal_penarikan']),
+      satuanPenarikan: (header['satuan_penarikan'] ?? '') as String,
+      status: statusPenarikanFromString(header['status_penarikan'] as String?),
+      deadlineKonfirmasi: _parseDate(header['deadline_konfirmasi']),
+      deadlineJemput: _parseDate(header['deadline_jemput']),
+      buktiFoto: header['bukti_foto'] as String?,
+      riwayat: riwayatList
+          .whereType<Map<String, dynamic>>()
+          .map(PenarikanRiwayatItem.fromJson)
+          .toList(),
+      detailBarang: detailList
+          .whereType<Map<String, dynamic>>()
+          .map(DetailBarangItem.fromJson)
+          .toList(),
+    );
+  }
 }
 
-// Dummy data untuk penarikan saldo uang
-List<PenarikanUang> getDummyPenarikanUangData() {
-  return [
-    // Selesai
-    PenarikanUang(
-      id: 'pu1',
-      status: PenarikanUangStatus.selesai,
-      tanggalDiajukan: DateTime(2026, 2, 1, 10, 0),
-      tanggalDisetujui: DateTime(2026, 2, 2, 14, 30),
-      saldoDicairkan: 150000,
-      metodeTransfer: 'BCA - 1234567890',
-      buktiTransfer: 'assets/images/bukti_transfer.png',
-      adminName: 'Admin BSI',
-    ),
-    PenarikanUang(
-      id: 'pu2',
-      status: PenarikanUangStatus.selesai,
-      tanggalDiajukan: DateTime(2026, 1, 20, 9, 15),
-      tanggalDisetujui: DateTime(2026, 1, 21, 11, 0),
-      saldoDicairkan: 75000,
-      metodeTransfer: 'Mandiri - 0987654321',
-      buktiTransfer: 'assets/images/bukti_transfer.png',
-      adminName: 'Admin BSI',
-    ),
-    // Menunggu Persetujuan
-    PenarikanUang(
-      id: 'pu3',
-      status: PenarikanUangStatus.menungguPersetujuan,
-      tanggalDiajukan: DateTime(2026, 2, 8, 15, 30),
-      saldoDicairkan: 100000,
-      metodeTransfer: 'BRI - 1122334455',
-    ),
-    // Ditolak
-    PenarikanUang(
-      id: 'pu4',
-      status: PenarikanUangStatus.ditolak,
-      tanggalDiajukan: DateTime(2026, 1, 15, 8, 0),
-      tanggalDitolak: DateTime(2026, 1, 16, 10, 30),
-      saldoDicairkan: 200000,
-      metodeTransfer: 'BNI - 5566778899',
-      adminName: 'Admin BSI',
-      alasanPenolakan: 'Saldo tidak mencukupi untuk penarikan. Silakan cek kembali saldo Anda.',
-    ),
-    // Dibatalkan
-    PenarikanUang(
-      id: 'pu5',
-      status: PenarikanUangStatus.dibatalkan,
-      tanggalDiajukan: DateTime(2026, 2, 5, 12, 0),
-      tanggalDibatalkan: DateTime(2026, 2, 5, 14, 0),
-      saldoDicairkan: 50000,
-      metodeTransfer: 'DANA - 081234567890',
-    ),
-  ];
+class PenarikanListResponse {
+  final List<PenarikanItem> data;
+  final int total;
+  final int page;
+  final int limit;
+  final int totalPages;
+
+  PenarikanListResponse({
+    required this.data,
+    required this.total,
+    required this.page,
+    required this.limit,
+    required this.totalPages,
+  });
+
+  factory PenarikanListResponse.fromJson(Map<String, dynamic> j) {
+    final list = (j['data'] as List?) ?? [];
+    return PenarikanListResponse(
+      data: list
+          .whereType<Map<String, dynamic>>()
+          .map(PenarikanItem.fromJson)
+          .toList(),
+      total: _i(j['total']),
+      page: _i(j['page']),
+      limit: _i(j['limit']),
+      totalPages: _i(j['total_pages']),
+    );
+  }
 }
 
-// Dummy data untuk penarikan saldo poin
-List<PenarikanPoin> getDummyPenarikanPoinData() {
-  return [
-    // Selesai (barang sudah dijemput)
-    PenarikanPoin(
-      id: 'pp1',
-      status: PenarikanPoinStatus.selesai,
-      tanggalDiajukan: DateTime(2026, 1, 25, 9, 0),
-      tanggalDisetujui: DateTime(2026, 1, 26, 10, 0),
-      items: [
-        SembakoItem(nama: 'Beras 5kg', qty: 1, poin: 500),
-        SembakoItem(nama: 'Minyak Goreng 2L', qty: 2, poin: 150),
-        SembakoItem(nama: 'Gula Pasir 1kg', qty: 1, poin: 100),
-      ],
-      adminName: 'Admin BSI',
-    ),
-    // Menunggu Persetujuan Admin
-    PenarikanPoin(
-      id: 'pp2',
-      status: PenarikanPoinStatus.menungguPersetujuan,
-      tanggalDiajukan: DateTime(2026, 2, 8, 11, 30),
-      items: [
-        SembakoItem(nama: 'Beras 5kg', qty: 2, poin: 500),
-        SembakoItem(nama: 'Telur 1 Tray', qty: 1, poin: 200),
-      ],
-    ),
-    // Menunggu Penjemputan
-    PenarikanPoin(
-      id: 'pp3',
-      status: PenarikanPoinStatus.menungguPenjemputan,
-      tanggalDiajukan: DateTime(2026, 2, 6, 14, 0),
-      tanggalDisetujui: DateTime(2026, 2, 7, 9, 30),
-      items: [
-        SembakoItem(nama: 'Minyak Goreng 2L', qty: 1, poin: 150),
-        SembakoItem(nama: 'Tepung Terigu 1kg', qty: 2, poin: 80),
-        SembakoItem(nama: 'Gula Pasir 1kg', qty: 1, poin: 100),
-      ],
-      adminName: 'Admin BSI',
-    ),
-    // Ditolak
-    PenarikanPoin(
-      id: 'pp4',
-      status: PenarikanPoinStatus.ditolak,
-      tanggalDiajukan: DateTime(2026, 1, 18, 16, 0),
-      tanggalDitolak: DateTime(2026, 1, 19, 10, 0),
-      items: [
-        SembakoItem(nama: 'Beras 10kg', qty: 1, poin: 900),
-      ],
-      adminName: 'Admin BSI',
-      pesanAdmin: 'Poin tidak mencukupi untuk menukar barang ini. Saldo poin Anda: 750',
-    ),
-    // Dibatalkan
-    PenarikanPoin(
-      id: 'pp5',
-      status: PenarikanPoinStatus.dibatalkan,
-      tanggalDiajukan: DateTime(2026, 2, 3, 10, 0),
-      tanggalDibatalkan: DateTime(2026, 2, 3, 12, 30),
-      items: [
-        SembakoItem(nama: 'Gula Pasir 1kg', qty: 2, poin: 100),
-        SembakoItem(nama: 'Kecap Manis 500ml', qty: 1, poin: 75),
-      ],
-    ),
-  ];
+class PreviewBarangItem {
+  final String produkId;
+  final String namaBarang;
+  final double qty;
+  final double nilaiPoin;
+  final double subtotalPoin;
+
+  PreviewBarangItem({
+    required this.produkId,
+    required this.namaBarang,
+    required this.qty,
+    required this.nilaiPoin,
+    required this.subtotalPoin,
+  });
+
+  factory PreviewBarangItem.fromJson(Map<String, dynamic> j) =>
+      PreviewBarangItem(
+        produkId: (j['produk_id'] ?? '') as String,
+        namaBarang: (j['nama_barang'] ?? '') as String,
+        qty: _d(j['qty']),
+        nilaiPoin: _d(j['nilai_poin']),
+        subtotalPoin: _d(j['subtotal_poin']),
+      );
+}
+
+class PenarikanPreviewData {
+  final String nasabahId;
+  final String namaReward;
+  final String satuan;
+  final double saldoSekarang;
+  final String satuanSaldo;
+  final double nominalPenarikan;
+  final double saldoSetelah;
+  final bool saldoCukup;
+  final List<PreviewBarangItem> itemBarang;
+
+  final int rewardId;
+  final double? nominalRequest;
+  final List<Map<String, dynamic>> itemBarangRequest;
+
+  PenarikanPreviewData({
+    required this.nasabahId,
+    required this.namaReward,
+    required this.satuan,
+    required this.saldoSekarang,
+    required this.satuanSaldo,
+    required this.nominalPenarikan,
+    required this.saldoSetelah,
+    required this.saldoCukup,
+    required this.itemBarang,
+    required this.rewardId,
+    this.nominalRequest,
+    this.itemBarangRequest = const [],
+  });
+
+  bool get isUang => namaReward.toLowerCase().contains('uang');
+  bool get isBarang => namaReward.toLowerCase().contains('barang');
+
+  factory PenarikanPreviewData.fromJson(
+    Map<String, dynamic> j, {
+    required int rewardId,
+    double? nominalRequest,
+    List<Map<String, dynamic>> itemBarangRequest = const [],
+  }) {
+    final items = (j['item_barang'] as List?) ?? [];
+    return PenarikanPreviewData(
+      nasabahId: (j['nasabah_id'] ?? '') as String,
+      namaReward: (j['nama_reward'] ?? '') as String,
+      satuan: (j['satuan'] ?? '') as String,
+      saldoSekarang: _d(j['saldo_sekarang']),
+      satuanSaldo: (j['satuan_saldo'] ?? '') as String,
+      nominalPenarikan: _d(j['nominal_penarikan']),
+      saldoSetelah: _d(j['saldo_setelah']),
+      saldoCukup: (j['saldo_cukup'] as bool?) ?? false,
+      itemBarang: items
+          .whereType<Map<String, dynamic>>()
+          .map(PreviewBarangItem.fromJson)
+          .toList(),
+      rewardId: rewardId,
+      nominalRequest: nominalRequest,
+      itemBarangRequest: itemBarangRequest,
+    );
+  }
+}
+
+class PenarikanFormData {
+  final int rewardId;
+  final String namaReward;
+  final double? nominalPenarikan;
+  final List<Map<String, dynamic>> itemBarang;
+  final DateTime? batasKonfirmasi;
+  final String? catatanPetugas;
+
+  const PenarikanFormData({
+    required this.rewardId,
+    required this.namaReward,
+    this.nominalPenarikan,
+    this.itemBarang = const [],
+    this.batasKonfirmasi,
+    this.catatanPetugas,
+  });
+
+  PenarikanFormData copyWith({
+    DateTime? batasKonfirmasi,
+    String? catatanPetugas,
+  }) {
+    return PenarikanFormData(
+      rewardId: rewardId,
+      namaReward: namaReward,
+      nominalPenarikan: nominalPenarikan,
+      itemBarang: itemBarang,
+      batasKonfirmasi: batasKonfirmasi ?? this.batasKonfirmasi,
+      catatanPetugas: catatanPetugas ?? this.catatanPetugas,
+    );
+  }
+
+  bool get isBarang => namaReward.toLowerCase().contains('barang');
 }

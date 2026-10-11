@@ -1,35 +1,181 @@
+import 'package:enviroo/core/messaging/fcm_messaging.dart';
+import 'package:enviroo/core/messaging/notif_router.dart';
+import 'package:enviroo/providers/auth_provider.dart';
+import 'package:enviroo/providers/notifikasi_provider.dart';
+import 'package:enviroo/screens/petugas/home_bsi_screen.dart';
+import 'package:enviroo/screens/petugas/home_bsm_screen.dart';
+import 'package:enviroo/screens/petugas/home_bsu_screen.dart';
+import 'package:enviroo/screens/nasabah/home_screen.dart';
+import 'package:enviroo/screens/login_screen.dart';
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class SplashScreen extends StatefulWidget {
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  static const Color bgColor = AppColors.dark;
+  static const Color neonGreen = AppColors.neon;
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
+
+  bool _imageLoaded = false;
+
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 3), () {
-      Navigator.pushReplacement(
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
+    ));
+
+    _scaleAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeOutCubic),
+    ));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_imageLoaded) {
+      _imageLoaded = true;
+      precacheImage(
+        const AssetImage("assets/images/logo-fix.png"),
         context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
+      ).catchError((e) {
+        debugPrint("Error precache image: $e");
+      }).whenComplete(() {
+        if (!mounted) return;
+        _animationController.forward();
+
+        Future.delayed(const Duration(seconds: 2), () async {
+          debugPrint("Splash: Future.delayed selesai");
+          if (!mounted) return;
+
+          debugPrint("Splash: Memulai cek sesi (tryRestoreSession)");
+          final auth = Provider.of<AuthProvider>(context, listen: false);
+          final restored = await auth.tryRestoreSession();
+
+          debugPrint("Splash: tryRestoreSession selesai. Status restored: $restored");
+          if (!mounted) return;
+
+          if (restored) {
+            debugPrint("Splash: Navigasi ke Home (${auth.role})");
+            _navigateToHome(auth.role);
+          } else {
+            debugPrint("Splash: Navigasi ke LoginScreen");
+            context.read<FcmMessaging>().takePendingDeepLink();
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    const LoginScreen(),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+                transitionDuration: const Duration(milliseconds: 500),
+              ),
+            );
+          }
+        });
+      });
+    }
+  }
+
+  void _navigateToHome(String role) {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    Provider.of<NotifikasiProvider>(context, listen: false).fetchNotifikasi(
+      role: auth.role,
+    );
+
+    Widget destination;
+    if (role == 'nasabah') {
+      destination = const HomeScreen();
+    } else if (role.contains('bsu')) {
+      destination = const HomeBsuScreen();
+    } else if (role.contains('bsm')) {
+      destination = const HomeBsmScreen();
+    } else if (role.contains('bsi')) {
+      destination = const HomeBsiScreen();
+    } else {
+      destination = const HomeBsuScreen();
+    }
+
+    final navigator = Navigator.of(context);
+    final pendingDeepLink = context.read<FcmMessaging>().takePendingDeepLink();
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => destination,
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+      (route) => false,
+    );
+
+    if (pendingDeepLink != null) {
+      NotifRouter.open(
+        navigator,
+        refType: pendingDeepLink.refType,
+        refId: pendingDeepLink.refId,
       );
-    });
+    }
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              "assets/images/splash-screen.png",
-              fit: BoxFit.cover,
+      backgroundColor: bgColor,
+      body: Center(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  "assets/images/logo-fix.png",
+                  height: 90,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "enviroo",
+                  style: AppText.p(24, weight: FontWeight.w700, color: neonGreen, letterSpacing: 3),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

@@ -1,7 +1,12 @@
-import 'package:enviroo/screens/katalog_screen.dart';
-import 'package:enviroo/screens/penarikan_screen.dart';
-import 'package:enviroo/screens/setoran_screen.dart';
+import 'package:enviroo/screens/nasabah/info_bank_sampah_screen.dart';
+import 'package:enviroo/screens/katalog/katalog_screen.dart';
+import 'package:enviroo/screens/bagi_hasil/list_bagi_hasil_nasabah_screen.dart';
+import 'package:enviroo/screens/setoran/riwayat_setoran_screen.dart';
+import 'package:enviroo/screens/nasabah/tabungan_sampah_screen.dart';
+import 'package:enviroo/screens/penarikan/penarikan_nasabah_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class MainMenu extends StatefulWidget {
   @override
@@ -11,6 +16,7 @@ class MainMenu extends StatefulWidget {
 class _MainMenuState extends State<MainMenu> {
   @override
   Widget build(BuildContext context) {
+
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 20, horizontal: 30),
       child: Column(
@@ -19,61 +25,107 @@ class _MainMenuState extends State<MainMenu> {
             alignment: Alignment.centerLeft,
             child: Text(
               "Menu Utama",
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppText.w600(15, AppColors.dark),
             ),
           ),
           SizedBox(height: 15),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildMenuItem(
-                context: context,
-                label: "Setoran",
-                icon: Icons.account_balance_wallet_rounded,
-                color: Color(0xFF4EA771), // Medium green
-                iconColor: Color(0xFF013236),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => SetoranScreen()),
-                ),
-              ),
-              _buildMenuItem(
-                context: context,
-                label: "Penarikan",
-                icon: Icons.north_rounded,
-                color: Color(0xFF06C0C9), // Teal/Turquoise
-                iconColor: Color(0xFF013236),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => PenarikanScreen()),
-                ),
-              ),
-              _buildMenuItem(
-                context: context,
-                label: "Katalog",
-                icon: Icons.grid_view_rounded,
-                color: Color(0xFF8BC34A), // Light green
-                iconColor: Color(0xFF013236),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => KatalogScreen()),
-                ),
-              ),
-              _buildMenuItem(
-                context: context,
-                label: "Info BSU",
-                icon: Icons.location_on_rounded,
-                color: Color(0xFFFAA324), // Soft orange accent
-                iconColor: Color(0xFF013236),
-                onTap: () {
-                  // Add navigation when ready
-                },
-              ),
-            ],
+          LayoutBuilder(
+              builder: (context, constraints){
+                double itemWidth = (constraints.maxWidth - 60) / 4;
+                return Wrap(
+                  spacing: 20,
+                  runSpacing: 16,
+                  children: [
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildMenuItem(
+                        context: context,
+                        label: "Setoran",
+                        icon: Icons.qr_code_rounded,
+                        color: const Color(0xFF9B51E0),
+                        iconColor: Colors.white,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const RiwayatSetoranScreen()),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildMenuItem(
+                        context: context,
+                        label: "Penarikan",
+                        icon: Icons.account_balance_wallet_rounded,
+                        color: const Color(0xFFF2994A),
+                        iconColor: Colors.white,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const PenarikanNasabahScreen()),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildMenuItem(
+                        context: context,
+                        label: "Katalog",
+                        icon: Icons.grid_view_rounded,
+                        color: const Color(0xFF2D9CDB),
+                        iconColor: Colors.white,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const KatalogScreen(role: 'nasabah'),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildMenuItem(
+                        context: context,
+                        label: "Bagi Hasil",
+                        icon: Icons.volunteer_activism_rounded,
+                        color: const Color(0xFF1ABC9C),
+                        iconColor: Colors.white,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ListBagiHasilNasabahScreen()),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildMenuItem(
+                        context: context,
+                        label: "Tabungan Sampah",
+                        icon: Icons.savings_rounded,
+                        color: AppColors.green,
+                        iconColor: Colors.white,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const TabunganSampahScreen()),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildMenuItem(
+                        context: context,
+                        label: "Bank Sampah",
+                        icon: Icons.location_on_rounded,
+                        color: const Color(0xFFEB5757),
+                        iconColor: Colors.white,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => InfoBankSampahScreen()),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
           )
         ],
       ),
@@ -91,37 +143,31 @@ class _MainMenuState extends State<MainMenu> {
     return GestureDetector(
       onTap: onTap,
       child: Column(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: Offset(0, 4),
+          children: [
+            AspectRatio(
+              aspectRatio: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(22),
                 ),
-              ],
+                child: Icon(
+                  icon,
+                  size: 37,
+                  color: iconColor,
+                ),
+              ),
             ),
-            padding: EdgeInsets.all(15),
-            child: Icon(
-              icon,
-              size: 35,
-              color: iconColor,
-            ),
-          ),
-          SizedBox(height: 7),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w500,
-            ),
-          )
-        ],
-      ),
+            SizedBox(height: 8),
+            Text(
+              label,
+              style: AppText.w600(11, AppColors.dark),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            )
+          ],
+        ),
     );
   }
 }

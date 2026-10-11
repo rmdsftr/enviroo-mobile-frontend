@@ -1,0 +1,267 @@
+import '../core/format/app_date.dart';
+
+class RewardModel {
+  final int rewardId;
+  final String namaReward;
+  final String satuan;
+  final String? deskripsi;
+
+  RewardModel({
+    required this.rewardId,
+    required this.namaReward,
+    required this.satuan,
+    this.deskripsi,
+  });
+
+  factory RewardModel.fromJson(Map<String, dynamic> json) {
+    return RewardModel(
+      rewardId: json['RewardID'] ?? json['reward_id'] ?? 0,
+      namaReward: (json['NamaReward'] ?? json['nama_reward'] ?? '').toString(),
+      satuan: (json['Satuan'] ?? json['satuan'] ?? '').toString(),
+      deskripsi: (json['Deskripsi'] ?? json['deskripsi'])?.toString(),
+    );
+  }
+
+  bool get isBarang => namaReward.toLowerCase() == 'barang';
+}
+
+class RiwayatPenjualanModel {
+  final String penjualanId;
+  final String namaMitra;
+  final String namaReward;
+  final String satuanReward;
+  final int totalItem;
+  final double totalPenjualan;
+  final String buktiFoto;
+  final DateTime createdAt;
+  final String adminName;
+  final String statusBagiHasil;
+
+  RiwayatPenjualanModel({
+    required this.penjualanId,
+    required this.namaMitra,
+    required this.namaReward,
+    required this.satuanReward,
+    required this.totalItem,
+    required this.totalPenjualan,
+    required this.buktiFoto,
+    required this.createdAt,
+    required this.adminName,
+    required this.statusBagiHasil,
+  });
+
+  factory RiwayatPenjualanModel.fromJson(Map<String, dynamic> json) {
+    return RiwayatPenjualanModel(
+      penjualanId: json['penjualan_id'] ?? '',
+      namaMitra: json['nama_mitra'] ?? '',
+      namaReward: json['nama_reward'] ?? '',
+      satuanReward: json['satuan_reward'] ?? '',
+      totalItem: json['total_item'] ?? 0,
+      totalPenjualan: (json['total_penjualan'] ?? 0).toDouble(),
+      buktiFoto: json['bukti_foto'] ?? '',
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'])?.toLocal() ?? DateTime.now()
+          : DateTime.now(),
+      adminName: json['admin_name'] ?? '',
+      statusBagiHasil: json['status_bagi_hasil'] ?? 'pending',
+    );
+  }
+
+  String get tanggalFormatted =>
+      AppDate.tanggalSingkatJam(createdAt);
+}
+
+class DetailSampahPenjualanModel {
+  final String sampahId;
+  final String namaSampah;
+  final String satuan;
+  final double qty;
+  final double hargaJual;
+  final double subtotalPenjualan;
+  final double hargaNasabahSnapshot;
+
+  DetailSampahPenjualanModel({
+    required this.sampahId,
+    required this.namaSampah,
+    required this.satuan,
+    required this.qty,
+    required this.hargaJual,
+    required this.subtotalPenjualan,
+    required this.hargaNasabahSnapshot,
+  });
+
+  factory DetailSampahPenjualanModel.fromJson(Map<String, dynamic> json) {
+    return DetailSampahPenjualanModel(
+      sampahId: json['sampah_id'] ?? '',
+      namaSampah: json['nama_sampah'] ?? '',
+      satuan: json['satuan'] ?? '',
+      qty: (json['qty'] ?? 0).toDouble(),
+      hargaJual: (json['harga_jual'] ?? 0).toDouble(),
+      subtotalPenjualan: (json['subtotal_penjualan'] ?? 0).toDouble(),
+      hargaNasabahSnapshot: (json['harga_nasabah_snapshot'] ?? 0).toDouble(),
+    );
+  }
+}
+
+class DetailPenjualanModel {
+  final String penjualanId;
+  final String namaBank;
+  final String namaMitra;
+  final String namaReward;
+  final String satuanReward;
+  final int totalItem;
+  final double totalPenjualan;
+  final String buktiFoto;
+  final DateTime createdAt;
+  final String adminName;
+  final String statusBagiHasil;
+  final List<DetailSampahPenjualanModel> itemsSampah;
+
+  DetailPenjualanModel({
+    required this.penjualanId,
+    required this.namaBank,
+    required this.namaMitra,
+    required this.namaReward,
+    required this.satuanReward,
+    required this.totalItem,
+    required this.totalPenjualan,
+    required this.buktiFoto,
+    required this.createdAt,
+    required this.adminName,
+    required this.statusBagiHasil,
+    required this.itemsSampah,
+  });
+
+  factory DetailPenjualanModel.fromJson(Map<String, dynamic> json) {
+    return DetailPenjualanModel(
+      penjualanId: json['penjualan_id'] ?? '',
+      namaBank: json['nama_bank'] ?? '',
+      namaMitra: json['nama_mitra'] ?? '',
+      namaReward: json['nama_reward'] ?? '',
+      satuanReward: json['satuan_reward'] ?? '',
+      totalItem: json['total_item'] ?? 0,
+      totalPenjualan: (json['total_penjualan'] ?? 0).toDouble(),
+      buktiFoto: json['bukti_foto'] ?? '',
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'])?.toLocal() ?? DateTime.now()
+          : DateTime.now(),
+      adminName: json['admin_name'] ?? '',
+      statusBagiHasil: json['status_bagi_hasil'] ?? 'pending',
+      itemsSampah: (json['items_sampah'] as List? ?? [])
+          .map((e) => DetailSampahPenjualanModel.fromJson(e))
+          .toList(),
+    );
+  }
+
+  String get tanggalFormatted =>
+      AppDate.tanggalPenuhJam(createdAt);
+}
+
+class DetailKalkulasiItem {
+  final String sampahId;
+  final String namaSampah;
+  final String satuan;
+  final double qty;
+  final double hargaJual;
+  final double subtotal;
+  final double hargaNasabahSnapshot;
+
+  DetailKalkulasiItem({
+    required this.sampahId,
+    required this.namaSampah,
+    required this.satuan,
+    required this.qty,
+    required this.hargaJual,
+    required this.subtotal,
+    required this.hargaNasabahSnapshot,
+  });
+
+  factory DetailKalkulasiItem.fromJson(Map<String, dynamic> json) {
+    return DetailKalkulasiItem(
+      sampahId: json['SampahID'] ?? json['sampah_id'] ?? '',
+      namaSampah: json['NamaSampah'] ?? json['nama_sampah'] ?? '',
+      satuan: json['Satuan'] ?? json['satuan'] ?? '',
+      qty: (json['Qty'] ?? json['qty'] ?? 0).toDouble(),
+      hargaJual: (json['HargaJual'] ?? json['harga_jual'] ?? 0).toDouble(),
+      subtotal: (json['Subtotal'] ?? json['subtotal'] ?? 0).toDouble(),
+      hargaNasabahSnapshot: (json['HargaNasabahSnapshot'] ?? json['harga_nasabah_snapshot'] ?? 0).toDouble(),
+    );
+  }
+}
+
+class PreviewPenjualanModel {
+  final double totalPenjualan;
+  final String satuan;
+  final double persenNasabah;
+  final List<DetailKalkulasiItem> detailItems;
+
+  PreviewPenjualanModel({
+    required this.totalPenjualan,
+    required this.satuan,
+    required this.persenNasabah,
+    required this.detailItems,
+  });
+
+  factory PreviewPenjualanModel.fromJson(Map<String, dynamic> json) {
+    return PreviewPenjualanModel(
+      totalPenjualan: (json['total_penjualan'] ?? 0).toDouble(),
+      satuan: json['satuan']?.toString() ?? '',
+      persenNasabah: (json['persen_nasabah'] ?? 0).toDouble(),
+      detailItems: (json['detail_items'] as List? ?? [])
+          .map((e) => DetailKalkulasiItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+class MitraModel {
+  final String mitraId;
+  final String namaMitra;
+  final String bankId;
+  final bool isActive;
+  final DateTime? createdAt;
+
+  MitraModel({
+    required this.mitraId,
+    required this.namaMitra,
+    required this.bankId,
+    required this.isActive,
+    this.createdAt,
+  });
+
+  factory MitraModel.fromJson(Map<String, dynamic> json) {
+    return MitraModel(
+      mitraId: json['mitra_id'] ?? '',
+      namaMitra: json['nama_mitra'] ?? '',
+      bankId: json['bank_id'] ?? '',
+      isActive: json['is_active'] ?? true,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'])?.toLocal()
+          : null,
+    );
+  }
+}
+
+class ItemSampahPilihan {
+  final String sampahId;
+  final String namaSampah;
+  final String satuan;
+  final double stokTersedia;
+  double qty;
+  double hargaJual;
+
+  ItemSampahPilihan({
+    required this.sampahId,
+    required this.namaSampah,
+    required this.satuan,
+    required this.stokTersedia,
+    this.qty = 0,
+    this.hargaJual = 0,
+  });
+
+  Map<String, dynamic> toPayload() => {
+        'sampah_id': sampahId,
+        'qty': qty,
+        'harga_jual': hargaJual,
+      };
+}

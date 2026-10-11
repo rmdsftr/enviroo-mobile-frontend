@@ -1,74 +1,130 @@
+import 'package:enviroo/models/konten_model.dart';
+import 'package:enviroo/providers/konten_provider.dart';
+import 'package:enviroo/screens/informasi_screen.dart';
+import 'package:enviroo/screens/list_informasi_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class InformasiSection extends StatelessWidget {
-  // Dummy data untuk informasi
-  final List<Map<String, String>> informasiList = [
-    {
-      'title': 'Cara Memilah Sampah dengan Benar',
-      'image': 'assets/images/info1.png',
-    },
-    {
-      'title': 'Tips Daur Ulang Plastik di Rumah',
-      'image': 'assets/images/info2.png',
-    },
-    {
-      'title': 'Manfaat Bank Sampah untuk Lingkungan',
-      'image': 'assets/images/info3.png',
-    },
-    {
-      'title': 'Jadwal Pengangkutan Sampah Februari',
-      'image': 'assets/images/info4.png',
-    },
-    {
-      'title': 'Promo Tukar Poin Minggu Ini',
-      'image': 'assets/images/info5.png',
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 20, horizontal: 30),
-      child: Column(
-        children: [
-          // Header dengan "Lihat Semua"
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Consumer<KontenProvider>(
+      builder: (context, konten, _) {
+        final kontenList = konten.kontenList;
+
+        if (konten.isLoading && kontenList.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(30),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (kontenList.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 17),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "Informasi",
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 13),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Informasi",
+                      style: AppText.w600(15),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => ListInformasiScreen()),
+                      ),
+                      child: Text(
+                        "Lihat Semua",
+                        style: AppText.w500(12, AppColors.dark),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              GestureDetector(
-                onTap: () {
-                  // TODO: Navigasi ke halaman semua informasi
-                },
-                child: Text(
-                  "Lihat Semua",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF109F87),
-                  ),
+              const SizedBox(height: 15),
+              SizedBox(
+                height: 195,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: kontenList.length,
+                  itemBuilder: (context, index) {
+                    final item = kontenList[index];
+                    return GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => InformasiScreen(kontenId: item.kontenId),
+                        ),
+                      ),
+                      child: _buildInfoCard(item),
+                    );
+                  },
                 ),
               ),
             ],
           ),
-          SizedBox(height: 15),
-          // Horizontal scroll cards
-          SizedBox(
-            height: 180,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: informasiList.length,
-              itemBuilder: (context, index) {
-                return _buildInfoCard(informasiList[index]);
-              },
+        );
+      },
+    );
+  }
+
+  Widget _buildInfoCard(KontenModel info) {
+    return Container(
+      width: 150,
+      margin: const EdgeInsets.only(right: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: Container(
+              height: 100,
+              width: double.infinity,
+              color: AppColors.green.withValues(alpha: 0.1),
+              child: info.thumbnail.isNotEmpty
+                  ? Image.network(
+                      info.thumbnail,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _placeholder(),
+                    )
+                  : _placeholder(),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    info.judul,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.p(11, weight: FontWeight.w600, color: AppColors.dark, height: 1.3),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    info.deskripsi,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.p(10, color: AppColors.dark.withValues(alpha: 0.45), height: 1.3),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -76,53 +132,12 @@ class InformasiSection extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoCard(Map<String, String> info) {
-    return Container(
-      width: 140,
-      margin: EdgeInsets.only(right: 15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image placeholder
-          ClipRRect(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-            child: Container(
-              height: 100,
-              width: double.infinity,
-              color: Color(0xFFE8F5E9),
-              child: Icon(
-                Icons.image,
-                size: 40,
-                color: Color(0xFF109F87).withOpacity(0.5),
-              ),
-            ),
-          ),
-          // Title
-          Padding(
-            padding: EdgeInsets.all(10),
-            child: Text(
-              info['title'] ?? '',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
+  Widget _placeholder() {
+    return Center(
+      child: Icon(
+        Icons.image_outlined,
+        size: 36,
+        color: AppColors.green.withValues(alpha: 0.3),
       ),
     );
   }

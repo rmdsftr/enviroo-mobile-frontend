@@ -1,7 +1,9 @@
+import 'package:enviroo/core/format/app_number.dart';
 import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
 
 class StatistikSection extends StatelessWidget {
-  // Dummy data - bulan ini (Februari 2026)
   final int jumlahJenisSampah = 4;
   final double totalBeratKg = 12.5;
 
@@ -14,11 +16,7 @@ class StatistikSection extends StatelessWidget {
         children: [
           Text(
             "Statistik Bulan Ini",
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppText.w600(15),
           ),
           SizedBox(height: 15),
           Container(
@@ -29,7 +27,7 @@ class StatistikSection extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withValues(alpha: 0.08),
                   blurRadius: 10,
                   offset: Offset(0, 2),
                 ),
@@ -37,72 +35,51 @@ class StatistikSection extends StatelessWidget {
             ),
             child: Row(
               children: [
-                // Jenis Sampah
                 Expanded(
                   child: Column(
                     children: [
                       ShaderMask(
                         shaderCallback: (bounds) => LinearGradient(
-                          colors: [Color(0xFF4EA771), Color(0xFF013236)],
+                          colors: [AppColors.green, AppColors.dark],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ).createShader(bounds),
                         child: Text(
                           "$jumlahJenisSampah",
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                          style: AppText.w700(28, Colors.white),
                         ),
                       ),
                       SizedBox(height: 4),
                       Text(
                         "Jenis Sampah",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: Colors.grey[600],
-                        ),
+                        style: AppText.r(11, Colors.grey[600]),
                       ),
                     ],
                   ),
                 ),
-                // Divider
                 Container(
                   height: 50,
                   width: 1,
                   color: Colors.grey[300],
                 ),
-                // Total Berat
                 Expanded(
                   child: Column(
                     children: [
                       ShaderMask(
                         shaderCallback: (bounds) => LinearGradient(
-                          colors: [Color(0xFF4EA771), Color(0xFF013236)],
+                          colors: [AppColors.green, AppColors.dark],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ).createShader(bounds),
                         child: Text(
-                          "${totalBeratKg.toStringAsFixed(1)}",
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                          AppNumber.desimal(totalBeratKg),
+                          style: AppText.w700(28, Colors.white),
                         ),
                       ),
                       SizedBox(height: 4),
                       Text(
                         "Kg Disetorkan",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: Colors.grey[600],
-                        ),
+                        style: AppText.r(11, Colors.grey[600]),
                       ),
                     ],
                   ),
@@ -115,6 +92,5 @@ class StatistikSection extends StatelessWidget {
     );
   }
 }
-
 
 

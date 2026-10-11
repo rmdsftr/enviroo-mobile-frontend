@@ -1,0 +1,328 @@
+import 'package:flutter/foundation.dart';
+
+import '../core/format/app_date.dart';
+import '../models/katalog_model.dart';
+import '../models/penarikan_model.dart';
+import '../services/dashboard_service.dart';
+import '../services/penarikan_service.dart';
+import '../services/barang_service.dart';
+import 'auth_provider.dart';
+import 'reward_provider.dart';
+
+class PenarikanNasabahProvider extends ChangeNotifier {
+  AuthProvider? _auth;
+
+  bool loadingSaldo = false;
+  SaldoNasabahV2? saldo;
+  String? errorSaldo;
+
+  bool loadingRewards = false;
+  List<NilaiRewardBank> nilaiRewards = [];
+
+  bool loadingBarang = false;
+  List<KatalogBarangModel> barangList = <KatalogBarangModel>[];
+
+  bool loadingList = false;
+  bool loadingMore = false;
+  List<PenarikanItem> penarikanList = [];
+  int totalCount = 0;
+  int totalPages = 0;
+  int _currentPage = 1;
+  bool hasMore = false;
+  String? errorList;
+
+  int? _activeRewardId;
+  late DateTime _filterStart;
+  late DateTime _filterEnd;
+
+  bool loadingDetail = false;
+  PenarikanDetail? detail;
+  String? errorDetail;
+
+  bool canceling = false;
+
+  PenarikanNasabahProvider() {
+    final now = DateTime.now();
+    _filterEnd = DateTime(now.year, now.month);
+    final startMonth = now.month - 2;
+    if (startMonth <= 0) {
+      _filterStart = DateTime(now.year - 1, 12 + startMonth);
+    } else {
+      _filterStart = DateTime(now.year, startMonth);
+    }
+  }
+
+  void bind(AuthProvider auth) {
+    _auth = auth;
+  }
+
+  String? get _nasabahId => _auth?.identityId;
+  String? get _bankId => _auth?.bankId;
+
+  bool get _ok => _nasabahId?.isNotEmpty ?? false;
+  bool get _hasToken => _auth != null;
+
+  int? get activeRewardId => _activeRewardId;
+  DateTime get filterStart => _filterStart;
+  DateTime get filterEnd => _filterEnd;
+
+  NilaiRewardBank? get rewardUang =>
+      nilaiRewards.cast<NilaiRewardBank?>().firstWhere(
+            (r) => r!.isUang,
+            orElse: () => null,
+          );
+
+  NilaiRewardBank? get rewardBarang =>
+      nilaiRewards.cast<NilaiRewardBank?>().firstWhere(
+            (r) => r!.isBarang,
+            orElse: () => null,
+          );
+
+  Future<void> loadSaldo() async {
+    if (!_ok) return;
+    loadingSaldo = true;
+    errorSaldo = null;
+    notifyListeners();
+
+    final res = await DashboardService.getSaldoNasabah(_nasabahId!);
+
+    loadingSaldo = false;
+    if (res['success'] == true && res['data'] != null) {
+      saldo = SaldoNasabahV2.fromJson(
+          (res['data'] as Map<String, dynamic>?) ?? {});
+    } else {
+      errorSaldo = res['message']?.toString();
+    }
+    notifyListeners();
+  }
+
+  Future<void> loadRewards(RewardProvider reward) async {
+    if (_bankId == null) return;
+    loadingRewards = true;
+    notifyListeners();
+
+    await reward.fetchNilaiReward(_bankId!);
+    nilaiRewards = reward.nilaiReward;
+    loadingRewards = false;
+    notifyListeners();
+  }
+
+  Future<void> loadBarang() async {
+    if (_bankId == null) return;
+    loadingBarang = true;
+    notifyListeners();
+
+    final res = await BarangService.getBarangBank(_bankId!);
+    loadingBarang = false;
+    if (res['success'] == true) {
+      final list = (res['data'] as List?) ?? [];
+      barangList = list
+          .whereType<Map<String, dynamic>>()
+          .map<KatalogBarangModel>((e) => KatalogBarangModel.fromJson(e))
+          .toList();
+    }
+    notifyListeners();
+  }
+
+  Future<void> loadInitial(RewardProvider reward) async {
+    final now = DateTime.now();
+    _filterEnd = DateTime(now.year, now.month);
+    final startMonth = now.month - 2;
+    _filterStart = startMonth <= 0
+        ? DateTime(now.year - 1, 12 + startMonth)
+        : DateTime(now.year, startMonth);
+    _activeRewardId = null;
+    notifyListeners();
+
+    await Future.wait([
+      loadSaldo(),
+      loadRewards(reward),
+    ]);
+
+    await loadList(refresh: true);
+  }
+
+  Future<void> loadFormData(RewardProvider reward) async {
+    await Future.wait([
+      if (saldo == null) loadSaldo(),
+      if (nilaiRewards.isEmpty) loadRewards(reward),
+      if (barangList.isEmpty) loadBarang(),
+    ]);
+  }
+
+  String get _startDateStr => AppDate.apiAwalBulan(_filterStart);
+  String get _endDateStr => AppDate.apiAkhirBulan(_filterEnd);
+
+  Future<void> loadList({bool refresh = true}) async {
+    if (!_ok) {
+      if (refresh) {
+        loadingList = false;
+        errorList = 'Sesi tidak valid. Silakan login ulang.';
+        notifyListeners();
+      }
+      return;
+    }
+
+    if (refresh) {
+      _currentPage = 1;
+      loadingList = true;
+      errorList = null;
+    } else {
+      loadingMore = true;
+    }
+    notifyListeners();
+
+    final res = await PenarikanService.getList(
+      nasabahId: _nasabahId!,
+      rewardId: _activeRewardId,
+      startDate: _startDateStr,
+      endDate: _endDateStr,
+      page: _currentPage,
+      limit: 20,
+    );
+
+    if (refresh) {
+      loadingList = false;
+    } else {
+      loadingMore = false;
+    }
+
+    if (res['success'] == true) {
+      final resp = PenarikanListResponse.fromJson(
+          (res['data'] as Map<String, dynamic>?) ?? {});
+      if (refresh) {
+        penarikanList = resp.data;
+      } else {
+        penarikanList = [...penarikanList, ...resp.data];
+      }
+      totalCount = resp.total;
+      totalPages = resp.totalPages;
+      hasMore = _currentPage < resp.totalPages;
+    } else {
+      if (refresh) {
+        errorList = res['message']?.toString();
+        penarikanList = [];
+      }
+    }
+    notifyListeners();
+  }
+
+  Future<void> loadMore() async {
+    if (!hasMore || loadingMore) return;
+    _currentPage++;
+    await loadList(refresh: false);
+  }
+
+  void setFilter({int? rewardId, DateTime? start, DateTime? end}) {
+    bool changed = false;
+    if (rewardId != _activeRewardId) {
+      _activeRewardId = rewardId;
+      changed = true;
+    }
+    if (start != null && start != _filterStart) {
+      _filterStart = start;
+      changed = true;
+    }
+    if (end != null && end != _filterEnd) {
+      _filterEnd = end;
+      changed = true;
+    }
+    if (changed) loadList(refresh: true);
+  }
+
+  Future<void> loadDetail(String penarikanId) async {
+    if (!_hasToken) {
+      loadingDetail = false;
+      errorDetail = 'Sesi tidak valid. Silakan login ulang.';
+      notifyListeners();
+      return;
+    }
+    loadingDetail = true;
+    errorDetail = null;
+    detail = null;
+    notifyListeners();
+
+    final res = await PenarikanService.getDetail(penarikanId);
+
+    loadingDetail = false;
+    if (res['success'] == true && res['data'] != null) {
+      final data = res['data'];
+      if (data is Map<String, dynamic>) {
+        detail = PenarikanDetail.fromJson(data);
+      }
+    } else {
+      errorDetail = res['message']?.toString();
+    }
+    notifyListeners();
+  }
+
+  Future<Map<String, dynamic>> callPreview({
+    required int rewardId,
+    double? nominalPenarikan,
+    List<Map<String, dynamic>> itemBarang = const [],
+  }) async {
+    if (!_ok) {
+      return {'success': false, 'message': 'Sesi tidak valid'};
+    }
+    return PenarikanService.preview(
+      nasabahId: _nasabahId!,
+      rewardId: rewardId,
+      nominalPenarikan: nominalPenarikan,
+      itemBarang: itemBarang,
+    );
+  }
+
+  Future<Map<String, dynamic>> callAjukan({
+    required int rewardId,
+    double? nominalPenarikan,
+    List<Map<String, dynamic>> itemBarang = const [],
+    DateTime? deadlineKonfirmasi,
+    String? catatan,
+  }) async {
+    if (!_ok) {
+      return {'success': false, 'message': 'Sesi tidak valid'};
+    }
+    return PenarikanService.ajukan(
+      nasabahId: _nasabahId!,
+      rewardId: rewardId,
+      nominalPenarikan: nominalPenarikan,
+      itemBarang: itemBarang,
+      deadlineKonfirmasi: deadlineKonfirmasi,
+      catatan: catatan,
+    );
+  }
+
+  Future<bool> callBatal(String penarikanId, {String? catatan}) async {
+    if (!_hasToken) return false;
+    canceling = true;
+    notifyListeners();
+
+    final res = await PenarikanService.batal(penarikanId, catatan: catatan);
+
+    canceling = false;
+    if (res['success'] == true) {
+      await loadDetail(penarikanId);
+      penarikanList = penarikanList.map((item) {
+        if (item.penarikanId == penarikanId) {
+          return PenarikanItem(
+            penarikanId: item.penarikanId,
+            nasabahId: item.nasabahId,
+            rewardId: item.rewardId,
+            namaReward: item.namaReward,
+            nominalPenarikan: item.nominalPenarikan,
+            satuanPenarikan: item.satuanPenarikan,
+            status: StatusPenarikan.canceled,
+            kadaluarsaAt: item.kadaluarsaAt,
+            createdAt: item.createdAt,
+            updatedAt: DateTime.now(),
+          );
+        }
+        return item;
+      }).toList();
+      notifyListeners();
+      return true;
+    }
+    notifyListeners();
+    return false;
+  }
+}

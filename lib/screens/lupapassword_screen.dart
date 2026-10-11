@@ -1,0 +1,234 @@
+import 'package:enviroo/screens/verifikasi_otp_screen.dart';
+import 'package:enviroo/providers/auth_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:enviroo/widgets/success_bottom_sheet.dart';
+import 'package:enviroo/widgets/topbar_back.dart';
+import 'package:flutter/material.dart';
+import 'package:enviroo/core/theme/app_colors.dart';
+import 'package:enviroo/core/theme/app_text.dart';
+
+class LupaPasswordScreen extends StatefulWidget {
+  const LupaPasswordScreen({Key? key}) : super(key: key);
+
+  @override
+  State<LupaPasswordScreen> createState() => _LupaPasswordState();
+}
+
+class _LupaPasswordState extends State<LupaPasswordScreen> {
+  final TextEditingController _emailController = TextEditingController();
+  bool _isEmailInvalid = false;
+  String _errorMessage = '';
+  bool _isLoading = false;
+
+  void _validateEmail() {
+    final email = _emailController.text.trim();
+    final isValid = RegExp(r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$').hasMatch(email);
+    setState(() {
+      _isEmailInvalid = email.isNotEmpty && !isValid;
+      if (!_isEmailInvalid) _errorMessage = '';
+    });
+  }
+
+  Future<void> _onKonfirmasi() async {
+    final email = _emailController.text.trim();
+
+    final isValid = RegExp(r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$').hasMatch(email);
+    if (email.isEmpty || !isValid) {
+      setState(() {
+        _isEmailInvalid = true;
+        _errorMessage = 'Masukkan alamat email yang valid';
+      });
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final result = await context
+        .read<AuthProvider>()
+        .sendEmailForgetPassword(email);
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result['success'] == true) {
+      await context
+          .read<AuthProvider>()
+          .savePendingReset(email, result['expired_at'] as String?);
+
+      if (!mounted) return;
+
+      await showSuccessBottomSheet(
+        context,
+        title: 'Cek Email Kamu!',
+        message: 'Kode OTP untuk reset password telah dikirim ke\n$email',
+        buttonLabel: 'Masukkan Kode OTP',
+        onDismiss: () {},
+      );
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VerifikasiOtpScreen(
+            email: email,
+            expiredAt: result['expired_at'] as String?,
+          ),
+        ),
+      );
+    } else {
+      setState(() {
+        _isEmailInvalid = true;
+        _errorMessage = result['message'] ?? 'Email tidak terdaftar';
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController.addListener(_validateEmail);
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const TopBarBack(title: ""),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 30),
+                child: Text(
+                  "Lupa Password",
+                  style: AppText.w700(20, AppColors.dark),
+                ),
+              ),
+              const SizedBox(height: 15),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 30),
+                child: Text(
+                  "Masukkan alamat email yang terdaftar sebagai akun nasabah ataupun akun petugas kamu. Kode OTP untuk melakukan reset password akan dikirimkan melalui email tersebut",
+                  style: AppText.p(13, color: AppColors.dark, height: 1.5),
+                  textAlign: TextAlign.justify,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      enabled: !_isLoading,
+                      style: AppText.w600(14, Color(0xFF2D3748)),
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(
+                            vertical: 18, horizontal: 20),
+                        hintText: "example@gmail.com",
+                        hintStyle: AppText.r(14, AppColors.dark.withValues(alpha: 0.35)),
+                        prefixIcon: Icon(
+                          Icons.email_rounded,
+                          color: _isEmailInvalid
+                              ? AppColors.dangerDeep
+                              : AppColors.dark,
+                        ),
+                        filled: true,
+                        fillColor: _isEmailInvalid
+                            ? AppColors.dangerDeep.withValues(alpha: 0.1)
+                            : AppColors.dark.withValues(alpha: 0.1),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: _isEmailInvalid
+                              ? const BorderSide(color: AppColors.dangerDeep, width: 1.5)
+                              : const BorderSide(color: AppColors.dark, width: 1.5),
+                        ),
+                      ),
+                    ),
+                    if (_isEmailInvalid)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10, left: 8),
+                        child: Text(
+                          _errorMessage.isNotEmpty
+                              ? _errorMessage
+                              : 'Email tidak valid',
+                          style: AppText.w600(12, AppColors.dangerDeep),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
+        child: SafeArea(
+          child: SizedBox(
+            height: 55,
+            width: double.infinity,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _onKonfirmasi,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.dark,
+                  disabledBackgroundColor:
+                      AppColors.dark.withValues(alpha: 0.5),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white),
+                        ),
+                      )
+                    : Text(
+                        "Dapatkan Kode OTP",
+                        style: AppText.w600(16, Colors.white),
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
